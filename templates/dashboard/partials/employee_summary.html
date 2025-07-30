@@ -1,0 +1,22 @@
+<!-- templates/dashboard/partials/employee_summary.html -->
+<div class="section">
+    <h3>Recent Employees</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Department</th>
+                <th>Join Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for emp in employees %}
+            <tr>
+                <td>{{ emp.name }}</td>
+                <td>{{ emp.department.name if emp.department else '-' }}</td>
+                <td>{{ emp.created_at.strftime('%Y-%m-%d') }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

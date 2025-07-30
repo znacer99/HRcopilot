@@ -1,0 +1,22 @@
+<!-- templates/dashboard/general_director.html -->
+{% extends "dashboard/base_dashboard.html" %}
+
+{% block content %}
+<div class="director-dashboard">
+    <h2>General Director Dashboard</h2>
+    
+    <!-- Statistics Overview -->
+    <div class="stats-container">
+        <div class="stat-card">
+            <h3>{{ total_employees }}</h3>
+            <p>Total Employees</p>
+        </div>
+        <div class="stat-card">
+            <h3>{{ total_departments }}</h3>
+            <p>Departments</p>
+        </div>
+    </div>
+    
+    <!-- We'll add more sections here incrementally -->
+</div>
+{% endblock %}

@@ -1,0 +1,13 @@
+<!-- templates/dashboard/partials/department_summary.html -->
+<div class="section">
+    <h3>Department Overview</h3>
+    <div class="dept-container">
+        {% for dept in departments %}
+        <div class="dept-card">
+            <h4>{{ dept.name }}</h4>
+            <p>{{ dept.members|length }} employees</p>
+            <p>{{ dept.description }}</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>

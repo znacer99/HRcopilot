@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}{% endblock %} - Alghaith HR</title>
+</head>
+<body>
+    <header>
+        {% if current_user.is_authenticated %}
+            <p>Logged in as {{ current_user.name }} ({{ current_user.role }})</p>
+        {% endif %}
+    </header>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    <footer>
+        <p>Alghaith HR System &copy; 2025</p>
+    </footer>
+</body>
+</html>

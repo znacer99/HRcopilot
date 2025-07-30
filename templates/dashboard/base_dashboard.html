@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard - Alghaith HR</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; }
+        .dashboard-header { background: #007bff; color: white; padding: 20px; border-radius: 8px; }
+        .user-info { background: #f0f0f0; padding: 20px; border-radius: 8px; margin-top: 20px; }
+        .logout-btn { 
+            display: inline-block; 
+            padding: 10px 20px; 
+            background: #dc3545; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 4px; 
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-header">
+        <h1>Welcome, {{ user.name }}!</h1>
+        <p>Role: {{ user.role|replace('_', ' ')|title }}</p>
+    </div>
+    
+    <div class="user-info">
+        <p><strong>Email:</strong> {{ user.email }}</p>
+        <p><strong>Access Code:</strong> {{ user.access_code }}</p>
+        <p><strong>Department:</strong> {{ user.department.name if user.department else 'None' }}</p>
+        <p><strong>Last Login:</strong> {{ user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else 'First login' }}</p>
+    </div>
+    
+    <a href="{{ url_for('auth.logout') }}" class="logout-btn">Logout</a>
+</body>
+</html>
