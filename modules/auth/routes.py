@@ -1,9 +1,11 @@
-# modules/auth/routes.py
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+# pyright: reportMissingImports=false
+# pyright: reportMissingModuleSource=false
+from flask import Blueprint, render_template, redirect, url_for, flash
 from flask_login import login_user, logout_user, current_user, login_required
 from core.extensions import db
 from core.models import User
 from datetime import datetime
+from modules.auth.forms import LoginForm
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -11,11 +13,13 @@ auth_bp = Blueprint('auth', __name__)
 def login():
     # Redirect if already logged in
     if current_user.is_authenticated:
-        return redirect(url_for('dashboard.index'))
+        return redirect(url_for('dashboard.role_dashboard'))
     
-    if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
+    form = LoginForm()
+    
+    if form.validate_on_submit():
+        email = form.email.data
+        password = form.password.data
         
         # Find user by email
         user = User.query.filter_by(email=email).first()
@@ -30,11 +34,11 @@ def login():
             db.session.commit()
             
             # Redirect to appropriate dashboard
-            return redirect(url_for('dashboard.index'))
+            return redirect(url_for('dashboard.role_dashboard'))
         else:
             flash('Invalid email or password', 'error')
     
-    return render_template('auth/login.html')
+    return render_template('auth/login.html', form=form)
 
 @auth_bp.route('/logout')
 @login_required

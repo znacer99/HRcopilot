@@ -1,10 +1,38 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Employee Dashboard</title>
-</head>
-<body>
-    <h1>Welcome, Employee!</h1>
-    <a href="{{ url_for('auth.logout') }}">Logout</a>
-</body>
-</html>
+{% extends "dashboard/base_dashboard.html" %}
+{% set role_color = '#6c757d' %}
+
+{% block title %}Employee Dashboard{% endblock %}
+{% block dashboard_title %}Employee Dashboard{% endblock %}
+
+{% block dashboard_content %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>My Information</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <p><strong>Name:</strong> {{ current_user.name }}</p>
+                <p><strong>Email:</strong> {{ current_user.email }}</p>
+                <p><strong>Department:</strong> {{ current_user.department.name if current_user.department else 'N/A' }}</p>
+                <p><strong>Access Code:</strong> {{ current_user.access_code }}</p>
+            </div>
+            <div class="col-md-4 text-center">
+                <div class="avatar-circle bg-secondary text-white d-inline-flex align-items-center justify-content-center" 
+                     style="width: 100px; height: 100px; border-radius: 50%; font-size: 2rem;">
+                    {{ current_user.avatar }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5>Recent Activities</h5>
+    </div>
+    <div class="card-body">
+        {% include 'dashboard/partials/recent_activities.html' %}
+    </div>
+</div>
+{% endblock %}

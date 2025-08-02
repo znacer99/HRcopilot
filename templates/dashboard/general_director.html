@@ -1,22 +1,53 @@
-<!-- templates/dashboard/general_director.html -->
 {% extends "dashboard/base_dashboard.html" %}
+{% set role_color = '#2c6e49' %}
 
-{% block content %}
-<div class="director-dashboard">
-    <h2>General Director Dashboard</h2>
-    
-    <!-- Statistics Overview -->
-    <div class="stats-container">
-        <div class="stat-card">
-            <h3>{{ total_employees }}</h3>
-            <p>Total Employees</p>
-        </div>
-        <div class="stat-card">
-            <h3>{{ total_departments }}</h3>
-            <p>Departments</p>
+{% block title %}General Director Dashboard{% endblock %}
+{% block dashboard_title %}General Director Dashboard{% endblock %}
+
+{% block dashboard_content %}
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <h5 class="card-title">Total Employees</h5>
+                <p class="card-text display-4">{{ employee_count }}</p>
+            </div>
         </div>
     </div>
-    
-    <!-- We'll add more sections here incrementally -->
+    <div class="col-md-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <h5 class="card-title">Departments</h5>
+                <p class="card-text display-4">{{ department_count }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>Recent Employees</h5>
+    </div>
+    <div class="card-body">
+        {% include 'dashboard/partials/employee_summary.html' %}
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>Department Overview</h5>
+    </div>
+    <div class="card-body">
+        {% include 'dashboard/partials/department_summary.html' %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5>Recent Activities</h5>
+    </div>
+    <div class="card-body">
+        {% include 'dashboard/partials/recent_activities.html' %}
+    </div>
 </div>
 {% endblock %}

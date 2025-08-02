@@ -1,13 +1,13 @@
-# core/models.py
+# pyright: reportMissingImports=false
+# pyright: reportMissingModuleSource=false
 from datetime import datetime
 from core.extensions import db
 from argon2 import PasswordHasher
-from core.permissions import Permission
-from flask_login import UserMixin  # Add this import
+from flask_login import UserMixin
 
 ph = PasswordHasher()
 
-class User(db.Model, UserMixin):  # Add UserMixin here
+class User(db.Model, UserMixin):
     """Enterprise user model with advanced security features"""
     __tablename__ = 'users'
     
@@ -41,20 +41,10 @@ class User(db.Model, UserMixin):  # Add UserMixin here
         except:
             return False
     
-    def has_permission(self, feature, required_level):
+    def has_permission(self, resource, required_level):
         """Check if user has required permission level for a feature"""
-        # IT Manager has all permissions
-        if self.role == "it_manager":
-            return True
-            
-        role_permissions = Permission.get_role_permissions(self.role)
-        user_level = role_permissions.get(feature, Permission.NONE)
-        
-        # Handle "with approval" permissions
-        if user_level == Permission.WITH_APPROVAL:
-            return False
-            
-        return user_level >= required_level
+        from core.permissions import Permission
+        return Permission.check(self.role, resource, required_level)
     
     # Add these required methods for Flask-Login
     def get_id(self):
@@ -76,11 +66,9 @@ class Department(db.Model):
     name = db.Column(db.String(100), unique=True, nullable=False)
     description = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
     # Relationships
     members = db.relationship('User', back_populates='department')
 
-# core/models.py (add this at the bottom)
 class ActivityLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))

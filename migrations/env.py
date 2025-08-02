@@ -1,3 +1,5 @@
+# pyright: reportMissingImports=false
+# pyright: reportMissingModuleSource=false
 import logging
 from logging.config import fileConfig
 

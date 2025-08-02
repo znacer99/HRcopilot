@@ -1,10 +1,15 @@
-# app.py
-from flask import Flask, render_template
+# pyright: reportMissingImports=false
+# pyright: reportMissingModuleSource=false
+from flask import Flask, render_template, redirect, url_for
 from config import Config
 from core.extensions import db, login_manager, migrate
 from flask_login import LoginManager, current_user
 import logging
 import os
+from datetime import datetime, timedelta
+from flask_wtf.csrf import CSRFProtect
+from werkzeug.middleware.proxy_fix import ProxyFix
+
 
 logging.basicConfig()
 logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
@@ -12,12 +17,19 @@ logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
 def create_app():
     """Application factory function"""
     app = Flask(__name__)
-    app.config.from_object(Config)
+    
+    # Load configuration based on environment
+    env = os.environ.get('FLASK_ENV', 'development')
+    if env == 'production':
+        app.config.from_object('config.ProductionConfig')
+    else:
+        app.config.from_object('config.DevelopmentConfig')
     
     # Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)
     migrate.init_app(app, db)
+    csrf = CSRFProtect(app)
     
     # Register blueprints
     register_blueprints(app)
@@ -25,7 +37,8 @@ def create_app():
     # Create database tables
     with app.app_context():
         # Create instance directory if missing
-        db_dir = app.config['SQLALCHEMY_DATABASE_URI'].split('///')[1].rsplit('/', 1)[0]
+        db_path = app.config['SQLALCHEMY_DATABASE_URI'].split('///')[1]
+        db_dir = os.path.dirname(db_path)
         if not os.path.exists(db_dir):
             os.makedirs(db_dir)
         
@@ -54,82 +67,52 @@ def initialize_database():
     if User.query.count() > 0:
         return
     
-    # Create IT department
-    it_dept = Department(name="IT Department", description="Technology team")
-    db.session.add(it_dept)
+    # Create departments
+    departments = {
+        "executive": Department(name="Executive Leadership", description="Company executives"),
+        "it": Department(name="IT Department", description="Technology team"),
+        "hr": Department(name="Human Resources", description="HR team"),
+        "operations": Department(name="Operations", description="Company operations")
+    }
     
-    # Create IT Manager (full access)
-    it_manager = User(
-        email="it@alghaith.com",
-        name="IT Manager",
-        role="it_manager",
-        avatar="IT",
-        access_code="IT-001",
-        department=it_dept,
-        is_active=True
-    )
-    it_manager.set_password("SecurePassword123!")
-    db.session.add(it_manager)
+    for dept in departments.values():
+        existing = Department.query.filter_by(name=dept.name).first()
+        if not existing:
+            db.session.add(dept)
     
-    # Create General Director
-    director = User(
-        email="director@alghaith.com",
-        name="General Director",
-        role="general_director",
-        avatar="GD",
-        access_code="GD-001",
-        is_active=True
-    )
-    director.set_password("DirectorPass123!")
-    db.session.add(director)
+    db.session.commit()
     
-    # Create General Manager
-    gen_manager = User(
-        email="manager@alghaith.com",
-        name="General Manager",
-        role="general_manager",
-        avatar="GM",
-        access_code="GM-001",
-        is_active=True
-    )
-    gen_manager.set_password("ManagerPass123!")
-    db.session.add(gen_manager)
+    # Create users with proper departments
+    users = [
+        {"email": "it@alghaith.com", "name": "IT Manager", "role": "it_manager", 
+         "dept": "it", "access_code": "IT-001", "password": "SecurePassword123!"},
+        {"email": "director@alghaith.com", "name": "General Director", "role": "general_director", 
+         "dept": "executive", "access_code": "GD-001", "password": "DirectorPass123!"},
+        {"email": "manager@alghaith.com", "name": "General Manager", "role": "general_manager", 
+         "dept": "operations", "access_code": "GM-001", "password": "ManagerPass123!"},
+        {"email": "hr@alghaith.com", "name": "Head of HR", "role": "head_of_department", 
+         "dept": "hr", "access_code": "HR-001", "password": "HRPass123!"},
+        {"email": "dept@alghaith.com", "name": "Department Manager", "role": "manager", 
+         "dept": "operations", "access_code": "DM-001", "password": "DeptPass123!"},
+        {"email": "employee@alghaith.com", "name": "Regular Employee", "role": "employee", 
+         "dept": "operations", "access_code": "EE-001", "password": "EmployeePass123!"}
+    ]
     
-    # Create Department Head
-    hr_head = User(
-        email="hr@alghaith.com",
-        name="Head of HR",
-        role="head_of_department",
-        avatar="HH",
-        access_code="HR-001",
-        is_active=True
-    )
-    hr_head.set_password("HRPass123!")
-    db.session.add(hr_head)
-    
-    # Create Manager
-    dept_manager = User(
-        email="dept@alghaith.com",
-        name="Department Manager",
-        role="manager",
-        avatar="DM",
-        access_code="DM-001",
-        is_active=True
-    )
-    dept_manager.set_password("DeptPass123!")
-    db.session.add(dept_manager)
-    
-    # Create Employee
-    employee = User(
-        email="employee@alghaith.com",
-        name="Regular Employee",
-        role="employee",
-        avatar="EE",
-        access_code="EE-001",
-        is_active=True
-    )
-    employee.set_password("EmployeePass123!")
-    db.session.add(employee)
+    for user_data in users:
+        user = User.query.filter_by(email=user_data["email"]).first()
+        if not user:
+            dept = departments.get(user_data["dept"])
+            user = User(
+                email=user_data["email"],
+                name=user_data["name"],
+                role=user_data["role"],
+                access_code=user_data["access_code"],
+                department=dept,
+                avatar=user_data["name"][0] + user_data["name"].split()[-1][0],
+                is_active=True
+            )
+            user.set_password(user_data["password"])
+            db.session.add(user)
     
     db.session.commit()
     print("Database initialized successfully!")
@@ -141,7 +124,6 @@ app = create_app()
 @login_manager.user_loader
 def load_user(user_id):
     from core.models import User
-    # Use session.get() to avoid SQLAlchemy 2.0 warnings
     return db.session.get(User, int(user_id))
 
 # Error handlers
@@ -158,10 +140,11 @@ def internal_error(error):
     db.session.rollback()
     return render_template('errors/500.html'), 500
 
-# Fix favicon error
-@app.route('/favicon.ico')
-def favicon():
-    return '', 404
+@app.route('/')
+def index():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard.role_dashboard'))
+    return redirect(url_for('auth.login'))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

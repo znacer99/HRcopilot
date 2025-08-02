@@ -1,4 +1,5 @@
-# core/extensions.py
+# pyright: reportMissingImports=false
+# pyright: reportMissingModuleSource=false
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_migrate import Migrate

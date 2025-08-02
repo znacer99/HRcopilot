@@ -1,12 +1,22 @@
-<!-- templates/dashboard/partials/department_summary.html -->
-<div class="section">
-    <h3>Department Overview</h3>
-    <div class="dept-container">
-        {% for dept in departments %}
-        <div class="dept-card">
-            <h4>{{ dept.name }}</h4>
-            <p>{{ dept.members|length }} employees</p>
-            <p>{{ dept.description }}</p>
+<div class="department-summary">
+    <div class="row">
+        {% for department in departments %}
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">{{ department.name }}</h5>
+                    <p class="card-text">{{ department.description|default('No description', true)|truncate(100) }}</p>
+                    <p class="card-text">
+                        <small class="text-muted">
+                            {{ department.members|length }} members
+                        </small>
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="alert alert-info">No departments found</div>
         </div>
         {% endfor %}
     </div>
