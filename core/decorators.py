@@ -1,3 +1,4 @@
+# core/decoratos.py
 from functools import wraps
 from flask import abort, current_app
 from flask_login import current_user

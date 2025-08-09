@@ -1,3 +1,4 @@
+# modules/dashboard/routes.py
 # pyright: reportMissingImports=false
 # pyright: reportMissingModuleSource=false
 from flask import Blueprint, render_template, redirect, url_for, request, flash
@@ -17,22 +18,38 @@ dashboard_bp = Blueprint('dashboard', __name__)
 def role_dashboard():
     """Redirect to role-specific dashboard"""
     role = current_user.role.lower()
-    if role in ["general_director", "it_manager"]:
-        return redirect(url_for('dashboard.admin_dashboard'))
+
+    # IT Manager goes to admin portal
+    if role == "it_manager":
+        return redirect(url_for('admin.dashboard'))
+    
+    # Director goes to director dashboard
+    elif role == "general_director":
+        return redirect(url_for('dashboard.director_dashboard'))
+    
     elif role in ["general_manager", "head_of_department", "manager"]:
         return redirect(url_for('dashboard.manager_dashboard'))
+    
     else:
         return redirect(url_for('dashboard.employee_dashboard'))
 
-@dashboard_bp.route('/admin')
-@login_required
-@role_required(['general_director', 'it_manager'])
-def admin_dashboard():
+
+#@dashboard_bp.route('/admin')
+#@login_required
+#@role_required(['general_director', 'it_manager'])
+#def admin_dashboard():
     dashboard_data = get_director_dashboard_data()
     template = 'dashboard/general_director.html' 
     if current_user.role.lower() == "it_manager":
         template = 'dashboard/it_manager.html'
     return render_template(template, user=current_user, **dashboard_data)
+
+@dashboard_bp.route('/general_director')
+@login_required
+@role_required(['general_director'])
+def director_dashboard():
+    """General Director Dashboard"""
+    return render_template('dashboard/general_director.html', user=current_user)
 
 @dashboard_bp.route('/manager')
 @login_required

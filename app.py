@@ -1,9 +1,10 @@
+# app.py
 # pyright: reportMissingImports=false
 # pyright: reportMissingModuleSource=false
 from flask import Flask, render_template, redirect, url_for
-from config import Config
+from config import config
 from core.extensions import db, login_manager, migrate
-from flask_login import LoginManager, current_user
+from flask_login import LoginManager, current_user, logout_user
 import logging
 import os
 from datetime import datetime, timedelta
@@ -27,10 +28,16 @@ def create_app():
     
     # Initialize extensions
     db.init_app(app)
-    login_manager.init_app(app)
     migrate.init_app(app, db)
-    csrf = CSRFProtect(app)
+    login_manager.init_app(app)
+    login_manager.login_view = 'auth.login'
     
+     # Add CSRF protection
+    csrf = CSRFProtect()
+    csrf.init_app(app)
+
+    app.config['SECRET_KEY'] = 'mqM_nXhDHOYlb0T8E9bT4c7XCLiDImpINnVHFmCLR-Q'
+
     # Register blueprints
     register_blueprints(app)
     
@@ -55,9 +62,11 @@ def register_blueprints(app):
     """Register all application blueprints"""
     from modules.auth.routes import auth_bp
     from modules.dashboard.routes import dashboard_bp
+    from modules.admin.routes import admin_bp
     
-    app.register_blueprint(auth_bp, url_prefix='/auth')
+    app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
+    app.register_blueprint(admin_bp, url_prefix='/admin')
 
 def initialize_database():
     """Create initial roles and admin user"""
@@ -142,8 +151,10 @@ def internal_error(error):
 
 @app.route('/')
 def index():
-    if current_user.is_authenticated:
-        return redirect(url_for('dashboard.role_dashboard'))
+    #if current_user.is_authenticated:
+        #return redirect(url_for('dashboard.role_dashboard'))
+    logout_user()
+
     return redirect(url_for('auth.login'))
 
 if __name__ == '__main__':

@@ -1,10 +1,8 @@
-# pyright: reportMissingImports=false
-# pyright: reportMissingModuleSource=false
+# modules/auth/forms.py
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField
-from wtforms.validators import DataRequired, Email
+from wtforms import StringField, PasswordField
+from wtforms.validators import DataRequired
 
 class LoginForm(FlaskForm):
-    email = StringField('Email', validators=[DataRequired(), Email()])
+    email = StringField('Email', validators=[DataRequired()])
     password = PasswordField('Password', validators=[DataRequired()])
-    submit = SubmitField('Login')

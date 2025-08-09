@@ -1,3 +1,4 @@
+# config.py
 import os
 from datetime import timedelta
 
@@ -11,7 +12,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 class Config:
     """Base configuration"""
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'supersecretkey'
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'mqM_nXhDHOYlb0T8E9bT4c7XCLiDImpINnVHFmCLR-Q'
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
         f"sqlite:///{os.path.join(basedir, 'instance', 'app.db')}"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -27,10 +28,15 @@ class Config:
             if not os.path.exists(folder):
                 os.makedirs(folder)
 
+    # CSRF Settings
+    WTF_CSRF_ENABLED = True
+    WTF_CSRF_SECRET_KEY = os.environ.get('CSRF_SECRET_KEY') or 'your-csrf-secret-key'
+
 class DevelopmentConfig(Config):
     """Development configuration"""
     DEBUG = True
     SESSION_COOKIE_SECURE = False
+    WTF_CSRF_ENABLED = False
 
 class ProductionConfig(Config):
     """Production configuration"""

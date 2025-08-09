@@ -1,10 +1,12 @@
-# pyright: reportMissingImports=false
-# pyright: reportMissingModuleSource=false
+# core/models.py
 from datetime import datetime
 from core.extensions import db
 from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError, InvalidHash  # Correct import
 from flask_login import UserMixin
+from flask import current_app
 
+# Single instance for password hashing
 ph = PasswordHasher()
 
 class User(db.Model, UserMixin):
@@ -22,13 +24,10 @@ class User(db.Model, UserMixin):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
     login_count = db.Column(db.Integer, default=0)
-    is_active = db.Column(db.Boolean, default=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
     
     # Relationships
     department = db.relationship('Department', back_populates='members')
-    
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
     
     def set_password(self, password):
         """Securely hash password with Argon2"""
@@ -38,18 +37,17 @@ class User(db.Model, UserMixin):
         """Verify password against hash"""
         try:
             return ph.verify(self.password_hash, password)
-        except:
+        except (VerifyMismatchError, InvalidHash):  # Fixed exception name
+            return False
+        except Exception as e:
+            # Log unexpected errors
+            current_app.logger.error(f"Password verification error: {str(e)}")
             return False
     
-    def has_permission(self, resource, required_level):
-        """Check if user has required permission level for a feature"""
-        from core.permissions import Permission
-        return Permission.check(self.role, resource, required_level)
-    
-    # Add these required methods for Flask-Login
     def get_id(self):
         return str(self.id)
     
+    # Flask-Login properties
     @property
     def is_authenticated(self):
         return True
@@ -67,7 +65,7 @@ class Department(db.Model):
     description = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     # Relationships
-    members = db.relationship('User', back_populates='department')
+    members = db.relationship('User', back_populates='department', lazy='dynamic')
 
 class ActivityLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
