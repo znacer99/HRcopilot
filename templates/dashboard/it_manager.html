@@ -10,7 +10,38 @@
         <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-secondary ms-2">Logout</a>
     </div>
 </div>
-
+<div class="mb-4 p-3 border rounded bg-light">
+    <h4>Dashboard Summary</h4>
+    <div class="row g-3">
+      <div class="col-md-3">
+        <strong>User Counts by Role:</strong>
+        <ul class="list-unstyled mb-0">
+          {% for role, count in user_counts %}
+            <li>{{ role|replace('_',' ')|title }}: {{ count }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="col-md-3">
+        <strong>New Users (last 7 days):</strong>
+        <p>{{ new_users_count }}</p>
+      </div>
+      <div class="col-md-3">
+        <strong>Inactive Users (30+ days):</strong>
+        <p>{{ inactive_users_count }}</p>
+      </div>
+      <div class="col-md-3">
+        <strong>Recent Activities:</strong>
+        <ul class="list-unstyled small mb-0" style="max-height:100px; overflow-y:auto;">
+          {% for activity in recent_activities %}
+            <li>
+              {{ activity.timestamp.strftime('%Y-%m-%d %H:%M') }} – 
+              {{ activity.user.name if activity.user else 'Unknown' }}: {{ activity.action }} on {{ activity.target }}
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
 <form method="GET" action="{{ url_for('dashboard.it_manager_dashboard') }}" class="row g-2 mb-3">
   <div class="col-md-4">
     <input name="q" value="{{ q }}" class="form-control" placeholder="Search name or email">

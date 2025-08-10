@@ -1,45 +1,131 @@
-<!-- templates/dashboard/general_director.html -->
 {% extends "dashboard/base_dashboard.html" %}
 
-{% block content %}
-<div class="container mt-5">
+{% block dashboard_title %}General Director Dashboard{% endblock %}
+
+{% block dashboard_content %}
+<div class="container mt-4">
     <div class="alert alert-primary">
         <h2>General Director Dashboard</h2>
-        <p>Welcome, {{ current_user.name }}</p>
+        <p>Welcome, {{ user.name }}</p>
     </div>
-    
-    <div class="card mt-4">
-        <div class="card-body">
-            <h3>Executive Overview</h3>
-            <div class="mt-3">
-                <div class="row">
-                    <div class="col-md-4">
-                        <div class="card mb-3">
-                            <div class="card-body">
-                                <h5>Financial Summary</h5>
-                                <p>Revenue: $X,XXX,XXX</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="card mb-3">
-                            <div class="card-body">
-                                <h5>Employee Metrics</h5>
-                                <p>XX Employees | XX% Growth</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="card mb-3">
-                            <div class="card-body">
-                                <h5>Performance</h5>
-                                <p>Q3 Goals: XX% Complete</p>
-                            </div>
-                        </div>
-                    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <h5 class="card-title">Total Employees</h5>
+                    <p class="card-text fs-3">{{ total_users }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <h5 class="card-title">Active Employees</h5>
+                    <p class="card-text fs-3">{{ active_users }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-danger">
+                <div class="card-body">
+                    <h5 class="card-title">Inactive Employees</h5>
+                    <p class="card-text fs-3">{{ inactive_users }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <h5 class="card-title">Departments</h5>
+                    <p class="card-text fs-3">{{ departments_count }}</p>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Employee Search -->
+    <form method="GET" action="{{ url_for('dashboard.director_dashboard') }}" class="row g-2 mb-3">
+        <div class="col-md-4">
+            <input name="q" value="{{ q }}" class="form-control" placeholder="Search employees by name or email">
+        </div>
+
+        <!-- NEW: Department filter dropdown -->
+        <div class="col-md-4">
+            <select name="department" class="form-select">
+                <option value="">All departments</option>
+                {% for d in departments %}
+                    <option value="{{ d.id }}" {% if dept_filter and dept_filter|int == d.id %}selected{% endif %}>{{ d.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-4">
+            <button class="btn btn-primary" type="submit">Search</button>
+            <a href="{{ url_for('dashboard.director_dashboard') }}" class="btn btn-outline-secondary ms-2">Reset</a>
+        </div>
+    </form>
+
+    <!-- NEW: Actions (Add employee + Logout) -->
+    <div class="mb-3 d-flex justify-content-between align-items-center">
+        <a href="{{ url_for('dashboard.director_create_employee') }}" class="btn btn-success">Add New Employee</a>
+        <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-secondary">Logout</a>
+    </div>
+
+    <!-- Employee List Table -->
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Department</th>
+                    <th>Status</th>
+                    <!-- NEW: Actions column -->
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in user_list %}
+                <tr>
+                    <td>{{ u.name }}</td>
+                    <td>{{ u.email }}</td>
+                    <td>{{ u.role|replace('_', ' ')|title }}</td>
+                    <td>{{ u.department.name if u.department else '-' }}</td>
+                    <td>{{ 'Active' if u.is_active else 'Inactive' }}</td>
+                    <!-- NEW: Edit/Delete buttons -->
+                    <td class="text-end">
+                        <a href="{{ url_for('dashboard.director_edit_employee', id=u.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+
+                        <form method="POST" action="{{ url_for('dashboard.director_delete_employee', id=u.id) }}" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete {{ u.name }}?');">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center">No employees found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <nav aria-label="Employee pages">
+        <ul class="pagination justify-content-center">
+            {% if page > 1 %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('dashboard.director_dashboard', page=page-1, q=q, department=dept_filter) }}">Previous</a>
+            </li>
+            {% endif %}
+            <li class="page-item disabled"><span class="page-link">Page {{ page }}</span></li>
+            {% if total > page * per_page %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('dashboard.director_dashboard', page=page+1, q=q, department=dept_filter) }}">Next</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
 </div>
 {% endblock %}

@@ -1,16 +1,33 @@
 # pyright: reportMissingImports=false
 # pyright: reportMissingModuleSource=false
-from core.models import User, Department, ActivityLog
+from core.models import User, Department, ActivityLog, db
 from sqlalchemy import func
 
 def get_director_dashboard_data():
-    """Get data for General Director dashboard"""
+    total_users = User.query.count()
+    active_users = User.query.filter_by(is_active=True).count()
+    inactive_users = total_users - active_users
+    departments_count = Department.query.count()
+
+    recent_activities = ActivityLog.query.order_by(ActivityLog.timestamp.desc()).limit(10).all()
+
+    departments = (
+        db.session.query(
+            Department,
+            func.count(User.id).label('member_count')
+        )
+        .outerjoin(User)
+        .group_by(Department.id)
+        .all()
+    )
+
     return {
-        'employee_count': User.query.count(),
-        'department_count': Department.query.count(),
-        'recent_employees': User.query.order_by(User.created_at.desc()).limit(5).all(),
-        'department_stats': get_department_stats(),
-        'activity_log': ActivityLog.query.order_by(ActivityLog.timestamp.desc()).limit(10).all()
+        'total_users': total_users,
+        'active_users': active_users,
+        'inactive_users': inactive_users,
+        'departments_count': departments_count,
+        'recent_activities': recent_activities,
+        'departments': departments
     }
 
 def get_manager_dashboard_data(user):

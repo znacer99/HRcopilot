@@ -8,7 +8,7 @@ class Permission:
     # Simple permission matrix (role → permissions)
     ROLE_PERMISSIONS = {
         'it_manager': VIEW | EDIT | DELETE | ADMIN,
-        'general_director': VIEW | EDIT | DELETE,
+        'general_director': VIEW | EDIT | DELETE | ADMIN,
         'general_manager': VIEW | EDIT,
         'head_of_department': VIEW | EDIT,
         'manager': VIEW,

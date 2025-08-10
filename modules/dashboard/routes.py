@@ -9,6 +9,8 @@ from core.permissions import Permission
 from .services import get_director_dashboard_data, get_manager_dashboard_data
 from modules.employee.services import create_employee, update_employee, delete_employee
 from core.logger import audit_log
+from datetime import datetime, timedelta
+from sqlalchemy import func, or_
 
 dashboard_bp = Blueprint('dashboard', __name__, template_folder='templates')
 
@@ -33,15 +35,8 @@ def role_dashboard():
 
 @dashboard_bp.route('/it_manager')
 @login_required
-@role_required(['it_manager'])
+@role_required(['it_manager',])
 def it_manager_dashboard():
-    """
-    IT Manager dashboard:
-      - q: free text search against name/email
-      - role: filter by role
-      - department: filter by department id
-      - page: pagination (1-based)
-    """
     q = (request.args.get('q') or '').strip()
     role_filter = (request.args.get('role') or '').strip()
     dept_filter = (request.args.get('department') or '').strip()
@@ -61,7 +56,6 @@ def it_manager_dashboard():
         query = query.filter(User.role == role_filter)
 
     if dept_filter:
-        # Accept either id or empty
         try:
             dept_id = int(dept_filter)
             query = query.filter(User.department_id == dept_id)
@@ -71,6 +65,27 @@ def it_manager_dashboard():
     total = query.count()
     users = query.order_by(User.created_at.desc()).limit(per_page).offset((page - 1) * per_page).all()
     departments = Department.query.order_by(Department.name).all()
+
+    # Additional stats for dashboard summary
+
+    # User counts by role (all roles)
+    user_counts = db.session.query(
+        User.role,
+        func.count(User.id)
+    ).group_by(User.role).all()
+
+    # New users last 7 days
+    week_ago = datetime.utcnow() - timedelta(days=7)
+    new_users_count = User.query.filter(User.created_at >= week_ago).count()
+
+    # Inactive users (no login or last login older than 30 days)
+    month_ago = datetime.utcnow() - timedelta(days=30)
+    inactive_users_count = User.query.filter(
+        or_(User.last_login == None, User.last_login < month_ago)
+    ).count()
+
+    # Recent 10 activity logs
+    recent_activities = ActivityLog.query.order_by(ActivityLog.timestamp.desc()).limit(10).all()
 
     return render_template(
         'dashboard/it_manager.html',
@@ -82,13 +97,17 @@ def it_manager_dashboard():
         departments=departments,
         q=q,
         role_filter=role_filter,
-        dept_filter=dept_filter
-    )
+        dept_filter=dept_filter,
+        user_counts=user_counts,
+        new_users_count=new_users_count,
+        inactive_users_count=inactive_users_count,
+        recent_activities=recent_activities,
+    ) 
 
 
 @dashboard_bp.route('/it_manager/employee/create', methods=['GET', 'POST'])
 @login_required
-@role_required(['it_manager'])
+@role_required(['it_manager',])
 def it_manager_create_employee():
     departments = Department.query.order_by(Department.name).all()
     if request.method == 'POST':
@@ -136,12 +155,99 @@ def it_manager_delete_employee(id):
     return redirect(url_for('dashboard.it_manager_dashboard'))
 
 
+
 @dashboard_bp.route('/general_director')
 @login_required
 @role_required(['general_director'])
 def director_dashboard():
-    dashboard_data = get_director_dashboard_data()
-    return render_template('dashboard/general_director.html', user=current_user, **dashboard_data)
+    q = (request.args.get('q') or '').strip()
+    dept_filter = (request.args.get('department') or '').strip()
+    try:
+        page = max(int(request.args.get('page', 1)), 1)
+    except Exception:
+        page = 1
+    per_page = 10
+
+    query = User.query
+
+    if q:
+        like = f"%{q}%"
+        query = query.filter(or_(User.name.ilike(like), User.email.ilike(like)))
+
+    if dept_filter:
+        try:
+            dept_id = int(dept_filter)
+            query = query.filter(User.department_id == dept_id)
+        except ValueError:
+            pass
+
+    total = query.count()
+    employees = query.order_by(User.created_at.desc()).limit(per_page).offset((page - 1) * per_page).all()
+    departments = Department.query.order_by(Department.name).all()
+
+    return render_template(
+        'dashboard/general_director.html',
+        user=current_user,
+        employees=employees,
+        total=total,
+        page=page,
+        per_page=per_page,
+        departments=departments,
+        q=q,
+        dept_filter=dept_filter
+    )
+
+
+@dashboard_bp.route('/general_director/employee/create', methods=['GET', 'POST'])
+@login_required
+@role_required(['general_director'])
+def director_create_employee():
+    print(f"User role in create employee: {current_user.role}")
+    departments = Department.query.order_by(Department.name).all()
+    if request.method == 'POST':
+        form_data = request.form.to_dict()
+        try:
+            employee = create_employee(form_data)
+            audit_log(f'Created employee: {employee.email}')
+            flash('Employee created successfully', 'success')
+            return redirect(url_for('dashboard.director_dashboard'))
+        except Exception as e:
+            flash(f'Error creating employee: {str(e)}', 'danger')
+            return redirect(url_for('dashboard.director_create_employee'))
+    return render_template('dashboard/employee_form.html', departments=departments)
+
+
+@dashboard_bp.route('/general_director/employee/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+@role_required(['general_director'])
+def director_edit_employee(id):
+    employee = User.query.get_or_404(id)
+    departments = Department.query.order_by(Department.name).all()
+    if request.method == 'POST':
+        form_data = request.form.to_dict()
+        try:
+            employee = update_employee(id, form_data)
+            audit_log(f'Updated employee: {employee.email}')
+            flash('Employee updated successfully', 'success')
+            return redirect(url_for('dashboard.director_dashboard'))
+        except Exception as e:
+            flash(f'Error updating employee: {str(e)}', 'danger')
+            return redirect(url_for('dashboard.director_edit_employee', id=id))
+    return render_template('dashboard/employee_form.html', employee=employee, departments=departments)
+
+
+@dashboard_bp.route('/general_director/employee/<int:id>/delete', methods=['POST'])
+@login_required
+@role_required(['general_director'])
+def director_delete_employee(id):
+    try:
+        employee = delete_employee(id)
+        audit_log(f'Deleted employee: {employee.email}')
+        flash('Employee deleted successfully', 'success')
+    except Exception as e:
+        flash(f'Error deleting employee: {str(e)}', 'danger')
+    return redirect(url_for('dashboard.director_dashboard'))
+
 
 
 @dashboard_bp.route('/manager')
