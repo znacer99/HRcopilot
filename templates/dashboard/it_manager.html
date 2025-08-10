@@ -1,39 +1,104 @@
+{# templates/dashboard/it_manager.html #}
 {% extends "dashboard/base_dashboard.html" %}
+{% block dashboard_title %}IT Manager Dashboard{% endblock %}
 
-{% block content %}
-<div class="container mt-5">
-    <div class="alert alert-warning">
-        <h2>IT Manager Dashboard</h2>
-        <p>Welcome, {{ user.name }} ({{ user.role }})</p>
-    </div>
-    
-    <div class="card mt-4">
-        <div class="card-header">
-            <h3>System Administration</h3>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <h5>User Management</h5>
-                            <a href="{{ url_for('admin.admin_user_management') }}" 
-                               class="btn btn-sm btn-outline-primary">
-                                Manage Employees
-                            </a>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <h5>System Health</h5>
-                            <p class="text-success">All systems operational</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+{% block dashboard_content %}
+<div class="mb-3 d-flex justify-content-between align-items-center">
+    <h3>Users</h3>
+    <div>
+        <a href="{{ url_for('dashboard.it_manager_create_employee') }}" class="btn btn-primary">Create New Employee</a>
+        <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-secondary ms-2">Logout</a>
     </div>
 </div>
+
+<form method="GET" action="{{ url_for('dashboard.it_manager_dashboard') }}" class="row g-2 mb-3">
+  <div class="col-md-4">
+    <input name="q" value="{{ q }}" class="form-control" placeholder="Search name or email">
+  </div>
+  <div class="col-md-3">
+    <select name="department" class="form-select">
+      <option value="">All departments</option>
+      {% for d in departments %}
+        <option value="{{ d.id }}" {% if dept_filter and dept_filter|int == d.id %}selected{% endif %}>{{ d.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <select name="role" class="form-select">
+      <option value="">All roles</option>
+      <option value="it_manager" {% if role_filter=='it_manager' %}selected{% endif %}>IT Manager</option>
+      <option value="general_director" {% if role_filter=='general_director' %}selected{% endif %}>General Director</option>
+      <option value="general_manager" {% if role_filter=='general_manager' %}selected{% endif %}>General Manager</option>
+      <option value="head_of_department" {% if role_filter=='head_of_department' %}selected{% endif %}>Head of Department</option>
+      <option value="manager" {% if role_filter=='manager' %}selected{% endif %}>Manager</option>
+      <option value="employee" {% if role_filter=='employee' %}selected{% endif %}>Employee</option>
+    </select>
+  </div>
+  <div class="col-md-3">
+    <button class="btn btn-primary" type="submit">Search</button>
+    <a class="btn btn-outline-secondary" href="{{ url_for('dashboard.it_manager_dashboard') }}">Reset</a>
+  </div>
+</form>
+
+<div class="table-responsive">
+  <table class="table table-striped align-middle">
+    <thead>
+      <tr>
+        <th>Avatar</th>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Department</th>
+        <th>Access Code</th>
+        <th>Status</th>
+        <th class="text-end">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in user_list %}
+      <tr>
+        <td>
+          <div style="width:36px;height:36px;border-radius:50%;background:#6c757d;color:#fff;display:inline-flex;align-items:center;justify-content:center;">
+            {{ u.avatar }}
+          </div>
+        </td>
+        <td>{{ u.name }}</td>
+        <td>{{ u.email }}</td>
+        <td>{{ u.role|replace('_',' ')|title }}</td>
+        <td>{{ u.department.name if u.department else '-' }}</td>
+        <td>{{ u.access_code or '-' }}</td>
+        <td>{{ 'Active' if u.is_active else 'Inactive' }}</td>
+        <td class="text-end">
+          <a href="{{ url_for('dashboard.it_manager_edit_employee', id=u.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+
+          <form method="POST" action="{{ url_for('dashboard.it_manager_delete_employee', id=u.id) }}" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete {{ u.name }}?');">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="text-center">No users found</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Pagination -->
+<nav aria-label="User pages">
+  <ul class="pagination justify-content-center">
+    {% if page > 1 %}
+      <li class="page-item">
+        <a class="page-link" href="{{ url_for('dashboard.it_manager_dashboard', page=page-1, q=q, department=dept_filter, role=role_filter) }}">Previous</a>
+      </li>
+    {% endif %}
+    <li class="page-item disabled"><span class="page-link">Page {{ page }}</span></li>
+    {% if total > page * per_page %}
+      <li class="page-item">
+        <a class="page-link" href="{{ url_for('dashboard.it_manager_dashboard', page=page+1, q=q, department=dept_filter, role=role_filter) }}">Next</a>
+      </li>
+    {% endif %}
+  </ul>
+</nav>
+
 {% endblock %}

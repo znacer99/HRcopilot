@@ -32,3 +32,6 @@ class UserForm(FlaskForm):
     def __init__(self, *args, **kwargs):
         super(UserForm, self).__init__(*args, **kwargs)
         self.department.choices = [(d.id, d.name) for d in Department.query.all()]
+
+class LogoutForm(FlaskForm):
+    pass

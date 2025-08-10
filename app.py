@@ -38,9 +38,17 @@ def create_app():
 
     app.config['SECRET_KEY'] = 'mqM_nXhDHOYlb0T8E9bT4c7XCLiDImpINnVHFmCLR-Q'
 
+    # inject logout_form into templates
+    from modules.auth.forms import LogoutForm
+    @app.context_processor
+    def inject_logout_form():
+        return dict(logout_form=LogoutForm())
+
+
     # Register blueprints
     register_blueprints(app)
     
+
     # Create database tables
     with app.app_context():
         # Create instance directory if missing
@@ -62,11 +70,14 @@ def register_blueprints(app):
     """Register all application blueprints"""
     from modules.auth.routes import auth_bp
     from modules.dashboard.routes import dashboard_bp
-    from modules.admin.routes import admin_bp
-    
+
     app.register_blueprint(auth_bp)
-    app.register_blueprint(dashboard_bp)
-    app.register_blueprint(admin_bp, url_prefix='/admin')
+    app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
+
+    print("All registered endpoints:")
+    for rule in app.url_map.iter_rules():
+        print(rule.endpoint, rule)
+
 
 def initialize_database():
     """Create initial roles and admin user"""
@@ -151,10 +162,14 @@ def internal_error(error):
 
 @app.route('/')
 def index():
-    #if current_user.is_authenticated:
-        #return redirect(url_for('dashboard.role_dashboard'))
-    logout_user()
-
+    print(f"🔍 INDEX ROUTE: User authenticated? {current_user.is_authenticated}")
+    
+    # TEMPORARY FIX: Force logout to test login flow
+    if current_user.is_authenticated:
+        from flask_login import logout_user
+        logout_user()
+        print("🔍 Forced logout - redirecting to login")
+    
     return redirect(url_for('auth.login'))
 
 if __name__ == '__main__':

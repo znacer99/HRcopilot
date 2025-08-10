@@ -1,3 +1,4 @@
+#core/permissions.py
 class Permission:
     VIEW = 0b0001
     EDIT = 0b0010

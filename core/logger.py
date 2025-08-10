@@ -1,3 +1,4 @@
+#core/logger.py
 from core.models import ActivityLog, db
 from datetime import datetime
 

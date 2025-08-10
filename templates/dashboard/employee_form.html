@@ -1,0 +1,63 @@
+{# templates/dashboard/employee_form.html #}
+{% extends "dashboard/base_dashboard.html" %}
+{% block dashboard_title %}{% if employee %}Edit Employee{% else %}Create Employee{% endif %}{% endblock %}
+
+{% block dashboard_content %}
+<div class="card">
+  <div class="card-header">
+    <h5>{% if employee %}Edit{% else %}Create{% endif %} Employee</h5>
+  </div>
+  <div class="card-body">
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="mb-3">
+        <label class="form-label">Full name</label>
+        <input name="name" class="form-control" value="{{ employee.name if employee else '' }}" required>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Email</label>
+        <input name="email" type="email" class="form-control" value="{{ employee.email if employee else '' }}" required>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Role</label>
+        <select name="role" class="form-select" required>
+          {% set current_role = employee.role if employee else '' %}
+          <option value="employee" {% if current_role=='employee' %}selected{% endif %}>Employee</option>
+          <option value="manager" {% if current_role=='manager' %}selected{% endif %}>Manager</option>
+          <option value="head_of_department" {% if current_role=='head_of_department' %}selected{% endif %}>Head of Department</option>
+          <option value="general_manager" {% if current_role=='general_manager' %}selected{% endif %}>General Manager</option>
+          <option value="general_director" {% if current_role=='general_director' %}selected{% endif %}>General Director</option>
+          <option value="it_manager" {% if current_role=='it_manager' %}selected{% endif %}>IT Manager</option>
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Department</label>
+        <select name="department" class="form-select">
+          <option value="">-- none --</option>
+          {% for d in departments %}
+            <option value="{{ d.id }}" {% if employee and employee.department_id == d.id %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Access code (optional)</label>
+        <input name="access_code" class="form-control" value="{{ employee.access_code if employee else '' }}">
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Password {% if not employee %}(required){% endif %}</label>
+        <input name="password" type="password" class="form-control" {% if not employee %}required{% endif %}>
+      </div>
+
+      <div class="mb-3 d-flex gap-2">
+        <button type="submit" class="btn btn-primary">{% if employee %}Save changes{% else %}Create employee{% endif %}</button>
+        <a href="{{ url_for('dashboard.it_manager_dashboard') }}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

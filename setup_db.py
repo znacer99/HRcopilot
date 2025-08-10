@@ -1,3 +1,4 @@
+#setup_db.py
 from app import app
 from core.extensions import db
 from core.models import User, Department

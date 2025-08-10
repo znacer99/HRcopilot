@@ -28,8 +28,15 @@
             <a class="navbar-brand" href="#">Alghaith HR</a>
             <div class="d-flex align-items-center">
                 <span class="role-indicator me-3">{{ current_user.role|replace('_', ' ')|title }}</span>
-                <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-outline-light">Logout</a>
+            
+                {% if current_user.is_authenticated %}
+                <form method="post" action="{{ url_for('auth.logout') }}" class="ms-2 d-inline">
+                    {{ logout_form.hidden_tag() }}
+                    <button type="submit" class="btn btn-sm btn-outline-light">Logout</button>
+                </form>
+                {% endif %}
             </div>
+            
         </div>
     </nav>
 

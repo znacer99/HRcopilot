@@ -18,9 +18,16 @@
 <body>
     <header>
         {% if current_user.is_authenticated %}
-            <p>Logged in as {{ current_user.name }} ({{ current_user.role }})</p>
+        <div class="container d-flex justify-content-between align-items-center py-2">
+            <p class="mb-0">Logged in as {{ current_user.name }} ({{ current_user.role }})</p>
+            <form method="post" action="{{ url_for('auth.logout') }}">
+                {{ logout_form.hidden_tag() }}
+                <button type="submit" class="btn btn-sm btn-outline-danger">Logout</button>
+            </form>
+        </div>
         {% endif %}
     </header>
+    
     <main>
         {% block content %}{% endblock %}
     </main>
