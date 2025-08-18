@@ -1,0 +1,64 @@
+{# templates/leave/pending_leaves.html #}
+{% extends "base.html" %}
+{% block title %}Pending Leave Requests{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-3">Pending Leave Requests</h2>
+
+  {% if requests and requests|length %}
+    <table class="table table-striped align-middle">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Employee</th>
+          <th>Type</th>
+          <th>Period</th>
+          <th>Reason</th>
+          <th>Submitted</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in requests %}
+        <tr>
+          <td>{{ r.id }}</td>
+          <td>{{ r.requester.name }}</td>
+          <td class="text-capitalize">{{ r.type }}</td>
+          <td>{{ r.start_date }} → {{ r.end_date }}</td>
+          <td>{{ r.reason or '' }}</td>
+          <td>{{ r.created_at.strftime('%Y-%m-%d') if r.created_at else '' }}</td>
+          <td class="text-end">
+            {% if r.status == 'pending' %}
+              {% if current_user.id == r.approver_id or current_user.role in ['it_manager', 'general_director'] %}
+                <form method="POST" action="{{ url_for('leave.set_status', lr_id=r.id, action='approve') }}" style="display:inline;">
+                  {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+                  <button class="btn btn-success btn-sm">Approve</button>
+                </form>
+                <form method="POST" action="{{ url_for('leave.set_status', lr_id=r.id, action='reject') }}" style="display:inline;">
+                  {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+                  <button class="btn btn-danger btn-sm">Reject</button>
+                </form>
+              {% else %}
+                <span class="badge bg-warning text-dark">Pending</span>
+              {% endif %}
+            {% else %}
+              <span class="badge 
+                {% if r.status == 'approved' %}bg-success
+                {% elif r.status == 'rejected' %}bg-danger
+                {% endif %}">
+                {{ r.status|capitalize }}
+              </span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="alert alert-info">No pending leave requests.</div>
+  {% endif %}
+
+  <a href="{{ url_for('dashboard.role_dashboard') }}" class="btn btn-outline-secondary">Back to dashboard</a>
+</div>
+{% endblock %}

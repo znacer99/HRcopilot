@@ -1,6 +1,6 @@
 # core/forms.py
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, SelectField
+from wtforms import StringField, PasswordField, SubmitField, SelectField, DateField, TextAreaField
 from wtforms.validators import DataRequired, Email, Length
 from core.models import Department
 
@@ -32,6 +32,23 @@ class UserForm(FlaskForm):
     def __init__(self, *args, **kwargs):
         super(UserForm, self).__init__(*args, **kwargs)
         self.department.choices = [(d.id, d.name) for d in Department.query.all()]
+
+class LeaveForm(FlaskForm):
+    type = SelectField('Leave Type', choices=[
+        ('annual', 'Annual Leave'),
+        ('sick', 'Sick Leave'),
+        ('unpaid', 'Unpaid Leave'),
+        ('other', 'Other')
+    ], validators=[DataRequired()])
+    
+    start_date = DateField('Start Date', validators=[DataRequired()])
+    end_date = DateField('End Date', validators=[DataRequired()])
+    reason = TextAreaField('Reason', validators=[DataRequired()])
+    
+    # Approver selection: will populate dynamically
+    approver_id = SelectField('Send To', coerce=int, validators=[DataRequired()])
+    
+    submit = SubmitField('Submit')
 
 class LogoutForm(FlaskForm):
     pass

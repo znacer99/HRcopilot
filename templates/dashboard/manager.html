@@ -16,6 +16,31 @@
     </div>
 </div>
 
+<!-- Leave Request Cards at the top -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <a href="{{ url_for('leave.my_requests') }}" class="text-decoration-none">
+            <div class="card text-center dashboard-link-card">
+                <div class="card-body">
+                    <h5 class="card-title">My Leave Requests</h5>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    {% if current_user.role in ['manager', 'head_of_department', 'it_manager'] %}
+    <div class="col-md-3">
+        <a href="{{ url_for('leave.pending_requests') }}" class="text-decoration-none">
+            <div class="card text-center dashboard-link-card">
+                <div class="card-body">
+                    <h5 class="card-title">Pending Leave Requests</h5>
+                </div>
+            </div>
+        </a>
+    </div>
+    {% endif %}
+</div>
+
 <div class="card mb-4">
     <div class="card-header">
         <h5>Department Activities</h5>

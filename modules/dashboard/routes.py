@@ -11,6 +11,7 @@ from modules.employee.services import create_employee, update_employee, delete_e
 from core.logger import audit_log
 from datetime import datetime, timedelta
 from sqlalchemy import func, or_
+from modules.leave.services import LeaveRequest
 
 dashboard_bp = Blueprint('dashboard', __name__, template_folder='templates')
 
@@ -161,6 +162,7 @@ def it_manager_delete_employee(id):
 @role_required(['general_director'])
 def director_dashboard():
     q = (request.args.get('q') or '').strip()
+    role_filter = (request.args.get('role') or '').strip()
     dept_filter = (request.args.get('department') or '').strip()
     try:
         page = max(int(request.args.get('page', 1)), 1)
@@ -168,12 +170,19 @@ def director_dashboard():
         page = 1
     per_page = 10
 
+    # Base query
     query = User.query
 
+    # Search by name or email
     if q:
         like = f"%{q}%"
         query = query.filter(or_(User.name.ilike(like), User.email.ilike(like)))
 
+    # Filter by role
+    if role_filter:
+        query = query.filter(User.role == role_filter)
+
+    # Filter by department
     if dept_filter:
         try:
             dept_id = int(dept_filter)
@@ -181,21 +190,39 @@ def director_dashboard():
         except ValueError:
             pass
 
+    # Pagination
     total = query.count()
     employees = query.order_by(User.created_at.desc()).limit(per_page).offset((page - 1) * per_page).all()
+
+    # Departments for filter dropdown
     departments = Department.query.order_by(Department.name).all()
+
+    # Stats for cards
+    active_count = User.query.filter_by(is_active=True).count()
+    inactive_count = User.query.filter_by(is_active=False).count()
+    user_counts = {"active": active_count, "inactive": inactive_count}
+    new_users_count = User.query.filter(User.created_at >= (datetime.utcnow() - timedelta(days=7))).count()
+
+    # Recent 10 activities
+    recent_activities = [act.description for act in ActivityLog.query.order_by(ActivityLog.timestamp.desc()).limit(10).all()]
 
     return render_template(
         'dashboard/general_director.html',
         user=current_user,
-        employees=employees,
+        user_list=employees,  # <-- fixed variable name
         total=total,
         page=page,
         per_page=per_page,
         departments=departments,
         q=q,
-        dept_filter=dept_filter
+        role_filter=role_filter,
+        dept_filter=dept_filter,
+        user_counts=user_counts,
+        new_users_count=new_users_count,
+        inactive_users_count=inactive_count,
+        recent_activities=recent_activities
     )
+
 
 
 @dashboard_bp.route('/general_director/employee/create', methods=['GET', 'POST'])
@@ -261,7 +288,8 @@ def manager_dashboard():
 @dashboard_bp.route('/employee')
 @login_required
 def employee_dashboard():
-    return render_template('dashboard/employee.html', user=current_user)
+    latest_leaves = LeaveRequest.query.filter_by(user_id=current_user.id).order_by(LeaveRequest.created_at.desc()).limit(3).all()
+    return render_template('dashboard/employee.html',user=current_user,latest_leaves=latest_leaves)
 
 
 @dashboard_bp.route('/employee-summary')

@@ -75,3 +75,27 @@ class ActivityLog(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     
     user = db.relationship('User', backref='activities')
+
+class LeaveRequest(db.Model):
+    __tablename__ = 'leave_requests'
+
+    id = db.Column(db.Integer, primary_key=True)
+    # requester
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    # optional approver (set when approved/rejected)
+    approver_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+
+    type = db.Column(db.String(30), nullable=False, default='annual')  # annual/sick/unpaid/other
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=False)
+    reason = db.Column(db.Text)
+
+    status = db.Column(db.String(20), nullable=False, default='pending')  # pending/approved/rejected
+    decided_at = db.Column(db.DateTime)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # relationships
+    requester = db.relationship('User', foreign_keys=[user_id], backref='leave_requests')
+    approver = db.relationship('User', foreign_keys=[approver_id])

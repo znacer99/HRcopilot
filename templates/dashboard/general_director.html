@@ -9,12 +9,13 @@
         <p>Welcome, {{ user.name }}</p>
     </div>
 
+    <!-- Stats cards -->
     <div class="row mb-4">
         <div class="col-md-3">
             <div class="card text-white bg-primary">
                 <div class="card-body">
                     <h5 class="card-title">Total Employees</h5>
-                    <p class="card-text fs-3">{{ total_users }}</p>
+                    <p class="card-text fs-3">{{ total if total is defined else 0 }}</p>
                 </div>
             </div>
         </div>
@@ -22,7 +23,7 @@
             <div class="card text-white bg-success">
                 <div class="card-body">
                     <h5 class="card-title">Active Employees</h5>
-                    <p class="card-text fs-3">{{ active_users }}</p>
+                    <p class="card-text fs-3">{{ user_counts.active if user_counts is defined and user_counts.active is defined else 0 }}</p>
                 </div>
             </div>
         </div>
@@ -30,7 +31,7 @@
             <div class="card text-white bg-danger">
                 <div class="card-body">
                     <h5 class="card-title">Inactive Employees</h5>
-                    <p class="card-text fs-3">{{ inactive_users }}</p>
+                    <p class="card-text fs-3">{{ inactive_users_count if inactive_users_count is defined else 0 }}</p>
                 </div>
             </div>
         </div>
@@ -38,20 +39,55 @@
             <div class="card text-white bg-info">
                 <div class="card-body">
                     <h5 class="card-title">Departments</h5>
-                    <p class="card-text fs-3">{{ departments_count }}</p>
+                    <p class="card-text fs-3">{{ departments|length if departments is defined else 0 }}</p>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Leave Request Cards (Top only) -->
+    <div class="row mb-4">
+        {% if current_user.role != 'general_director' %}
+        <div class="col-md-3">
+            <a href="{{ url_for('leave.my_requests') }}" class="text-decoration-none">
+                <div class="card text-center dashboard-link-card">
+                    <div class="card-body">
+                        <h5 class="card-title">My Leave Requests</h5>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endif %}
+
+        {% if current_user.role == 'general_director' %}
+        <div class="col-md-3">
+            <a href="{{ url_for('leave.pending_requests') }}" class="text-decoration-none">
+                <div class="card text-center dashboard-link-card">
+                    <div class="card-body">
+                        <h5 class="card-title">Pending Leave Requests</h5>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
     <!-- Employee Search -->
     <form method="GET" action="{{ url_for('dashboard.director_dashboard') }}" class="row g-2 mb-3">
-        <div class="col-md-4">
-            <input name="q" value="{{ q }}" class="form-control" placeholder="Search employees by name or email">
+        <div class="col-md-3">
+            <input name="q" value="{{ q if q is defined else '' }}" class="form-control" placeholder="Search employees">
         </div>
 
-        <!-- NEW: Department filter dropdown -->
-        <div class="col-md-4">
+        <div class="col-md-3">
+            <select name="role" class="form-select">
+                <option value="">All roles</option>
+                <option value="general_director" {% if role_filter == 'general_director' %}selected{% endif %}>General Director</option>
+                <option value="it_manager" {% if role_filter == 'it_manager' %}selected{% endif %}>IT Manager</option>
+                <option value="employee" {% if role_filter == 'employee' %}selected{% endif %}>Employee</option>
+            </select>
+        </div>
+
+        <div class="col-md-3">
             <select name="department" class="form-select">
                 <option value="">All departments</option>
                 {% for d in departments %}
@@ -60,16 +96,25 @@
             </select>
         </div>
 
-        <div class="col-md-4">
+        <div class="col-md-3">
             <button class="btn btn-primary" type="submit">Search</button>
             <a href="{{ url_for('dashboard.director_dashboard') }}" class="btn btn-outline-secondary ms-2">Reset</a>
         </div>
     </form>
 
-    <!-- NEW: Actions (Add employee + Logout) -->
+    <!-- Actions -->
     <div class="mb-3 d-flex justify-content-between align-items-center">
         <a href="{{ url_for('dashboard.director_create_employee') }}" class="btn btn-success">Add New Employee</a>
-        <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-secondary">Logout</a>
+        <a href="{% if current_user.role == 'general_director' %}
+            {{ url_for('dashboard.director_dashboard') }}
+        {% elif current_user.role == 'it_manager' %}
+            {{ url_for('dashboard.it_manager_dashboard') }}
+        {% else %}
+            {{ url_for('dashboard.role_dashboard') }}
+        {% endif %}" 
+   class="btn btn-secondary">
+    Cancel
+</a>
     </div>
 
     <!-- Employee List Table -->
@@ -82,7 +127,6 @@
                     <th>Role</th>
                     <th>Department</th>
                     <th>Status</th>
-                    <!-- NEW: Actions column -->
                     <th class="text-end">Actions</th>
                 </tr>
             </thead>
@@ -94,10 +138,8 @@
                     <td>{{ u.role|replace('_', ' ')|title }}</td>
                     <td>{{ u.department.name if u.department else '-' }}</td>
                     <td>{{ 'Active' if u.is_active else 'Inactive' }}</td>
-                    <!-- NEW: Edit/Delete buttons -->
                     <td class="text-end">
                         <a href="{{ url_for('dashboard.director_edit_employee', id=u.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
-
                         <form method="POST" action="{{ url_for('dashboard.director_delete_employee', id=u.id) }}" style="display:inline;">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete {{ u.name }}?');">Delete</button>
@@ -116,16 +158,26 @@
         <ul class="pagination justify-content-center">
             {% if page > 1 %}
             <li class="page-item">
-                <a class="page-link" href="{{ url_for('dashboard.director_dashboard', page=page-1, q=q, department=dept_filter) }}">Previous</a>
+                <a class="page-link" href="{{ url_for('dashboard.director_dashboard', page=page-1, q=q, role=role_filter, department=dept_filter) }}">Previous</a>
             </li>
             {% endif %}
             <li class="page-item disabled"><span class="page-link">Page {{ page }}</span></li>
             {% if total > page * per_page %}
             <li class="page-item">
-                <a class="page-link" href="{{ url_for('dashboard.director_dashboard', page=page+1, q=q, department=dept_filter) }}">Next</a>
+                <a class="page-link" href="{{ url_for('dashboard.director_dashboard', page=page+1, q=q, role=role_filter, department=dept_filter) }}">Next</a>
             </li>
             {% endif %}
         </ul>
     </nav>
+
+    <!-- Recent Activities -->
+    <h4 class="mt-5">Recent Activities</h4>
+    <ul class="list-group">
+        {% for act in recent_activities if recent_activities is defined %}
+            <li class="list-group-item">{{ act }}</li>
+        {% else %}
+            <li class="list-group-item text-muted">No recent activity.</li>
+        {% endfor %}
+    </ul>
 </div>
 {% endblock %}

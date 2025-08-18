@@ -1,4 +1,3 @@
-# modules/employee/services.py
 from core.extensions import db
 from core.models import User
 from datetime import datetime
@@ -21,12 +20,12 @@ def _generate_access_code():
 def create_employee(form_data):
     """
     form_data: dict-like from request.form
-    required: email, name, password (recommended), role
+    required: email, name, password (optional), role
     """
     email = form_data.get('email')
     name = form_data.get('name') or 'Unnamed'
     role = (form_data.get('role') or 'employee').lower()
-    password = form_data.get('password') or None
+    password = form_data.get('password') or secrets.token_urlsafe(10)  # ensure password exists
     department_id = form_data.get('department') or form_data.get('department_id') or None
     access_code = form_data.get('access_code') or _generate_access_code()
     avatar = form_data.get('avatar') or _generate_avatar(name)
@@ -49,11 +48,8 @@ def create_employee(form_data):
         is_active=True
     )
 
-    if password:
-        user.set_password(password)
-    else:
-        # set a random temporary password if none provided
-        user.set_password(secrets.token_urlsafe(10))
+    # ✅ Always set password properly
+    user.set_password(password)
 
     db.session.add(user)
     try:

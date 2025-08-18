@@ -70,9 +70,11 @@ def register_blueprints(app):
     """Register all application blueprints"""
     from modules.auth.routes import auth_bp
     from modules.dashboard.routes import dashboard_bp
+    from modules.leave.routes import leave_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
+    app.register_blueprint(leave_bp, url_prefix='/leave')
 
     print("All registered endpoints:")
     for rule in app.url_map.iter_rules():

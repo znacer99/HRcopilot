@@ -1,0 +1,61 @@
+{# templates/leave/leave_form.html #}
+{% extends "base.html" %}
+
+{% block title %}New Leave Request{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-4">Submit a Leave Request</h2>
+
+  <form method="POST" action="{{ url_for('leave.new_request') }}">
+    {{ form.hidden_tag() }}
+
+    <div class="mb-3">
+      {{ form.type.label(class="form-label") }}
+      {{ form.type(class="form-select") }}
+      {% if form.type.errors %}
+        <div class="text-danger small">{{ form.type.errors[0] }}</div>
+      {% endif %}
+    </div>
+
+    <div class="mb-3">
+      {{ form.start_date.label(class="form-label") }}
+      {{ form.start_date(class="form-control") }}
+      {% if form.start_date.errors %}
+        <div class="text-danger small">{{ form.start_date.errors[0] }}</div>
+      {% endif %}
+    </div>
+
+    <div class="mb-3">
+      {{ form.end_date.label(class="form-label") }}
+      {{ form.end_date(class="form-control") }}
+      {% if form.end_date.errors %}
+        <div class="text-danger small">{{ form.end_date.errors[0] }}</div>
+      {% endif %}
+    </div>
+
+    <div class="mb-3">
+      {{ form.reason.label(class="form-label") }}
+      {{ form.reason(class="form-control", rows="3") }}
+      {% if form.reason.errors %}
+        <div class="text-danger small">{{ form.reason.errors[0] }}</div>
+      {% endif %}
+    </div>
+
+    <div class="mb-3">
+      {{ form.approver_id.label(class="form-label") }}
+      {{ form.approver_id(class="form-select") }}
+      {% if form.approver_id.errors %}
+        <div class="text-danger small">{{ form.approver_id.errors[0] }}</div>
+      {% endif %}
+
+      {% if not form.approver_id.choices %}
+        <div class="text-warning small mt-1">No approvers available for your role/department.</div>
+      {% endif %}
+    </div>
+
+    <button type="submit" class="btn btn-primary">Submit Request</button>
+    <a href="{{ url_for('dashboard.role_dashboard') }}" class="btn btn-outline-secondary ms-2">Back to dashboard</a>
+  </form>
+</div>
+{% endblock %}
