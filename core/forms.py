@@ -3,6 +3,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, SelectField, DateField, TextAreaField
 from wtforms.validators import DataRequired, Email, Length
 from core.models import Department
+from flask_wtf.file import FileField, FileAllowed
 
 class LoginForm(FlaskForm):
     email = StringField('Email', validators=[
@@ -26,6 +27,9 @@ class UserForm(FlaskForm):
         ('it_manager', 'IT Manager')
     ], validators=[DataRequired()])
     department = SelectField('Department', coerce=int, validators=[DataRequired()])
+    position = StringField('Position / Job Title')
+    phone = StringField('Phone Number')
+    documents = FileField('Upload Documents', validators=[FileAllowed(['pdf', 'doc', 'docx', 'jpg', 'png'], 'Documents only!')], render_kw={"multiple": True})
     submit = SubmitField('Save User')
     
     # Add this to populate department choices

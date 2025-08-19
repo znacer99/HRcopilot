@@ -5,29 +5,66 @@
 {% block dashboard_title %}Employee Dashboard{% endblock %}
 
 {% block dashboard_content %}
+
+<!-- Documents Section -->
 <div class="card mb-4">
     <div class="card-header">
-        <h5>My Information</h5>
+        <h5>My Documents</h5>
+    </div>
+    <div class="card-body">
+        <form action="{{ url_for('employee.upload_document') }}" method="POST" enctype="multipart/form-data" class="mb-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="input-group">
+                <input type="file" name="document" class="form-control" required>
+                <button class="btn btn-primary" type="submit">Upload</button>
+            </div>
+        </form>
+
+        {% if documents and documents|length > 0 %}
+        <ul class="list-group">
+            {% for doc in documents %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <a href="{{ url_for('employee.download_document', doc_id=doc.id) }}">{{ doc.filename }}</a>
+                <form action="{{ url_for('employee.delete_document', doc_id=doc.id) }}" method="POST" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                </form>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted">No documents uploaded.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Profile Section -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>My Profile</h5>
     </div>
     <div class="card-body">
         <div class="row">
             <div class="col-md-8">
                 <p><strong>Name:</strong> {{ current_user.name }}</p>
                 <p><strong>Email:</strong> {{ current_user.email }}</p>
+                <p><strong>Phone:</strong> {{ current_user.phone or 'N/A' }}</p>
+                <p><strong>Position:</strong> {{ current_user.position or 'N/A' }}</p>
                 <p><strong>Department:</strong> {{ current_user.department.name if current_user.department else 'N/A' }}</p>
-                <p><strong>Access Code:</strong> {{ current_user.access_code }}</p>
+                <p><strong>Role:</strong> {{ current_user.role|capitalize }}</p>
+                <p><strong>Access Code:</strong> {{ current_user.access_code or 'N/A' }}</p>
             </div>
             <div class="col-md-4 text-center">
-                <div class="avatar-circle bg-secondary text-white d-inline-flex align-items-center justify-content-center" 
+                <div class="avatar-circle bg-secondary text-white d-inline-flex align-items-center justify-content-center"
                      style="width: 100px; height: 100px; border-radius: 50%; font-size: 2rem;">
-                    {{ current_user.avatar }}
+                    {{ current_user.avatar or current_user.name[0]|upper }}
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- NEW Leave Management Section -->
+<!-- Leave Management Section -->
 <div class="card mb-4">
     <div class="card-header">
         <h5>Leave Management</h5>
@@ -36,12 +73,11 @@
         <ul class="list-unstyled mb-3">
             <li><a href="{{ url_for('leave.new_request') }}" class="btn btn-sm btn-primary mb-2">Request Leave</a></li>
             <li><a href="{{ url_for('leave.my_requests') }}" class="btn btn-sm btn-secondary mb-2">View All</a></li>
-            {% if current_user.role == 'manager' %}
+            {% if current_user.role in ['manager', 'head_of_department', 'general_manager', 'general_director'] %}
             <li><a href="{{ url_for('leave.pending_requests') }}" class="btn btn-sm btn-warning">Pending Approvals</a></li>
             {% endif %}
         </ul>
 
-        <!-- Mini Leave Requests Table -->
         {% if latest_leaves %}
         <h6>Recent Leave Requests</h6>
         <div class="table-responsive">
@@ -77,8 +113,8 @@
         {% endif %}
     </div>
 </div>
-<!-- END Leave Management Section -->
 
+<!-- Recent Activities Section -->
 <div class="card">
     <div class="card-header">
         <h5>Recent Activities</h5>
@@ -87,4 +123,5 @@
         {% include 'dashboard/partials/recent_activities.html' %}
     </div>
 </div>
+
 {% endblock %}

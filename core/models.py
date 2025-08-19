@@ -25,6 +25,8 @@ class User(db.Model, UserMixin):
     last_login = db.Column(db.DateTime)
     login_count = db.Column(db.Integer, default=0)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+    position = db.Column(db.String(100), nullable=True)
+    phone = db.Column(db.String(20), nullable=True)
     
     # Relationships
     department = db.relationship('Department', back_populates='members')
@@ -99,3 +101,14 @@ class LeaveRequest(db.Model):
     # relationships
     requester = db.relationship('User', foreign_keys=[user_id], backref='leave_requests')
     approver = db.relationship('User', foreign_keys=[approver_id])
+
+# New model for employee documents
+class EmployeeDocument(db.Model):
+    __tablename__ = 'employee_documents'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    filename = db.Column(db.String(255), nullable=False)
+    filepath = db.Column(db.String(255), nullable=False)
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref='documents')

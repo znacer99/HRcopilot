@@ -4,7 +4,7 @@ from flask_login import login_required, current_user
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_
 from core.decorators import permission_required, role_required
-from core.models import User, Department, ActivityLog, db
+from core.models import User, Department, ActivityLog, db, User, EmployeeDocument
 from core.permissions import Permission
 from .services import get_director_dashboard_data, get_manager_dashboard_data
 from modules.employee.services import create_employee, update_employee, delete_employee
@@ -288,8 +288,32 @@ def manager_dashboard():
 @dashboard_bp.route('/employee')
 @login_required
 def employee_dashboard():
-    latest_leaves = LeaveRequest.query.filter_by(user_id=current_user.id).order_by(LeaveRequest.created_at.desc()).limit(3).all()
-    return render_template('dashboard/employee.html',user=current_user,latest_leaves=latest_leaves)
+    # Debug: print current user info
+    print(f"[DEBUG] Current user: id={current_user.id}, email={current_user.email}")
+
+    # Fetch latest leaves
+    latest_leaves = LeaveRequest.query.filter_by(user_id=current_user.id)\
+        .order_by(LeaveRequest.created_at.desc()).limit(3).all()
+
+    # Fetch employee documents
+    documents = EmployeeDocument.query.filter_by(user_id=current_user.id)\
+        .order_by(EmployeeDocument.uploaded_at.desc()).all()
+
+    # Debug: print documents fetched
+    if not documents:
+        print("[DEBUG] No documents found for this user.")
+    else:
+        print(f"[DEBUG] Documents found: {len(documents)}")
+        for doc in documents:
+            print(f" - id={doc.id}, filename={doc.filename}, filepath={doc.filepath}, uploaded_at={doc.uploaded_at}")
+
+    return render_template(
+        'dashboard/employee.html',
+        user=current_user,
+        latest_leaves=latest_leaves,
+        documents=documents
+    )
+
 
 
 @dashboard_bp.route('/employee-summary')
