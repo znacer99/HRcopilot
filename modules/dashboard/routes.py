@@ -1,16 +1,14 @@
-# modules/dashboard/routes.py
-from flask import Blueprint, render_template, redirect, url_for, request, flash, abort
+from flask import Blueprint, render_template, redirect, url_for, request, flash, abort, current_app
 from flask_login import login_required, current_user
 from sqlalchemy.orm import joinedload
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from core.decorators import permission_required, role_required
-from core.models import User, Department, ActivityLog, db, User, EmployeeDocument
+from core.models import User, Department, ActivityLog, db, UserDocument, Folder
 from core.permissions import Permission
 from .services import get_director_dashboard_data, get_manager_dashboard_data
 from modules.employee.services import create_employee, update_employee, delete_employee
 from core.logger import audit_log
 from datetime import datetime, timedelta
-from sqlalchemy import func, or_
 from modules.leave.services import LeaveRequest
 
 dashboard_bp = Blueprint('dashboard', __name__, template_folder='templates')
@@ -23,20 +21,17 @@ def role_dashboard():
 
     if role == "it_manager":
         return redirect(url_for('dashboard.it_manager_dashboard'))
-
     elif role == "general_director":
         return redirect(url_for('dashboard.director_dashboard'))
-
     elif role in ["general_manager", "head_of_department", "manager"]:
         return redirect(url_for('dashboard.manager_dashboard'))
-
     else:
         return redirect(url_for('dashboard.employee_dashboard'))
 
 
 @dashboard_bp.route('/it_manager')
 @login_required
-@role_required(['it_manager',])
+@role_required(['it_manager'])
 def it_manager_dashboard():
     q = (request.args.get('q') or '').strip()
     role_filter = (request.args.get('role') or '').strip()
@@ -67,25 +62,14 @@ def it_manager_dashboard():
     users = query.order_by(User.created_at.desc()).limit(per_page).offset((page - 1) * per_page).all()
     departments = Department.query.order_by(Department.name).all()
 
-    # Additional stats for dashboard summary
-
-    # User counts by role (all roles)
-    user_counts = db.session.query(
-        User.role,
-        func.count(User.id)
-    ).group_by(User.role).all()
-
-    # New users last 7 days
+    # Dashboard stats
+    user_counts = db.session.query(User.role, func.count(User.id)).group_by(User.role).all()
     week_ago = datetime.utcnow() - timedelta(days=7)
     new_users_count = User.query.filter(User.created_at >= week_ago).count()
-
-    # Inactive users (no login or last login older than 30 days)
     month_ago = datetime.utcnow() - timedelta(days=30)
     inactive_users_count = User.query.filter(
         or_(User.last_login == None, User.last_login < month_ago)
     ).count()
-
-    # Recent 10 activity logs
     recent_activities = ActivityLog.query.order_by(ActivityLog.timestamp.desc()).limit(10).all()
 
     return render_template(
@@ -103,12 +87,12 @@ def it_manager_dashboard():
         new_users_count=new_users_count,
         inactive_users_count=inactive_users_count,
         recent_activities=recent_activities,
-    ) 
+    )
 
 
 @dashboard_bp.route('/it_manager/employee/create', methods=['GET', 'POST'])
 @login_required
-@role_required(['it_manager',])
+@role_required(['it_manager'])
 def it_manager_create_employee():
     departments = Department.query.order_by(Department.name).all()
     if request.method == 'POST':
@@ -156,7 +140,6 @@ def it_manager_delete_employee(id):
     return redirect(url_for('dashboard.it_manager_dashboard'))
 
 
-
 @dashboard_bp.route('/general_director')
 @login_required
 @role_required(['general_director'])
@@ -164,25 +147,22 @@ def director_dashboard():
     q = (request.args.get('q') or '').strip()
     role_filter = (request.args.get('role') or '').strip()
     dept_filter = (request.args.get('department') or '').strip()
+    
     try:
         page = max(int(request.args.get('page', 1)), 1)
     except Exception:
         page = 1
     per_page = 10
 
-    # Base query
+    # -----------------------
+    # Users query (pagination)
+    # -----------------------
     query = User.query
-
-    # Search by name or email
     if q:
         like = f"%{q}%"
         query = query.filter(or_(User.name.ilike(like), User.email.ilike(like)))
-
-    # Filter by role
     if role_filter:
         query = query.filter(User.role == role_filter)
-
-    # Filter by department
     if dept_filter:
         try:
             dept_id = int(dept_filter)
@@ -190,26 +170,44 @@ def director_dashboard():
         except ValueError:
             pass
 
-    # Pagination
     total = query.count()
     employees = query.order_by(User.created_at.desc()).limit(per_page).offset((page - 1) * per_page).all()
 
-    # Departments for filter dropdown
+    # -----------------------
+    # Dashboard stats
+    # -----------------------
     departments = Department.query.order_by(Department.name).all()
-
-    # Stats for cards
     active_count = User.query.filter_by(is_active=True).count()
     inactive_count = User.query.filter_by(is_active=False).count()
     user_counts = {"active": active_count, "inactive": inactive_count}
     new_users_count = User.query.filter(User.created_at >= (datetime.utcnow() - timedelta(days=7))).count()
+    recent_activities = ActivityLog.query.order_by(ActivityLog.timestamp.desc()).limit(10).all()
 
-    # Recent 10 activities
-    recent_activities = [act.description for act in ActivityLog.query.order_by(ActivityLog.timestamp.desc()).limit(10).all()]
+    # -----------------------
+    # Folder & document logic
+    # -----------------------
+    all_folders = Folder.query.options(joinedload(Folder.documents)).order_by(Folder.name).all()
+    folders = []
+    for folder in all_folders:
+        # Keep only docs the current user can access
+        accessible_docs = [doc for doc in folder.documents if doc.can_user_access(current_user)]
+        if accessible_docs:
+            folder.documents = accessible_docs
+            folders.append(folder)
+
+    # User's own documents
+    documents = UserDocument.query.filter_by(uploaded_by=current_user.id).all()
+
+    # Shared documents not in folders and not uploaded by current user
+    shared_documents = [
+        doc for doc in UserDocument.query.filter(UserDocument.folder_id.is_(None)).all()
+        if doc.can_user_access(current_user) and doc.uploaded_by != current_user.id
+    ]
 
     return render_template(
         'dashboard/general_director.html',
         user=current_user,
-        user_list=employees,  # <-- fixed variable name
+        user_list=employees,
         total=total,
         page=page,
         per_page=per_page,
@@ -220,8 +218,12 @@ def director_dashboard():
         user_counts=user_counts,
         new_users_count=new_users_count,
         inactive_users_count=inactive_count,
-        recent_activities=recent_activities
+        recent_activities=recent_activities,
+        folders=folders,
+        documents=documents,
+        shared_documents=shared_documents
     )
+
 
 
 
@@ -229,7 +231,6 @@ def director_dashboard():
 @login_required
 @role_required(['general_director'])
 def director_create_employee():
-    print(f"User role in create employee: {current_user.role}")
     departments = Department.query.order_by(Department.name).all()
     if request.method == 'POST':
         form_data = request.form.to_dict()
@@ -276,7 +277,6 @@ def director_delete_employee(id):
     return redirect(url_for('dashboard.director_dashboard'))
 
 
-
 @dashboard_bp.route('/manager')
 @login_required
 @role_required(['general_manager', 'head_of_department', 'manager'])
@@ -288,32 +288,57 @@ def manager_dashboard():
 @dashboard_bp.route('/employee')
 @login_required
 def employee_dashboard():
-    # Debug: print current user info
-    print(f"[DEBUG] Current user: id={current_user.id}, email={current_user.email}")
-
-    # Fetch latest leaves
     latest_leaves = LeaveRequest.query.filter_by(user_id=current_user.id)\
         .order_by(LeaveRequest.created_at.desc()).limit(3).all()
+    documents = UserDocument.query.filter_by(uploaded_by=current_user.id)\
+        .order_by(UserDocument.uploaded_at.desc()).all()
 
-    # Fetch employee documents
-    documents = EmployeeDocument.query.filter_by(user_id=current_user.id)\
-        .order_by(EmployeeDocument.uploaded_at.desc()).all()
-
-    # Debug: print documents fetched
+    current_app.logger.debug(f"[DEBUG] Current user: id={current_user.id}, email={current_user.email}")
     if not documents:
-        print("[DEBUG] No documents found for this user.")
+        current_app.logger.debug("[DEBUG] No documents found for this user.")
     else:
-        print(f"[DEBUG] Documents found: {len(documents)}")
-        for doc in documents:
-            print(f" - id={doc.id}, filename={doc.filename}, filepath={doc.filepath}, uploaded_at={doc.uploaded_at}")
+        current_app.logger.debug(f"[DEBUG] Found {len(documents)} documents for user {current_user.id}")
 
-    return render_template(
-        'dashboard/employee.html',
-        user=current_user,
-        latest_leaves=latest_leaves,
-        documents=documents
-    )
+    return render_template('dashboard/employee.html',
+                           user=current_user,
+                           latest_leaves=latest_leaves,
+                           documents=documents)
 
+
+@dashboard_bp.route('/employee/upload_document', methods=['GET', 'POST'])
+@login_required
+def employee_upload_document():
+    if request.method == 'POST':
+        file = request.files.get('document')
+        doc_type = request.form.get('doc_type')
+
+        if not file:
+            flash("No file uploaded.", "danger")
+            return redirect(url_for('dashboard.employee_upload_document'))
+
+        try:
+            filename = f"{current_user.id}_{file.filename}"
+            filepath = f"uploads/personal/{filename}"
+            file.save(filepath)
+
+            new_doc = UserDocument(
+                user_id=current_user.id,
+                filename=filename,
+                filepath=filepath,
+                doc_type=doc_type,
+                is_private=True
+            )
+            db.session.add(new_doc)
+            db.session.commit()
+
+            flash("Document uploaded successfully!", "success")
+            return redirect(url_for('dashboard.employee_dashboard'))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error uploading document: {str(e)}", "danger")
+
+    return render_template("dashboard/employee_upload_document.html")
 
 
 @dashboard_bp.route('/employee-summary')

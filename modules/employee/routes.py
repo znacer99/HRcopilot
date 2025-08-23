@@ -3,24 +3,29 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from core.decorators import permission_required
 from core.permissions import Permission
-from .services import create_employee, update_employee, delete_employee, _save_documents
-from core.models import EmployeeDocument
+from .services import (
+    create_employee,
+    update_employee,
+    delete_employee,
+    _save_documents,
+    create_folder_for_user,
+    update_document_visibility,
+)
+from core.models import UserDocument
 from core.extensions import db
 import os
 
 employee_bp = Blueprint('employee', __name__)
 
-# Allowed file types
-ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'png'}
-
+ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-# -----------------------
-# Create Employee
-# -----------------------
+# ------------------------
+# Employee CRUD Routes
+# ------------------------
 @employee_bp.route('/create', methods=['POST'])
 @login_required
 @permission_required(Permission.ADMIN)
@@ -34,9 +39,6 @@ def create():
         return redirect(url_for('dashboard.employee_form'))
 
 
-# -----------------------
-# Update Employee
-# -----------------------
 @employee_bp.route('/<int:employee_id>/update', methods=['POST'])
 @login_required
 @permission_required(Permission.EDIT)
@@ -50,9 +52,6 @@ def update(employee_id):
         return redirect(url_for('dashboard.edit_employee', id=employee_id))
 
 
-# -----------------------
-# Delete Employee
-# -----------------------
 @employee_bp.route('/<int:employee_id>/delete', methods=['POST'])
 @login_required
 @permission_required(Permission.ADMIN)
@@ -66,73 +65,109 @@ def delete(employee_id):
         return redirect(url_for('dashboard.employee_profile', id=employee_id))
 
 
-# -----------------------
-# Upload Document
-# -----------------------
+# ------------------------
+# Document Routes (all roles use these)
+# ------------------------
+@employee_bp.route('/create-folder', methods=['POST'])
+@login_required
+def create_folder():
+    folder_name = (request.form.get('folder_name') or '').strip()
+    try:
+        create_folder_for_user(current_user, folder_name)
+        db.session.commit()
+        flash(f'📁 Folder "{folder_name}" created.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'❌ Could not create folder: {str(e)}', 'danger')
+
+    return redirect(url_for('dashboard.role_dashboard'))
+
+
 @employee_bp.route('/upload-document', methods=['POST'])
 @login_required
 def upload_document():
-    if 'document' not in request.files:
-        flash('No file part', 'error')
+    # Accept either 'documents' (multiple) or 'document' (single)
+    files = request.files.getlist('documents') or []
+    single = request.files.get('document')
+    if single and getattr(single, "filename", ""):
+        files.append(single)
+
+    valid_files = [f for f in files if f and allowed_file(getattr(f, "filename", ""))]
+    if not valid_files:
+        flash('❌ No valid files uploaded', 'error')
+        return redirect(url_for('dashboard.role_dashboard'))
+
+    # Folder
+    folder_name = request.form.get("folder_name") or None
+
+    # Visibility
+    visibility_type = (request.form.get("visibility_type") or "private").lower()
+    allowed_users = request.form.get("allowed_users")
+    allowed_roles = request.form.get("allowed_roles")
+    allowed_departments = request.form.get("allowed_departments")
+
+    # Employees: lock their uploads to “roles: it_manager,general_director” by default
+    if current_user.role == 'employee':
+        visibility_type = 'roles'
+        allowed_roles = 'it_manager,general_director'
+
+    _save_documents(
+        current_user,
+        valid_files,
+        folder_name=folder_name,
+        visibility_type=visibility_type,
+        allowed_users=allowed_users,
+        allowed_roles=allowed_roles,
+        allowed_departments=allowed_departments,
+    )
+
+    try:
+        db.session.commit()
+        flash('✅ Document uploaded successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'❌ Error saving document: {str(e)}', 'danger')
+
+    # Go back to the appropriate dashboard
+    if current_user.role == 'employee':
         return redirect(url_for('dashboard.employee_dashboard'))
-
-    file = request.files['document']
-    if file.filename == '':
-        flash('No selected file', 'error')
-        return redirect(url_for('dashboard.employee_dashboard'))
-
-    if file and allowed_file(file.filename):
-        # Use service helper for saving
-        _save_documents(current_user, [file])
-        try:
-            db.session.commit()
-            flash('✅ Document uploaded successfully!', 'success')
-        except Exception as e:
-            db.session.rollback()
-            flash(f'❌ Error saving document: {str(e)}', 'danger')
-        return redirect(url_for('dashboard.employee_dashboard'))
-
-    flash('❌ File type not allowed', 'error')
-    return redirect(url_for('dashboard.employee_dashboard'))
+    return redirect(url_for('dashboard.role_dashboard'))
 
 
-# -----------------------
-# Download Document
-# -----------------------
 @employee_bp.route('/document/<int:doc_id>')
 @login_required
 def download_document(doc_id):
-    doc = EmployeeDocument.query.get_or_404(doc_id)
-    if doc.user_id != current_user.id:
+    doc = UserDocument.query.get_or_404(doc_id)
+    if not doc.can_user_access(current_user):
         flash("❌ You are not allowed to access this document.", "danger")
-        return redirect(url_for('dashboard.employee_dashboard'))
+        if current_user.role == 'employee':
+            return redirect(url_for('dashboard.employee_dashboard'))
+        return redirect(url_for('dashboard.role_dashboard'))
 
-    # Resolve full path dynamically
-    full_path = os.path.join(current_app.root_path, doc.filepath)
+    full_path = os.path.join(current_app.config['UPLOAD_FOLDER'], doc.filepath)
     if not os.path.exists(full_path):
         flash("❌ File not found.", "danger")
-        return redirect(url_for('dashboard.employee_dashboard'))
+        if current_user.role == 'employee':
+            return redirect(url_for('dashboard.employee_dashboard'))
+        return redirect(url_for('dashboard.role_dashboard'))
 
     return send_file(full_path, as_attachment=True)
 
 
-# -----------------------
-# Delete Document
-# -----------------------
 @employee_bp.route('/document/<int:doc_id>/delete', methods=['POST'])
 @login_required
 def delete_document(doc_id):
-    doc = EmployeeDocument.query.get_or_404(doc_id)
-    if doc.user_id != current_user.id:
+    doc = UserDocument.query.get_or_404(doc_id)
+    if not doc.can_user_access(current_user) or current_user.id != doc.user_id:
         flash("❌ You cannot delete this document.", "danger")
-        return redirect(url_for('dashboard.employee_dashboard'))
+        if current_user.role == 'employee':
+            return redirect(url_for('dashboard.employee_dashboard'))
+        return redirect(url_for('dashboard.role_dashboard'))
 
-    # Delete file from disk
-    full_path = os.path.join(current_app.root_path, doc.filepath)
+    full_path = os.path.join(current_app.config['UPLOAD_FOLDER'], doc.filepath)
     if os.path.exists(full_path):
         os.remove(full_path)
 
-    # Delete record from DB
     db.session.delete(doc)
     try:
         db.session.commit()
@@ -141,4 +176,22 @@ def delete_document(doc_id):
         db.session.rollback()
         flash(f'❌ Error deleting document: {str(e)}', 'danger')
 
-    return redirect(url_for('dashboard.employee_dashboard'))
+    if current_user.role == 'employee':
+        return redirect(url_for('dashboard.employee_dashboard'))
+    return redirect(url_for('dashboard.role_dashboard'))
+
+
+@employee_bp.route('/document/<int:doc_id>/visibility', methods=['POST'])
+@login_required
+def change_visibility(doc_id):
+    try:
+        update_document_visibility(doc_id, request.form, current_user)
+        flash("🔒 Visibility updated.", "success")
+    except PermissionError as pe:
+        flash(f"❌ {str(pe)}", "danger")
+    except Exception as e:
+        flash(f"❌ Error changing visibility: {str(e)}", "danger")
+
+    if current_user.role == 'employee':
+        return redirect(url_for('dashboard.employee_dashboard'))
+    return redirect(url_for('dashboard.role_dashboard'))

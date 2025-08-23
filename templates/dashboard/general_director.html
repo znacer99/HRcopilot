@@ -9,13 +9,120 @@
         <p>Welcome, {{ user.name }}</p>
     </div>
 
-    <!-- Stats cards -->
+    <!-- Document Manager -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Documents & Folders</h5>
+            <form class="d-flex gap-2" action="{{ url_for('docs.create_folder') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input name="folder_name" class="form-control form-control-sm" placeholder="New folder name" required>
+                <button class="btn btn-sm btn-outline-primary" type="submit">Create Folder</button>
+            </form>
+        </div>
+        <div class="card-body">
+
+            <!-- Upload Document -->
+            <form action="{{ url_for('docs.upload_document') }}" method="POST" enctype="multipart/form-data" class="row g-2 align-items-end mb-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="col-md-4">
+                    <label class="form-label">Files</label>
+                    <input type="file" name="document" class="form-control" multiple required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Folder</label>
+                    <select name="folder_id" class="form-select">
+                        <option value="">--No Folder--</option>
+                        {% for folder in folders %}
+                            <option value="{{ folder.id }}">{{ folder.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Visibility</label>
+                    <select name="visibility" class="form-select">
+                        <option value="private" selected>Private</option>
+                        <option value="public">Public</option>
+                        <option value="users">Specific Users</option>
+                        <option value="roles">Roles</option>
+                        <option value="departments">Departments</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Allowed (optional)</label>
+                    <input name="allowed_users" class="form-control mb-1" placeholder="Users: 3,5,8">
+                    <input name="allowed_roles" class="form-control mb-1" placeholder="Roles: manager,employee">
+                    <input name="allowed_departments" class="form-control" placeholder="Depts: 1,2">
+                </div>
+                <div class="col-12">
+                    <button class="btn btn-primary">Upload</button>
+                </div>
+            </form>
+
+            <!-- Folders & Documents Accordion -->
+            {% if folders %}
+            <div class="accordion" id="foldersAccordion">
+                {% for folder in folders %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading{{ folder.id }}">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ folder.id }}" aria-expanded="false" aria-controls="collapse{{ folder.id }}">
+                            {{ folder.name }}
+                        </button>
+                    </h2>
+                    <div id="collapse{{ folder.id }}" class="accordion-collapse collapse" aria-labelledby="heading{{ folder.id }}" data-bs-parent="#foldersAccordion">
+                        <div class="accordion-body">
+                            {% set folder_docs = (documents + shared_documents) | selectattr('folder_id', 'equalto', folder.id) | list %}
+                            {% if folder_docs %}
+                            <ul class="list-group">
+                                {% for doc in folder_docs %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ doc.filename }}</strong>
+                                        <small class="text-muted ms-2">{{ doc.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                        <small class="ms-2">[{{ doc.visibility_type }}]</small>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('docs.download_document', doc_id=doc.id) }}">Download</a>
+                                        <form method="POST" action="{{ url_for('docs.change_visibility', doc_id=doc.id) }}" class="d-flex gap-2">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <select name="visibility" class="form-select form-select-sm">
+                                                <option value="private" {% if doc.visibility_type=='private' %}selected{% endif %}>private</option>
+                                                <option value="public" {% if doc.visibility_type=='public' %}selected{% endif %}>public</option>
+                                                <option value="users" {% if doc.visibility_type=='users' %}selected{% endif %}>users</option>
+                                                <option value="roles" {% if doc.visibility_type=='roles' %}selected{% endif %}>roles</option>
+                                                <option value="departments" {% if doc.visibility_type=='departments' %}selected{% endif %}>departments</option>
+                                            </select>
+                                            <button class="btn btn-sm btn-outline-primary">Save</button>
+                                        </form>
+                                        <form action="{{ url_for('docs.delete_document', doc_id=doc.id) }}" method="POST">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                        </form>
+                                    </div>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% else %}
+                            <p class="text-muted">No documents in this folder.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted">No folders created yet.</p>
+            {% endif %}
+
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
     <div class="row mb-4">
         <div class="col-md-3">
             <div class="card text-white bg-primary">
                 <div class="card-body">
                     <h5 class="card-title">Total Employees</h5>
-                    <p class="card-text fs-3">{{ total if total is defined else 0 }}</p>
+                    <p class="card-text fs-3">{{ total }}</p>
                 </div>
             </div>
         </div>
@@ -23,7 +130,7 @@
             <div class="card text-white bg-success">
                 <div class="card-body">
                     <h5 class="card-title">Active Employees</h5>
-                    <p class="card-text fs-3">{{ user_counts.active if user_counts is defined and user_counts.active is defined else 0 }}</p>
+                    <p class="card-text fs-3">{{ user_counts.active }}</p>
                 </div>
             </div>
         </div>
@@ -31,7 +138,7 @@
             <div class="card text-white bg-danger">
                 <div class="card-body">
                     <h5 class="card-title">Inactive Employees</h5>
-                    <p class="card-text fs-3">{{ inactive_users_count if inactive_users_count is defined else 0 }}</p>
+                    <p class="card-text fs-3">{{ inactive_users_count }}</p>
                 </div>
             </div>
         </div>
@@ -39,145 +146,11 @@
             <div class="card text-white bg-info">
                 <div class="card-body">
                     <h5 class="card-title">Departments</h5>
-                    <p class="card-text fs-3">{{ departments|length if departments is defined else 0 }}</p>
+                    <p class="card-text fs-3">{{ departments|length }}</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Leave Request Cards (Top only) -->
-    <div class="row mb-4">
-        {% if current_user.role != 'general_director' %}
-        <div class="col-md-3">
-            <a href="{{ url_for('leave.my_requests') }}" class="text-decoration-none">
-                <div class="card text-center dashboard-link-card">
-                    <div class="card-body">
-                        <h5 class="card-title">My Leave Requests</h5>
-                    </div>
-                </div>
-            </a>
-        </div>
-        {% endif %}
-
-        {% if current_user.role == 'general_director' %}
-        <div class="col-md-3">
-            <a href="{{ url_for('leave.pending_requests') }}" class="text-decoration-none">
-                <div class="card text-center dashboard-link-card">
-                    <div class="card-body">
-                        <h5 class="card-title">Pending Leave Requests</h5>
-                    </div>
-                </div>
-            </a>
-        </div>
-        {% endif %}
-    </div>
-
-    <!-- Employee Search -->
-    <form method="GET" action="{{ url_for('dashboard.director_dashboard') }}" class="row g-2 mb-3">
-        <div class="col-md-3">
-            <input name="q" value="{{ q if q is defined else '' }}" class="form-control" placeholder="Search employees">
-        </div>
-
-        <div class="col-md-3">
-            <select name="role" class="form-select">
-                <option value="">All roles</option>
-                <option value="general_director" {% if role_filter == 'general_director' %}selected{% endif %}>General Director</option>
-                <option value="it_manager" {% if role_filter == 'it_manager' %}selected{% endif %}>IT Manager</option>
-                <option value="employee" {% if role_filter == 'employee' %}selected{% endif %}>Employee</option>
-            </select>
-        </div>
-
-        <div class="col-md-3">
-            <select name="department" class="form-select">
-                <option value="">All departments</option>
-                {% for d in departments %}
-                    <option value="{{ d.id }}" {% if dept_filter and dept_filter|int == d.id %}selected{% endif %}>{{ d.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="col-md-3">
-            <button class="btn btn-primary" type="submit">Search</button>
-            <a href="{{ url_for('dashboard.director_dashboard') }}" class="btn btn-outline-secondary ms-2">Reset</a>
-        </div>
-    </form>
-
-    <!-- Actions -->
-    <div class="mb-3 d-flex justify-content-between align-items-center">
-        <a href="{{ url_for('dashboard.director_create_employee') }}" class="btn btn-success">Add New Employee</a>
-        <a href="{% if current_user.role == 'general_director' %}
-            {{ url_for('dashboard.director_dashboard') }}
-        {% elif current_user.role == 'it_manager' %}
-            {{ url_for('dashboard.it_manager_dashboard') }}
-        {% else %}
-            {{ url_for('dashboard.role_dashboard') }}
-        {% endif %}" 
-   class="btn btn-secondary">
-    Cancel
-</a>
-    </div>
-
-    <!-- Employee List Table -->
-    <div class="table-responsive">
-        <table class="table table-striped align-middle">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Department</th>
-                    <th>Status</th>
-                    <th class="text-end">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for u in user_list %}
-                <tr>
-                    <td>{{ u.name }}</td>
-                    <td>{{ u.email }}</td>
-                    <td>{{ u.role|replace('_', ' ')|title }}</td>
-                    <td>{{ u.department.name if u.department else '-' }}</td>
-                    <td>{{ 'Active' if u.is_active else 'Inactive' }}</td>
-                    <td class="text-end">
-                        <a href="{{ url_for('dashboard.director_edit_employee', id=u.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
-                        <form method="POST" action="{{ url_for('dashboard.director_delete_employee', id=u.id) }}" style="display:inline;">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete {{ u.name }}?');">Delete</button>
-                        </form>
-                    </td>
-                </tr>
-                {% else %}
-                <tr><td colspan="6" class="text-center">No employees found.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    <!-- Pagination -->
-    <nav aria-label="Employee pages">
-        <ul class="pagination justify-content-center">
-            {% if page > 1 %}
-            <li class="page-item">
-                <a class="page-link" href="{{ url_for('dashboard.director_dashboard', page=page-1, q=q, role=role_filter, department=dept_filter) }}">Previous</a>
-            </li>
-            {% endif %}
-            <li class="page-item disabled"><span class="page-link">Page {{ page }}</span></li>
-            {% if total > page * per_page %}
-            <li class="page-item">
-                <a class="page-link" href="{{ url_for('dashboard.director_dashboard', page=page+1, q=q, role=role_filter, department=dept_filter) }}">Next</a>
-            </li>
-            {% endif %}
-        </ul>
-    </nav>
-
-    <!-- Recent Activities -->
-    <h4 class="mt-5">Recent Activities</h4>
-    <ul class="list-group">
-        {% for act in recent_activities if recent_activities is defined %}
-            <li class="list-group-item">{{ act }}</li>
-        {% else %}
-            <li class="list-group-item text-muted">No recent activity.</li>
-        {% endfor %}
-    </ul>
 </div>
 {% endblock %}

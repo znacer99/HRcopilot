@@ -1,5 +1,3 @@
-# modules/employee/services.py
-
 import os
 import secrets
 from datetime import datetime
@@ -7,14 +5,12 @@ from flask import current_app, request
 from werkzeug.utils import secure_filename
 
 from core.extensions import db
-from core.models import User, EmployeeDocument
-
+from core.models import User, UserDocument
 
 # ------------------------
 # Helpers
 # ------------------------
 def _generate_avatar(name: str) -> str:
-    """Return 2-letter avatar (initials) or '??'"""
     if not name:
         return "??"
     parts = name.strip().split()
@@ -24,46 +20,100 @@ def _generate_avatar(name: str) -> str:
 
 
 def _generate_access_code():
-    return secrets.token_hex(3).upper()  # 6 hex chars
+    return secrets.token_hex(3).upper()
 
 
-def _save_documents(user, files):
-    """Save uploaded documents for employee"""
+def _ensure_folder_dir(user_id: int, folder_name: str | None) -> str:
+    """
+    Makes sure the upload folder for the user (+ optional subfolder) exists
+    and returns the absolute base path.
+    """
+    base_folder = os.path.join(current_app.config['UPLOAD_FOLDER'], str(user_id))
+    if folder_name:
+        base_folder = os.path.join(base_folder, secure_filename(folder_name))
+    os.makedirs(base_folder, exist_ok=True)
+    return base_folder
+
+
+def _save_documents(
+    user,
+    files,
+    folder_name: str | None = None,
+    visibility_type: str = "private",
+    allowed_users: str | None = None,
+    allowed_roles: str | None = None,
+    allowed_departments: str | None = None,
+):
+    """
+    Save uploaded files and create UserDocument entries.
+    Folder structure: UPLOAD_FOLDER/<user.id>/<folder_name>/<filename>
+    """
     if not files:
         return
 
-    # Normalize to list if a single FileStorage object
     if not isinstance(files, (list, tuple)):
         files = [files]
 
-    upload_folder = os.path.join(
-        current_app.root_path, "uploads", "employee_docs", str(user.id)
-    )
-    os.makedirs(upload_folder, exist_ok=True)
+    base_folder = _ensure_folder_dir(user.id, folder_name)
 
     for f in files:
-        if f and f.filename:
-            filename = secure_filename(f.filename)
-            filepath = os.path.join(upload_folder, filename)
-            f.save(filepath)
+        if not f or not getattr(f, "filename", None):
+            continue
+        filename = secure_filename(f.filename)
+        filepath = os.path.join(base_folder, filename)
+        f.save(filepath)
 
-            doc = EmployeeDocument(
-                user_id=user.id,
-                filename=filename,
-                filepath=os.path.relpath(filepath, current_app.root_path),
-                uploaded_at=datetime.utcnow(),
-            )
-            db.session.add(doc)
+        # store relative to UPLOAD_FOLDER
+        rel_path = os.path.relpath(filepath, current_app.config['UPLOAD_FOLDER'])
+
+        doc = UserDocument(
+            uploaded_by=user.id,
+            filename=filename,
+            filepath=rel_path,
+            folder_id=None,
+            visibility_type=(visibility_type or "private").lower(),
+            allowed_users=(allowed_users or None),
+            allowed_roles=(allowed_roles or None),
+            allowed_departments=(allowed_departments or None),
+            uploaded_at=datetime.utcnow(),
+        )
+        db.session.add(doc)
+        db.session.commit()
+
+
+# ------------------------
+# Folder Ops (filesystem only)
+# ------------------------
+def create_folder_for_user(user, folder_name: str):
+    folder_name = (folder_name or "").strip()
+    if not folder_name:
+        raise ValueError("Folder name is required.")
+    _ensure_folder_dir(user.id, folder_name)
+    # No DB row for folders; folders are “virtual” (based on names in docs)
+    return folder_name
+
+
+def update_document_visibility(doc_id: int, form_data, acting_user):
+    doc = UserDocument.query.get_or_404(doc_id)
+    # Only the owner can change visibility; privileged roles could be added later
+    if doc.user_id != acting_user.id:
+        raise PermissionError("Not allowed to change visibility for this document.")
+
+    vtype = (form_data.get("visibility_type") or "private").lower()
+    doc.visibility_type = vtype
+    doc.allowed_users = form_data.get("allowed_users") or None
+    doc.allowed_roles = form_data.get("allowed_roles") or None
+    doc.allowed_departments = form_data.get("allowed_departments") or None
+
+    db.session.add(doc)
+    db.session.commit()
+    return doc
 
 
 # ------------------------
 # Employee CRUD
 # ------------------------
 def create_employee(form_data):
-    """
-    Create new employee from form_data (request.form).
-    Also supports file uploads via request.files['documents'].
-    """
     email = form_data.get("email")
     name = form_data.get("name") or "Unnamed"
     role = (form_data.get("role") or "employee").lower()
@@ -74,14 +124,12 @@ def create_employee(form_data):
     position = form_data.get("position")
     phone = form_data.get("phone")
 
-    # Normalize department_id
     if department_id:
         try:
             department_id = int(department_id)
         except Exception:
             department_id = None
 
-    # Create user
     user = User(
         email=email,
         name=name,
@@ -94,14 +142,32 @@ def create_employee(form_data):
         is_active=True,
     )
     user.set_password(password)
-
     db.session.add(user)
     try:
-        db.session.commit()  # commit first so user.id exists
+        db.session.commit()  # commit so user.id exists
 
-        # Handle document uploads
-        files = request.files.getlist("documents")
-        _save_documents(user, files)
+        # handle uploads: 'documents' (list) or 'document' (single)
+        files = request.files.getlist("documents") or []
+        single = request.files.get("document")
+        if single and getattr(single, "filename", ""):
+            files.append(single)
+
+        # Optional folder + visibility (on create page)
+        folder_name = request.form.get("folder_name")
+        visibility_type = (request.form.get("visibility_type") or "private").lower()
+        allowed_users = request.form.get("allowed_users")
+        allowed_roles = request.form.get("allowed_roles")
+        allowed_departments = request.form.get("allowed_departments")
+
+        _save_documents(
+            user,
+            files,
+            folder_name=folder_name,
+            visibility_type=visibility_type,
+            allowed_users=allowed_users,
+            allowed_roles=allowed_roles,
+            allowed_departments=allowed_departments,
+        )
         db.session.commit()
     except Exception as e:
         db.session.rollback()
@@ -111,15 +177,11 @@ def create_employee(form_data):
 
 
 def update_employee(employee_id, form_data):
-    """
-    Update existing employee.
-    """
     user = User.query.get_or_404(employee_id)
 
-    if form_data.get("email"):
-        user.email = form_data.get("email")
-    if form_data.get("name"):
-        user.name = form_data.get("name")
+    for field in ["email", "name", "access_code", "avatar", "position", "phone"]:
+        if form_data.get(field):
+            setattr(user, field, form_data.get(field))
     if form_data.get("role"):
         user.role = form_data.get("role").lower()
     if form_data.get("department"):
@@ -127,20 +189,30 @@ def update_employee(employee_id, form_data):
             user.department_id = int(form_data.get("department"))
         except Exception:
             pass
-    if form_data.get("access_code"):
-        user.access_code = form_data.get("access_code")
-    if form_data.get("avatar"):
-        user.avatar = form_data.get("avatar")
     if form_data.get("password"):
         user.set_password(form_data.get("password"))
-    if form_data.get("position"):
-        user.position = form_data.get("position")
-    if form_data.get("phone"):
-        user.phone = form_data.get("phone")
 
-    # Save new uploaded docs (don’t remove old ones)
-    files = request.files.getlist("documents")
-    _save_documents(user, files)
+    # Handle document uploads
+    files = request.files.getlist("documents") or []
+    single = request.files.get("document")
+    if single and getattr(single, "filename", ""):
+        files.append(single)
+
+    folder_name = request.form.get("folder_name")
+    visibility_type = (request.form.get("visibility_type") or "private").lower()
+    allowed_users = request.form.get("allowed_users")
+    allowed_roles = request.form.get("allowed_roles")
+    allowed_departments = request.form.get("allowed_departments")
+
+    _save_documents(
+        user,
+        files,
+        folder_name=folder_name,
+        visibility_type=visibility_type,
+        allowed_users=allowed_users,
+        allowed_roles=allowed_roles,
+        allowed_departments=allowed_departments,
+    )
 
     db.session.add(user)
     try:
@@ -153,16 +225,13 @@ def update_employee(employee_id, form_data):
 
 
 def delete_employee(employee_id):
-    """
-    Delete an employee and all their documents.
-    """
     user = User.query.get_or_404(employee_id)
 
-    # Delete docs on disk + db
-    docs = EmployeeDocument.query.filter_by(user_id=user.id).all()
+    # Delete all documents
+    docs = UserDocument.query.filter_by(user_id=user.id).all()
     for doc in docs:
         try:
-            abs_path = os.path.join(current_app.root_path, doc.filepath)
+            abs_path = os.path.join(current_app.config['UPLOAD_FOLDER'], doc.filepath)
             if os.path.exists(abs_path):
                 os.remove(abs_path)
         except Exception:

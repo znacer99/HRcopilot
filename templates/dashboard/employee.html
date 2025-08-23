@@ -6,39 +6,76 @@
 
 {% block dashboard_content %}
 
-<!-- Documents Section -->
+<!-- Profile Documents (Employee uploads only here; auto-visible to IT Manager & General Director) -->
 <div class="card mb-4">
-    <div class="card-header">
-        <h5>My Documents</h5>
-    </div>
-    <div class="card-body">
-        <form action="{{ url_for('employee.upload_document') }}" method="POST" enctype="multipart/form-data" class="mb-3">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="input-group">
-                <input type="file" name="document" class="form-control" required>
-                <button class="btn btn-primary" type="submit">Upload</button>
-            </div>
-        </form>
+  <div class="card-header">
+    <h5>My Profile Documents</h5>
+    <small class="text-muted">Uploads here are visible to IT Manager & General Director.</small>
+  </div>
+  <div class="card-body">
+    <form action="{{ url_for('employee.upload_document') }}" method="POST" enctype="multipart/form-data" class="mb-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <!-- fixed folder for employee profile docs -->
+      <input type="hidden" name="folder_name" value="Profile">
 
-        {% if documents and documents|length > 0 %}
-        <ul class="list-group">
-            {% for doc in documents %}
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-                <a href="{{ url_for('employee.download_document', doc_id=doc.id) }}">{{ doc.filename }}</a>
-                <form action="{{ url_for('employee.delete_document', doc_id=doc.id) }}" method="POST" style="display:inline;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                </form>
-            </li>
-            {% endfor %}
-        </ul>
-        {% else %}
-        <p class="text-muted">No documents uploaded.</p>
-        {% endif %}
-    </div>
+      <div class="input-group">
+        <input type="file" name="document" class="form-control" required>
+        <button class="btn btn-primary" type="submit">Upload</button>
+      </div>
+      <div class="form-text">Example: Passport, National ID, Residence, etc.</div>
+    </form>
+
+    {% if documents and documents|length > 0 %}
+    <ul class="list-group">
+      {% for doc in documents %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+          <strong>{{ doc.filename }}</strong>
+          {% if doc.folder_name %}<span class="badge bg-light text-dark ms-2">{{ doc.folder_name }}</span>{% endif %}
+          <small class="text-muted ms-2">{{ doc.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</small>
+        </div>
+        <div class="d-flex gap-2">
+          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('employee.download_document', doc_id=doc.id) }}">Download</a>
+          <form action="{{ url_for('employee.delete_document', doc_id=doc.id) }}" method="POST" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+          </form>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-muted">No documents uploaded.</p>
+    {% endif %}
+  </div>
 </div>
 
-<!-- Profile Section -->
+<!-- Shared With Me -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h5>Shared With Me</h5>
+  </div>
+  <div class="card-body">
+    {% if shared_documents and shared_documents|length > 0 %}
+    <ul class="list-group">
+      {% for doc in shared_documents %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+          <strong>{{ doc.filename }}</strong>
+          <small class="text-muted ms-2">from {{ doc.user.name }}</small>
+          {% if doc.folder_name %}<span class="badge bg-light text-dark ms-2">{{ doc.folder_name }}</span>{% endif %}
+        </div>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('employee.download_document', doc_id=doc.id) }}">Download</a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-muted mb-0">No shared documents yet.</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Profile Section (unchanged) -->
 <div class="card mb-4">
     <div class="card-header">
         <h5>My Profile</h5>
@@ -64,57 +101,7 @@
     </div>
 </div>
 
-<!-- Leave Management Section -->
-<div class="card mb-4">
-    <div class="card-header">
-        <h5>Leave Management</h5>
-    </div>
-    <div class="card-body">
-        <ul class="list-unstyled mb-3">
-            <li><a href="{{ url_for('leave.new_request') }}" class="btn btn-sm btn-primary mb-2">Request Leave</a></li>
-            <li><a href="{{ url_for('leave.my_requests') }}" class="btn btn-sm btn-secondary mb-2">View All</a></li>
-            {% if current_user.role in ['manager', 'head_of_department', 'general_manager', 'general_director'] %}
-            <li><a href="{{ url_for('leave.pending_requests') }}" class="btn btn-sm btn-warning">Pending Approvals</a></li>
-            {% endif %}
-        </ul>
-
-        {% if latest_leaves %}
-        <h6>Recent Leave Requests</h6>
-        <div class="table-responsive">
-            <table class="table table-sm">
-                <thead>
-                    <tr>
-                        <th>Type</th>
-                        <th>Dates</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for leave in latest_leaves %}
-                    <tr>
-                        <td>{{ leave.type|capitalize }}</td>
-                        <td>{{ leave.start_date.strftime("%d %b") }} - {{ leave.end_date.strftime("%d %b") }}</td>
-                        <td>
-                            {% if leave.status == 'approved' %}
-                                <span class="badge bg-success">Approved</span>
-                            {% elif leave.status == 'rejected' %}
-                                <span class="badge bg-danger">Rejected</span>
-                            {% else %}
-                                <span class="badge bg-warning text-dark">Pending</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <p class="text-muted mb-0">No leave requests yet.</p>
-        {% endif %}
-    </div>
-</div>
-
-<!-- Recent Activities Section -->
+<!-- Recent Activities -->
 <div class="card">
     <div class="card-header">
         <h5>Recent Activities</h5>
