@@ -189,16 +189,21 @@ def director_dashboard():
     all_folders = Folder.query.options(joinedload(Folder.documents)).order_by(Folder.name).all()
     folders = []
     for folder in all_folders:
-        # Keep only docs the current user can access
         accessible_docs = [doc for doc in folder.documents if doc.can_user_access(current_user)]
-        if accessible_docs:
-            folder.documents = accessible_docs
-            folders.append(folder)
+        folder.documents = accessible_docs  # keep only accessible docs
+        folders.append(folder)
 
-    # User's own documents
+    # User's own documents (regardless of folder)
     documents = UserDocument.query.filter_by(uploaded_by=current_user.id).all()
 
-    # Shared documents not in folders and not uploaded by current user
+    # Public documents (visibility_type='public')
+    public_documents = [
+        doc for doc in UserDocument.query.filter_by(visibility_type='public').all()
+        if doc.uploaded_by != current_user.id
+    ]
+
+
+    # Shared documents not in folders, not uploaded by current user, and accessible
     shared_documents = [
         doc for doc in UserDocument.query.filter(UserDocument.folder_id.is_(None)).all()
         if doc.can_user_access(current_user) and doc.uploaded_by != current_user.id
@@ -221,8 +226,11 @@ def director_dashboard():
         recent_activities=recent_activities,
         folders=folders,
         documents=documents,
+        public_documents=public_documents,
         shared_documents=shared_documents
     )
+
+
 
 
 

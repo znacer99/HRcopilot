@@ -1,105 +1,135 @@
-{% extends "dashboard/base.html" %}
+{% extends "dashboard/base_dashboard.html" %}
 
-{% block content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/documents.css') }}">
+{% block dashboard_title %}Documents{% endblock %}
 
+{% block dashboard_content %}
 <div class="container">
 
     <!-- Flash messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
-        <div class="flash-messages">
+        <div class="flash-messages mb-3">
             {% for category, message in messages %}
-            <div class="flash flash-{{ category }}">
-                <span>{{ message }}</span>
-                <button onclick="this.parentElement.remove()" class="close-btn">&times;</button>
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
             {% endfor %}
         </div>
         {% endif %}
     {% endwith %}
 
-    <h2 class="page-title">My Folders & Documents</h2>
+    <!-- My Documents Section -->
+    <div class="mb-4">
+        <h2>📂 My Documents</h2>
 
-    <!-- Create folder -->
-    <form action="{{ url_for('docs.create_folder') }}" method="POST" class="form-inline mb-6">
-        <input type="text" name="folder_name" placeholder="New folder name" required class="input-text">
-        <button type="submit" class="btn btn-primary">Create Folder</button>
-    </form>
+        <!-- Buttons -->
+        <div class="d-flex gap-3 mb-3">
+            <form action="{{ url_for('docs.create_folder') }}" method="POST" class="d-flex gap-1">
+                <input type="text" name="folder_name" placeholder="Folder name" required class="form-control form-control-sm">
+                <button type="submit" class="btn btn-sm btn-primary">+ Folder</button>
+            </form>
 
-    <!-- Upload documents -->
-    <form action="{{ url_for('docs.upload_document') }}" method="POST" enctype="multipart/form-data" class="form-upload mb-8">
-        <label>Select files:</label>
-        <input type="file" name="document" multiple required class="input-file">
+            <form action="{{ url_for('docs.upload_document') }}" method="POST" enctype="multipart/form-data" class="d-flex gap-1">
+                <input type="file" name="document" multiple required class="form-control form-control-sm">
+                <select name="folder_id" class="form-select form-select-sm">
+                    <option value="">-- Root --</option>
+                    {% for folder in folders %}
+                    <option value="{{ folder.id }}">{{ folder.name }}</option>
+                    {% endfor %}
+                </select>
+                <input type="hidden" name="shared_section" value="false">
+                <button type="submit" class="btn btn-sm btn-success">Upload</button>
+            </form>
+        </div>
 
-        <label>Folder:</label>
-        <select name="folder_id" class="input-select">
-            <option value="">-- Select Folder --</option>
+        <!-- Folders -->
+        {% if folders %}
+        <div class="accordion mb-3" id="foldersAccordion">
             {% for folder in folders %}
-            <option value="{{ folder.id }}">{{ folder.name }}</option>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="heading{{ folder.id }}">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ folder.id }}">
+                        {{ folder.name }} 📁
+                    </button>
+                </h2>
+                <div id="collapse{{ folder.id }}" class="accordion-collapse collapse" data-bs-parent="#foldersAccordion">
+                    <div class="accordion-body">
+                        {% if folder.documents %}
+                        <ul class="list-group mb-2">
+                            {% for doc in folder.documents %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                {{ doc.filename }}
+                                <div class="d-flex gap-2">
+                                    <a href="{{ url_for('docs.download_document', doc_id=doc.id) }}" class="btn btn-sm btn-info">Download</a>
+                                    <form action="{{ url_for('docs.delete_document', doc_id=doc.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete document?');">
+                                        <button class="btn btn-sm btn-danger">Delete</button>
+                                    </form>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <p class="text-muted">No documents in this folder.</p>
+                        {% endif %}
+                        <form action="{{ url_for('docs.delete_folder', folder_id=folder.id) }}" method="POST" onsubmit="return confirm('Delete folder and all documents?');">
+                            <button class="btn btn-sm btn-danger">Delete Folder</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
             {% endfor %}
-        </select>
+        </div>
+        {% else %}
+        <p class="text-muted">No folders created yet.</p>
+        {% endif %}
 
-        <label>Visibility:</label>
-        <select name="visibility_type" class="input-select">
-            <option value="private">Private</option>
-            <option value="public">Public</option>
-            <option value="users">Specific Users</option>
-            <option value="roles">Specific Roles</option>
-            <option value="departments">Departments</option>
-        </select>
-
-        <label>Allowed Users (IDs, comma separated):</label>
-        <input type="text" name="allowed_users" class="input-text">
-
-        <label>Allowed Roles (comma separated):</label>
-        <input type="text" name="allowed_roles" class="input-text">
-
-        <label>Allowed Departments (IDs, comma separated):</label>
-        <input type="text" name="allowed_departments" class="input-text">
-
-        <button type="submit" class="btn btn-success">Upload Document(s)</button>
-    </form>
-
-    <!-- Folders & Documents -->
-    <div class="folders-grid">
-        {% for folder in folders %}
-        <div class="folder-card">
-            <h3 class="folder-title">{{ folder.name }}</h3>
-            <ul class="document-list">
-                {% for doc in folder.documents %}
-                    {% if doc.can_user_access(current_user) %}
-                    <li class="document-item">
-                        <a href="{{ url_for('docs.download_document', doc_id=doc.id) }}" class="document-link">
-                            {{ doc.filename }}
-                        </a>
-                        <span class="document-visibility">({{ doc.visibility_type }})</span>
-                    </li>
-                    {% endif %}
+        <!-- Root Documents -->
+        {% if documents %}
+        <div class="mb-4">
+            <h4>📄 Root Documents</h4>
+            <ul class="list-group">
+                {% for doc in documents %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ doc.filename }}
+                    <div class="d-flex gap-2">
+                        <a href="{{ url_for('docs.download_document', doc_id=doc.id) }}" class="btn btn-sm btn-info">Download</a>
+                        <form action="{{ url_for('docs.delete_document', doc_id=doc.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete document?');">
+                            <button class="btn btn-sm btn-danger">Delete</button>
+                        </form>
+                    </div>
+                </li>
                 {% endfor %}
             </ul>
         </div>
-        {% endfor %}
+        {% endif %}
     </div>
 
-    <!-- Shared documents not in folders -->
-    {% if shared_documents %}
-    <div class="shared-documents">
-        <h2 class="section-title">Shared Documents</h2>
-        <ul class="document-list">
+    <!-- Shared Documents -->
+    <div>
+        <h2>🌐 Shared Documents</h2>
+
+        {% if current_user.role.lower() != "employee" %}
+        <form action="{{ url_for('docs.upload_document') }}" method="POST" enctype="multipart/form-data" class="mb-3 d-flex gap-2">
+            <input type="file" name="document" multiple required class="form-control form-control-sm">
+            <input type="hidden" name="shared_section" value="true">
+            <button type="submit" class="btn btn-sm btn-success">Upload to Shared</button>
+        </form>
+        {% endif %}
+
+        {% if shared_documents %}
+        <ul class="list-group">
             {% for doc in shared_documents %}
-                {% if doc.can_user_access(current_user) %}
-                <li class="document-item">
-                    <a href="{{ url_for('docs.download_document', doc_id=doc.id) }}" class="document-link">
-                        {{ doc.filename }}
-                    </a>
-                    <span class="document-visibility">({{ doc.visibility_type }})</span>
-                </li>
-                {% endif %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                {{ doc.filename }} by {{ doc.user.name }} ({{ doc.user.role }})
+                <a href="{{ url_for('docs.download_document', doc_id=doc.id) }}" class="btn btn-sm btn-info">Download</a>
+            </li>
             {% endfor %}
         </ul>
+        {% else %}
+        <p class="text-muted">No shared documents yet.</p>
+        {% endif %}
     </div>
-    {% endif %}
 
 </div>
 {% endblock %}

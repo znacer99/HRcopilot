@@ -48,7 +48,7 @@ def create_app():
     # Create directories and database
     with app.app_context():
         # Import all models BEFORE create_all
-        from core.models import User, Department, ActivityLog, LeaveRequest, EmployeeDocument
+        from core.models import User, Department, ActivityLog, LeaveRequest, UserDocument
 
         # Create instance directory if missing
         db_path = app.config['SQLALCHEMY_DATABASE_URI'].split('///')[1]
@@ -75,11 +75,13 @@ def register_blueprints(app):
     from modules.dashboard.routes import dashboard_bp
     from modules.leave.routes import leave_bp
     from modules.employee.routes import employee_bp
+    from routes.document_routes import docs_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
     app.register_blueprint(leave_bp, url_prefix='/leave')
     app.register_blueprint(employee_bp, url_prefix='/employee')
+    app.register_blueprint(docs_bp)
 
     print("All registered endpoints:")
     for rule in app.url_map.iter_rules():

@@ -91,10 +91,7 @@ class UserDocument(db.Model):
     filepath = db.Column(db.String(255), nullable=False)
     folder_id = db.Column(db.Integer, db.ForeignKey('folders.id'), nullable=True)
     uploaded_by = db.Column(db.Integer, db.ForeignKey('users.id'))
-    visibility_type = db.Column(db.String(50), default='private')
-    allowed_users = db.Column(db.String, default='')
-    allowed_roles = db.Column(db.String, default='')
-    allowed_departments = db.Column(db.String, default='')
+    visibility_type = db.Column(db.String(50), default='private')  # 'private' or 'public'
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships
@@ -105,33 +102,20 @@ class UserDocument(db.Model):
         return f"<UserDocument id={self.id} filename={self.filename} user_id={self.uploaded_by} folder_id={self.folder_id}>"
 
     def can_user_access(self, user):
+        # uploader always can
         if user.id == self.uploaded_by:
             return True
-
-        viewer_role = (user.role or "").lower()
-
+        # public documents are visible to everyone
         if self.visibility_type == 'public':
             return True
-        if self.visibility_type == 'private':
-            return False
-        if self.visibility_type == 'users' and self.allowed_users:
-            allowed_ids = [int(uid) for uid in self.allowed_users.split(',') if uid.strip().isdigit()]
-            if user.id in allowed_ids:
-                return True
-        if self.visibility_type == 'roles' and self.allowed_roles:
-            allowed_roles = [r.strip().lower() for r in self.allowed_roles.split(',') if r.strip()]
-            if viewer_role in allowed_roles:
-                return True
-        if self.visibility_type == 'departments' and self.allowed_departments and user.department_id:
-            allowed_depts = [int(did) for did in self.allowed_departments.split(',') if did.strip().isdigit()]
-            if user.department_id in allowed_depts:
-                return True
+        # otherwise private
         return False
 
     @staticmethod
     def visible_documents_for(user):
         all_docs = UserDocument.query.all()
         return [doc for doc in all_docs if doc.can_user_access(user)]
+
 
 # -------------------- ACTIVITY LOG --------------------
 class ActivityLog(db.Model):
