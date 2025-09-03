@@ -1,12 +1,12 @@
 # app.py
 # pyright: reportMissingImports=false
 # pyright: reportMissingModuleSource=false
+
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from flask import Flask, render_template, redirect, url_for
 from flask_wtf.csrf import CSRFProtect
-from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_login import current_user, logout_user
 from config import config
 from core.extensions import db, login_manager, migrate
@@ -14,17 +14,18 @@ from core.extensions import db, login_manager, migrate
 logging.basicConfig()
 logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
 
+
 def create_app():
     """Application factory function"""
     app = Flask(__name__)
-    
+
     # Load configuration
     env = os.environ.get('FLASK_ENV', 'development')
     if env == 'production':
         app.config.from_object('config.ProductionConfig')
     else:
         app.config.from_object('config.DevelopmentConfig')
-    
+
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
@@ -34,10 +35,12 @@ def create_app():
     csrf = CSRFProtect()
     csrf.init_app(app)
 
-    app.config['SECRET_KEY'] = 'mqM_nXhDHOYlb0T8E9bT4c7XCLiDImpINnVHFmCLR-Q'
+    # Make sure SECRET_KEY is set
+    app.config['SECRET_KEY'] = app.config.get('SECRET_KEY') or 'mqM_nXhDHOYlb0T8E9bT4c7XCLiDImpINnVHFmCLR-Q'
 
     # Inject logout_form
     from modules.auth.forms import LogoutForm
+
     @app.context_processor
     def inject_logout_form():
         return dict(logout_form=LogoutForm())
@@ -45,25 +48,9 @@ def create_app():
     # Register blueprints
     register_blueprints(app)
 
-    # Create directories and database
+    # Initialize database and default data
     with app.app_context():
-        # Import all models BEFORE create_all
-        from core.models import User, Department, ActivityLog, LeaveRequest, UserDocument
-
-        # Create instance directory if missing
-        db_path = app.config['SQLALCHEMY_DATABASE_URI'].split('///')[1]
-        db_dir = os.path.dirname(db_path)
-        if not os.path.exists(db_dir):
-            os.makedirs(db_dir)
-
-        # Create uploads directory
-        if not os.path.exists(app.config['UPLOAD_FOLDER']):
-            os.makedirs(app.config['UPLOAD_FOLDER'])
-
-        # Create all tables
         db.create_all()
-
-        # Initialize database with default data
         initialize_database()
 
     return app
@@ -76,12 +63,16 @@ def register_blueprints(app):
     from modules.leave.routes import leave_bp
     from modules.employee.routes import employee_bp
     from routes.document_routes import docs_bp
+    from modules.department.routes import department_bp
+    from modules.candidate.routes import candidate_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
     app.register_blueprint(leave_bp, url_prefix='/leave')
     app.register_blueprint(employee_bp, url_prefix='/employee')
     app.register_blueprint(docs_bp)
+    app.register_blueprint(department_bp)
+    app.register_blueprint(candidate_bp, url_prefix='/candidate')
 
     print("All registered endpoints:")
     for rule in app.url_map.iter_rules():
@@ -89,45 +80,27 @@ def register_blueprints(app):
 
 
 def initialize_database():
-    """Create initial roles and admin user and ensure 'position' and 'phone' columns exist"""
-    from core.models import User, Department
-    from sqlalchemy import inspect, text
+    """Create departments, employees, and initial users safely (idempotent)"""
+    from core.models import User, Department, Employee
 
-    # Map of extra columns and their SQL types
-    extra_columns = {
-        "position": "TEXT",
-        "phone": "TEXT"
-    }
-
-    inspector = inspect(db.engine)
-    existing_columns = [col['name'] for col in inspector.get_columns('users')]
-
-    # Add missing columns
-    for col_name, col_type in extra_columns.items():
-        if col_name not in existing_columns:
-            print(f"Adding missing '{col_name}' column to users table...")
-            with db.engine.connect() as conn:
-                conn.execute(text(f'ALTER TABLE users ADD COLUMN {col_name} {col_type};'))
-            db.session.commit()
-
-    # Stop if users already exist
-    if User.query.count() > 0:
-        return
-
-    # Departments
-    departments = {
-        "executive": Department(name="Executive Leadership", description="Company executives"),
-        "it": Department(name="IT Department", description="Technology team"),
-        "hr": Department(name="Human Resources", description="HR team"),
-        "operations": Department(name="Operations", description="Company operations")
-    }
-    for dept in departments.values():
-        if not Department.query.filter_by(name=dept.name).first():
+    # 1️⃣ Departments
+    departments_data = [
+        {"key": "executive", "name": "Executive Leadership", "description": "Company executives"},
+        {"key": "it", "name": "IT Department", "description": "Technology team"},
+        {"key": "hr", "name": "Human Resources", "description": "HR team"},
+        {"key": "operations", "name": "Operations", "description": "Company operations"}
+    ]
+    departments = {}
+    for dept_data in departments_data:
+        dept = Department.query.filter_by(name=dept_data["name"]).first()
+        if not dept:
+            dept = Department(name=dept_data["name"], description=dept_data["description"])
             db.session.add(dept)
-    db.session.commit()
+            db.session.commit()  # commit now to get dept.id
+        departments[dept_data["key"]] = dept
 
-    # Users
-    users = [
+    # 2️⃣ Users
+    users_data = [
         {"email": "it@alghaith.com", "name": "IT Manager", "role": "it_manager", "dept": "it", "access_code": "IT-001", "password": "SecurePassword123!"},
         {"email": "director@alghaith.com", "name": "General Director", "role": "general_director", "dept": "executive", "access_code": "GD-001", "password": "DirectorPass123!"},
         {"email": "manager@alghaith.com", "name": "General Manager", "role": "general_manager", "dept": "operations", "access_code": "GM-001", "password": "ManagerPass123!"},
@@ -136,30 +109,44 @@ def initialize_database():
         {"email": "employee@alghaith.com", "name": "Regular Employee", "role": "employee", "dept": "operations", "access_code": "EE-001", "password": "EmployeePass123!"}
     ]
 
-    for user_data in users:
-        if not User.query.filter_by(email=user_data["email"]).first():
-            dept = departments[user_data["dept"]]
-            user = User(
-                email=user_data["email"],
-                name=user_data["name"],
-                role=user_data["role"],
-                access_code=user_data["access_code"],
-                department=dept,
-                avatar=user_data["name"][0] + user_data["name"].split()[-1][0],
-                is_active=True,
-                position="",  # default empty string
-                phone=""      # default empty string
+    for user_data in users_data:
+        # Skip if user already exists
+        if User.query.filter_by(email=user_data["email"]).first():
+            continue
+
+        # Create Employee first if not exists
+        employee = Employee.query.filter_by(full_name=user_data["name"]).first()
+        if not employee:
+            employee = Employee(
+                full_name=user_data["name"],
+                job_title=user_data["role"],
+                department=departments[user_data["dept"]],
+                phone=""
             )
-            user.set_password(user_data["password"])
-            db.session.add(user)
+            db.session.add(employee)
+            db.session.commit()  # commit to get employee.id
+
+        # Create User
+        user = User(
+            email=user_data["email"],
+            name=user_data["name"],
+            role=user_data["role"],
+            access_code=user_data["access_code"],
+            employee_id=employee.id,
+            avatar=user_data["name"][0] + user_data["name"].split()[-1][0],
+            is_active=True
+        )
+        user.set_password(user_data["password"])
+        db.session.add(user)
 
     db.session.commit()
-    print("Database initialized successfully!")
+    print("✅ Database initialized successfully (idempotent)!")
 
 
 
 # Create the app instance
 app = create_app()
+
 
 # User loader
 @login_manager.user_loader
@@ -173,9 +160,11 @@ def load_user(user_id):
 def forbidden_error(error):
     return render_template('errors/403.html'), 403
 
+
 @app.errorhandler(404)
 def not_found_error(error):
     return render_template('errors/404.html'), 404
+
 
 @app.errorhandler(500)
 def internal_error(error):
@@ -186,10 +175,8 @@ def internal_error(error):
 # Routes
 @app.route('/')
 def index():
-    print(f"🔍 INDEX ROUTE: User authenticated? {current_user.is_authenticated}")
     if current_user.is_authenticated:
         logout_user()
-        print("🔍 Forced logout - redirecting to login")
     return redirect(url_for('auth.login'))
 
 

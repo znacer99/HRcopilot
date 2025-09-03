@@ -67,7 +67,7 @@ def _save_documents(
         rel_path = os.path.relpath(filepath, current_app.config['UPLOAD_FOLDER'])
 
         doc = UserDocument(
-            uploaded_by=user.id,
+            user_id=user.id,
             filename=filename,
             filepath=rel_path,
             folder_id=None,

@@ -1,156 +1,133 @@
 {% extends "dashboard/base_dashboard.html" %}
+
 {% block dashboard_title %}IT Manager Dashboard{% endblock %}
 
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<style>
+/* Color Palette */
+:root {
+    --primary-color: #2c3e50;
+    --secondary-color: #34495e;
+    --accent-color: #16a085;
+    --card-bg: #ffffff;
+    --card-shadow: rgba(0,0,0,0.12);
+}
+
+/* Carousel */
+.user-carousel-container {
+    position: relative;
+    overflow: hidden;
+}
+.user-carousel {
+    display: flex;
+    gap: 1rem;
+    animation: scroll-left 20s linear infinite;
+}
+.user-carousel:hover { animation-play-state: paused; }
+@keyframes scroll-left { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+/* User Card */
+.user-card {
+    min-width: 220px;
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 6px 18px var(--card-shadow);
+    flex-shrink: 0;
+    transition: transform 0.4s ease, box-shadow 0.4s ease;
+}
+.user-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.2);
+}
+.user-avatar { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin-bottom: 0.5rem; }
+.user-name { font-weight: 600; font-size: 1rem; }
+.user-role { font-size: 0.85rem; opacity: 0.8; }
+.user-stats { display: flex; justify-content: space-between; font-size: 0.8rem; margin-top: 0.5rem; opacity: 0.9; }
+
+/* Cards & Charts */
+.summary-card {
+    background: var(--card-bg);
+    color: var(--primary-color);
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 6px 18px var(--card-shadow);
+}
+
+/* Leave Section */
+.leave-section .btn { border-radius: 50px; font-weight: 600; transition: transform 0.2s ease; }
+.leave-section .btn:hover { transform: scale(1.03); box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
+.leave-section h4 { border-bottom: 2px solid var(--accent-color); padding-bottom: 0.5rem; margin-bottom: 1rem; }
+</style>
+{% endblock %}
+
 {% block dashboard_content %}
-<div class="mb-3 d-flex justify-content-between align-items-center">
-    <h3>Users</h3>
-    <div>
-        <a href="{{ url_for('dashboard.it_manager_create_employee') }}" class="btn btn-primary">Create New Employee</a>
-        <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-secondary ms-2">Logout</a>
+
+<!-- Users Carousel -->
+<div class="mb-4">
+    <h4 class="mb-3">Team Members</h4>
+    <div class="user-carousel-container">
+        <div class="user-carousel">
+            {% for user in user_list %}
+            <div class="user-card">
+                <img src="{{ user.avatar or url_for('static', filename='images/default_avatar.png') }}" alt="avatar" class="user-avatar">
+                <div class="user-name">{{ user.name }}</div>
+                <div class="user-role">{{ user.role|replace('_',' ')|title }}</div>
+                <div class="user-stats">
+                    <span>Dept: {{ user.department.name if user.department else 'N/A' }}</span>
+                    <span>Login: {{ user.login_count }}</span>
+                </div>
+            </div>
+            {% endfor %}
+            {% for user in user_list %} <!-- duplicate for infinite scroll -->
+            <div class="user-card">
+                <img src="{{ user.avatar or url_for('static', filename='images/default_avatar.png') }}" alt="avatar" class="user-avatar">
+                <div class="user-name">{{ user.name }}</div>
+                <div class="user-role">{{ user.role|replace('_',' ')|title }}</div>
+                <div class="user-stats">
+                    <span>Dept: {{ user.department.name if user.department else 'N/A' }}</span>
+                    <span>Login: {{ user.login_count }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </div>
 </div>
 
-<!-- Document Manager -->
-<div class="card mb-4">
-  <div class="card-header d-flex justify-content-between align-items-center">
-    <h5 class="mb-0">Documents</h5>
-    <form class="d-flex gap-2" action="{{ url_for('employee.create_folder') }}" method="POST">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input name="folder_name" class="form-control form-control-sm" placeholder="New folder name">
-      <button class="btn btn-sm btn-outline-primary" type="submit">Create Folder</button>
-    </form>
-  </div>
-  <div class="card-body">
-    <form action="{{ url_for('employee.upload_document') }}" method="POST" enctype="multipart/form-data" class="row g-2 align-items-end">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="col-md-4">
-        <label class="form-label">Files</label>
-        <input type="file" name="documents" class="form-control" multiple required>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">Folder</label>
-        <input name="folder_name" class="form-control" placeholder="e.g. Company, IT">
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Visibility</label>
-        <select name="visibility_type" class="form-select">
-          <option value="private" selected>Private</option>
-          <option value="public">Public</option>
-          <option value="users">Specific Users</option>
-          <option value="roles">Roles</option>
-          <option value="departments">Departments</option>
-        </select>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">Allowed (optional)</label>
-        <input name="allowed_users" class="form-control mb-1" placeholder="Users: 3,5,8">
-        <input name="allowed_roles" class="form-control mb-1" placeholder="Roles: manager,employee">
-        <input name="allowed_departments" class="form-control" placeholder="Depts: 1,2">
-      </div>
-      <div class="col-12">
-        <button class="btn btn-primary">Upload</button>
-      </div>
-    </form>
-
-    <hr>
-
-    <div class="row">
-      <div class="col-md-6">
-        <h6>My Documents</h6>
-        {% set mydocs = my_documents if my_documents is defined else documents %}
-        {% if mydocs and mydocs|length > 0 %}
-        <ul class="list-group">
-          {% for doc in mydocs %}
-          <li class="list-group-item d-flex justify-content-between align-items-center">
-            <div>
-              <strong>{{ doc.filename }}</strong>
-              {% if doc.folder_name %}<span class="badge bg-light text-dark ms-2">{{ doc.folder_name }}</span>{% endif %}
-              <small class="text-muted ms-2">{{ doc.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</small>
-              <small class="ms-2">[{{ doc.visibility_type }}]</small>
-            </div>
-            <div class="d-flex gap-2">
-              <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('employee.download_document', doc_id=doc.id) }}">Download</a>
-              <form method="POST" action="{{ url_for('employee.change_visibility', doc_id=doc.id) }}" class="d-flex gap-2">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <select name="visibility_type" class="form-select form-select-sm">
-                  <option value="private" {% if doc.visibility_type=='private' %}selected{% endif %}>private</option>
-                  <option value="public" {% if doc.visibility_type=='public' %}selected{% endif %}>public</option>
-                  <option value="users" {% if doc.visibility_type=='users' %}selected{% endif %}>users</option>
-                  <option value="roles" {% if doc.visibility_type=='roles' %}selected{% endif %}>roles</option>
-                  <option value="departments" {% if doc.visibility_type=='departments' %}selected{% endif %}>departments</option>
-                </select>
-                <button class="btn btn-sm btn-outline-primary">Save</button>
-              </form>
-              <form action="{{ url_for('employee.delete_document', doc_id=doc.id) }}" method="POST">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-              </form>
-            </div>
-          </li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <p class="text-muted">No documents yet.</p>
-        {% endif %}
-      </div>
-
-      <div class="col-md-6">
-        <h6>Shared With Me</h6>
-        {% if shared_documents and shared_documents|length > 0 %}
-        <ul class="list-group">
-          {% for doc in shared_documents %}
-          <li class="list-group-item d-flex justify-content-between align-items-center">
-            <div>
-              <strong>{{ doc.filename }}</strong>
-              <small class="text-muted ms-2">from {{ doc.user.name }}</small>
-              {% if doc.folder_name %}<span class="badge bg-light text-dark ms-2">{{ doc.folder_name }}</span>{% endif %}
-            </div>
-            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('employee.download_document', doc_id=doc.id) }}">Download</a>
-          </li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <p class="text-muted">No shared documents.</p>
-        {% endif %}
-      </div>
+<!-- Dashboard Charts -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="summary-card">
+            <h5>User Roles Distribution</h5>
+            <canvas id="rolesChart"></canvas>
+        </div>
     </div>
-  </div>
+    <div class="col-md-6">
+        <div class="summary-card">
+            <h5>User Activity (Last 30 Days)</h5>
+            <canvas id="activityChart"></canvas>
+        </div>
+    </div>
 </div>
 
-<!-- Existing summary + users table below (unchanged) -->
-<div class="mb-4 p-3 border rounded bg-light">
-    <h4>Dashboard Summary</h4>
+<!-- Leave Requests Section -->
+<div class="leave-section mb-4 p-3 border rounded bg-light">
+    <h4>Leave Requests</h4>
     <div class="row g-3">
-      <div class="col-md-3">
-        <strong>User Counts by Role:</strong>
-        <ul class="list-unstyled mb-0">
-          {% for role, count in user_counts %}
-            <li>{{ role|replace('_',' ')|title }}: {{ count }}</li>
-          {% endfor %}
-        </ul>
-      </div>
-      <div class="col-md-3">
-        <strong>New Users (last 7 days):</strong>
-        <p>{{ new_users_count }}</p>
-      </div>
-      <div class="col-md-3">
-        <strong>Inactive Users (30+ days):</strong>
-        <p>{{ inactive_users_count }}</p>
-      </div>
-      <div class="col-md-3">
-        <strong>Recent Activities:</strong>
-        <ul class="list-unstyled small mb-0" style="max-height:100px; overflow-y:auto;">
-          {% for activity in recent_activities %}
-            <li>
-              {{ activity.timestamp.strftime('%Y-%m-%d %H:%M') }} – 
-              {{ activity.user.name if activity.user else 'Unknown' }}: {{ activity.action }} on {{ activity.target }}
-            </li>
-          {% endfor %}
-        </ul>
-      </div>
+        <div class="col-md-4">
+            <a href="{{ url_for('leave.new_request') }}" class="btn btn-success w-100"><i class="bi bi-plus-circle-fill"></i> New Leave Request</a>
+        </div>
+        <div class="col-md-4">
+            <a href="{{ url_for('leave.my_requests') }}" class="btn btn-primary w-100"><i class="bi bi-card-checklist"></i> My Leaves</a>
+        </div>
+        <div class="col-md-4">
+            <a href="{{ url_for('leave.pending_requests') }}" class="btn btn-warning w-100"><i class="bi bi-hourglass-split"></i> Pending Leaves</a>
+        </div>
     </div>
 </div>
 
-<!-- Leave cards, filters, table, pagination (unchanged) ... -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/it_manager.js') }}"></script>
 
 {% endblock %}

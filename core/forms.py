@@ -1,4 +1,3 @@
-# core/forms.py
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, SelectField, DateField, TextAreaField
 from wtforms.validators import DataRequired, Email, Length
@@ -16,6 +15,7 @@ class LoginForm(FlaskForm):
     ])
     submit = SubmitField('Login')
 
+
 class UserForm(FlaskForm):
     name = StringField('Full Name', validators=[DataRequired()])
     email = StringField('Email', validators=[DataRequired(), Email()])
@@ -29,13 +29,17 @@ class UserForm(FlaskForm):
     department = SelectField('Department', coerce=int, validators=[DataRequired()])
     position = StringField('Position / Job Title')
     phone = StringField('Phone Number')
+    password = PasswordField('Password', validators=[
+        DataRequired("Please enter a password"),
+        Length(min=8, message="Password must be at least 8 characters")
+    ])
     documents = FileField('Upload Documents', validators=[FileAllowed(['pdf', 'doc', 'docx', 'jpg', 'png'], 'Documents only!')], render_kw={"multiple": True})
     submit = SubmitField('Save User')
     
-    # Add this to populate department choices
     def __init__(self, *args, **kwargs):
         super(UserForm, self).__init__(*args, **kwargs)
         self.department.choices = [(d.id, d.name) for d in Department.query.all()]
+
 
 class LeaveForm(FlaskForm):
     type = SelectField('Leave Type', choices=[
@@ -48,11 +52,10 @@ class LeaveForm(FlaskForm):
     start_date = DateField('Start Date', validators=[DataRequired()])
     end_date = DateField('End Date', validators=[DataRequired()])
     reason = TextAreaField('Reason', validators=[DataRequired()])
-    
-    # Approver selection: will populate dynamically
     approver_id = SelectField('Send To', coerce=int, validators=[DataRequired()])
     
     submit = SubmitField('Submit')
+
 
 class LogoutForm(FlaskForm):
     pass

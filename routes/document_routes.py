@@ -1,4 +1,4 @@
-# document_routes.py
+# routes/document_routes.py
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, send_file
 from flask_login import login_required, current_user
 from core.models import db, Folder, UserDocument
@@ -20,7 +20,6 @@ def create_folder():
         flash("Folder name cannot be empty.", "danger")
         return redirect(url_for('docs.list_documents'))
 
-    # Check if folder already exists
     existing = Folder.query.filter_by(name=folder_name, created_by=current_user.id).first()
     if existing:
         flash(f"You already have a folder named '{folder_name}'.", "warning")
@@ -32,7 +31,6 @@ def create_folder():
     flash("Folder created successfully!", "success")
     return redirect(url_for('docs.list_documents'))
 
-
 # ------------------------------
 # Upload document(s)
 # ------------------------------
@@ -42,22 +40,22 @@ def upload_document():
     files = request.files.getlist('document')
     folder_id = request.form.get('folder_id') or None
 
-    # Determine if document goes to private folder or shared section
-    if folder_id:  # private folder → visibility always private
+    # Determine visibility
+    if folder_id:  
         visibility = 'private'
     else:
-        visibility = 'public'  # shared documents section
+        visibility = 'shared'  # for global/shared documents
 
-    # Prevent regular employees from uploading in shared section
-    if visibility == 'public' and current_user.role.lower() == 'employee':
-        flash("You are not allowed to upload in shared documents.", "danger")
+    # Prevent employees from uploading shared docs
+    if visibility == 'shared' and current_user.role.lower() == 'employee':
+        flash("You are not allowed to upload shared documents.", "danger")
         return redirect(url_for('docs.list_documents'))
 
-    upload_folder = os.path.join(current_app.root_path, 'static/uploads')
+    upload_folder = os.path.join(current_app.root_path, 'static', 'uploads')
     os.makedirs(upload_folder, exist_ok=True)
 
     for file in files:
-        if file:
+        if file and file.filename:
             filename = secure_filename(file.filename)
             timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
             unique_filename = f"{timestamp}_{filename}"
@@ -66,18 +64,26 @@ def upload_document():
 
             relative_path = f"uploads/{unique_filename}"
 
+            # Use user_id instead of uploaded_by
             doc = UserDocument(
                 filename=file.filename,
                 filepath=relative_path,
                 folder_id=folder_id,
-                uploaded_by=current_user.id,
+                user_id=current_user.id,        # <-- updated
                 visibility_type=visibility
             )
             db.session.add(doc)
 
-    db.session.commit()
-    flash(f"{len(files)} document(s) uploaded successfully!", "success")
+    try:
+        db.session.commit()
+        flash(f"{len(files)} document(s) uploaded successfully!", "success")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error uploading document(s): {e}")
+        flash("There was an error uploading your documents.", "danger")
+
     return redirect(url_for('docs.list_documents'))
+
 
 
 # ------------------------------
@@ -86,13 +92,13 @@ def upload_document():
 @docs_bp.route('/')
 @login_required
 def list_documents():
-    # My documents: folders and standalone private docs
+    # User's private folders and docs
     my_folders = Folder.query.filter_by(created_by=current_user.id).order_by(Folder.created_at.desc()).all()
-    my_docs = UserDocument.query.filter_by(uploaded_by=current_user.id, folder_id=None, visibility_type='private').all()
+    my_docs = UserDocument.query.filter_by(user_id=current_user.id, folder_id=None, visibility_type='private').all()
 
-    # Shared documents: public docs not in folders, visible to everyone
+    # Shared docs (all users can see)
     shared_docs = UserDocument.query.filter(
-        UserDocument.visibility_type == 'public',
+        UserDocument.visibility_type == 'shared',
         UserDocument.folder_id == None
     ).all()
 
@@ -112,14 +118,14 @@ def list_documents():
 def delete_document(doc_id):
     doc = UserDocument.query.get_or_404(doc_id)
 
-    # Only owner can delete private folder documents
-    if doc.visibility_type == 'private' and doc.uploaded_by != current_user.id:
+    if not doc.can_user_delete(current_user):
         flash("You cannot delete this document.", "danger")
         return redirect(url_for('docs.list_documents'))
 
     try:
-        if os.path.exists(doc.filepath):
-            os.remove(doc.filepath)
+        file_path = os.path.join(current_app.root_path, 'static', doc.filepath)
+        if os.path.exists(file_path):
+            os.remove(file_path)
     except Exception as e:
         flash(f"Error deleting file: {str(e)}", "danger")
 
@@ -130,18 +136,16 @@ def delete_document(doc_id):
 
 
 # ------------------------------
-# Delete folder safely
+# Delete folder (and its docs)
 # ------------------------------
 @docs_bp.route('/delete_folder/<int:folder_id>', methods=['POST'])
 @login_required
 def delete_folder(folder_id):
-    # Make sure this folder exists AND belongs to the current user
     folder = Folder.query.filter_by(id=folder_id, created_by=current_user.id).first()
     if not folder:
         flash("Folder not found or you don't have permission to delete it.", "danger")
         return redirect(url_for('docs.list_documents'))
 
-    # Delete all documents inside the folder (filesystem + DB)
     for doc in folder.documents:
         try:
             file_path = os.path.join(current_app.root_path, 'static', doc.filepath)
@@ -151,11 +155,11 @@ def delete_folder(folder_id):
             flash(f"Failed to delete file {doc.filename}: {str(e)}", "warning")
         db.session.delete(doc)
 
-    # Delete the folder itself
     db.session.delete(folder)
     db.session.commit()
-    flash(f"Folder '{folder.name}' and its documents have been deleted successfully.", "success")
+    flash(f"Folder '{folder.name}' and its documents have been deleted.", "success")
     return redirect(url_for('docs.list_documents'))
+
 
 # ------------------------------
 # Download document
@@ -165,14 +169,11 @@ def delete_folder(folder_id):
 def download_document(doc_id):
     doc = UserDocument.query.get_or_404(doc_id)
 
-    # Permission check
-    if doc.visibility_type == 'private' and doc.uploaded_by != current_user.id:
+    if not doc.can_user_access(current_user):
         flash("You cannot download this document.", "danger")
         return redirect(url_for('docs.list_documents'))
 
-    # Build absolute path
     file_path = os.path.join(current_app.root_path, 'static', doc.filepath)
-
     if not os.path.exists(file_path):
         flash("File not found on server.", "danger")
         return redirect(url_for('docs.list_documents'))

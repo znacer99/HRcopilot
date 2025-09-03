@@ -1,0 +1,40 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% block dashboard_content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="mb-0">Team: {{ department.name }}</h2>
+        <a href="{{ url_for('department.list_departments') }}" class="btn btn-secondary btn-sm">Back to Departments</a>
+    </div>
+
+    {% if department.employees %}
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-striped mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Position</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in department.employees %}
+                    <tr>
+                        <td>{{ user.name }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>{{ user.role|title }}</td>
+                        <td>{{ user.position or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info mt-3">
+        No employees assigned to this department yet.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

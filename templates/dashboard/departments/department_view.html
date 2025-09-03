@@ -1,0 +1,65 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% block dashboard_content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>{{ department.name }}</h2>
+        <a href="{{ url_for('department.list_departments') }}" class="btn btn-secondary">Back to Departments</a>
+    </div>
+
+    <p class="mb-4">{{ department.description or "No description provided." }}</p>
+
+    <!-- Employees -->
+    <h4>Employees ({{ employees|length }})</h4>
+    {% if employees %}
+    <div class="table-responsive mb-4">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Job Title</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in employees %}
+                <tr>
+                    <td>{{ e.full_name }}</td>
+                    <td>{{ e.job_title or "-" }}</td>
+                    <td>{{ e.email or "-" }}</td>
+                    <td>{{ e.phone or "-" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted">No employees in this department.</p>
+    {% endif %}
+
+    <!-- Candidates -->
+    <h4>Candidates ({{ candidates|length }})</h4>
+    {% if candidates %}
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in candidates %}
+                <tr>
+                    <td>{{ c.full_name }}</td>
+                    <td>{{ c.email }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted">No candidates for this department.</p>
+    {% endif %}
+</div>
+{% endblock %}
