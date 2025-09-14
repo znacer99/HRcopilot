@@ -15,21 +15,23 @@ class User(db.Model, UserMixin):
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(200), nullable=False)
     name = db.Column(db.String(100), nullable=False)
-    role = db.Column(db.String(50), nullable=False)   # General Director, IT Manager, etc.
-    avatar = db.Column(db.String(255), nullable=True)  # <-- updated: now nullable and bigger
+    role = db.Column(db.String(50), nullable=False)  # General Director, IT Manager, etc.
+    avatar = db.Column(db.String(255), nullable=True)
     access_code = db.Column(db.String(20), unique=True, nullable=False)
-    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'))  # Link to Employee
+    phone = db.Column(db.String(20), nullable=True)
+    position = db.Column(db.String(100), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
     login_count = db.Column(db.Integer, default=0)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
 
     # Relationships
-    employee = db.relationship('Employee', back_populates='user', uselist=False)
     documents = db.relationship('UserDocument', back_populates='user', cascade="all, delete-orphan")
     folders_created = db.relationship('Folder', back_populates='creator', cascade="all, delete-orphan")
     activities = db.relationship('ActivityLog', back_populates='user', cascade="all, delete-orphan")
+    leave_requests = db.relationship('LeaveRequest', back_populates='requester', foreign_keys='LeaveRequest.user_id')
     approved_requests = db.relationship('LeaveRequest', back_populates='approver', foreign_keys='LeaveRequest.approver_id')
+
 
     def set_password(self, password):
         self.password_hash = ph.hash(password)
@@ -71,14 +73,14 @@ class Employee(db.Model):
 
     # Foreign Keys
     department_id = db.Column(db.Integer, db.ForeignKey("departments.id"))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # Optional link to a user account
 
     # Relationships
     department = db.relationship("Department", back_populates="employees")
-    user = db.relationship("User", back_populates="employee", uselist=False)
+    user = db.relationship("User")  # Optional one-to-one or one-to-many link
 
     def __repr__(self):
         return f"<Employee {self.full_name} - {self.job_title}>"
-
 
 # -------------------- DEPARTMENT --------------------
 class Department(db.Model):
@@ -91,16 +93,10 @@ class Department(db.Model):
 
     # Relationships
     employees = db.relationship("Employee", back_populates="department", lazy="selectin")
-
-    # New property to access users directly
-    @property
-    def members(self):
-        """Return all User objects in this department."""
-        return [e.user for e in self.employees if e.user is not None]
+    candidates = db.relationship("Candidate", back_populates="department", lazy="selectin")
 
     def __repr__(self):
         return f"<Department {self.name}>"
-
 
 
 # -------------------- FOLDER --------------------
@@ -120,7 +116,7 @@ class Folder(db.Model):
         return f"<Folder {self.name}>"
 
 
-# -------------------- USERDOCUMENT --------------------
+# -------------------- USER DOCUMENT --------------------
 class UserDocument(db.Model):
     __tablename__ = 'user_documents'
 
@@ -128,45 +124,37 @@ class UserDocument(db.Model):
     filename = db.Column(db.String(255), nullable=False)
     filepath = db.Column(db.String(255), nullable=False)
     folder_id = db.Column(db.Integer, db.ForeignKey('folders.id'), nullable=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)  # who uploaded the document
-    visibility_type = db.Column(db.String(50), default='private')  # private for personal, shared for everyone
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # points to User
+    owner_id = db.Column(db.Integer, nullable=False)  # id of owner (User or Employee)
+    owner_type = db.Column(db.String(50), nullable=False, default='user')  # 'user' or 'employee'
+    visibility_type = db.Column(db.String(50), default='private')
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships
-    user = db.relationship('User', back_populates='documents')
     folder = db.relationship('Folder', back_populates='documents')
+    user = db.relationship('User', back_populates='documents', foreign_keys=[user_id])
 
     def __repr__(self):
-        return f"<UserDocument id={self.id} filename={self.filename} user_id={self.user_id} folder_id={self.folder_id}>"
+        return f"<UserDocument id={self.id} filename={self.filename} owner={self.owner_type}:{self.owner_id} folder_id={self.folder_id}>"
 
-    def can_user_access(self, user):
-        """
-        Determines if a user can view/download the document.
-        - Shared documents: everyone can view.
-        - Private/folder documents: only uploader can view.
-        """
+     # ------------------------
+    # Access control
+    # ------------------------
+    def can_owner_access(self, owner):
         if self.visibility_type == 'shared':
             return True
-        # If it's in a folder (private) or root private
-        return self.user_id == user.id
+        return self.owner_id == getattr(owner, "id", None) and self.owner_type == owner.__class__.__name__.lower()
 
-    def can_user_delete(self, user):
-        """
-        Determines if a user can delete the document.
-        - Only uploader or admins (general_director, it_manager) can delete.
-        """
-        return self.user_id == user.id or user.role.lower() in ['general_director', 'it_manager']
+    def can_owner_delete(self, owner):
+        privileged_roles = ['general_director', 'it_manager']
+        if self.owner_type == 'user' and hasattr(owner, 'role'):
+            return self.owner_id == owner.id or owner.role.lower() in privileged_roles
+        return self.owner_id == getattr(owner, "id", None)
 
     @staticmethod
-    def visible_documents_for(user):
-        """
-        Returns all documents the user is allowed to see.
-        """
+    def visible_documents_for(owner):
         all_docs = UserDocument.query.all()
-        return [doc for doc in all_docs if doc.can_user_access(user)]
-
-
-
+        return [doc for doc in all_docs if doc.can_owner_access(owner)]
 
 # -------------------- ACTIVITY LOG --------------------
 class ActivityLog(db.Model):
@@ -176,10 +164,10 @@ class ActivityLog(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     action = db.Column(db.String(100))
     target = db.Column(db.String(100))
+    details = db.Column(db.Text, nullable=True)  # added to prevent keyword errors
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship('User', back_populates='activities')
-
 
 # -------------------- LEAVE REQUEST --------------------
 class LeaveRequest(db.Model):
@@ -197,8 +185,9 @@ class LeaveRequest(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    requester = db.relationship('User', foreign_keys=[user_id], backref='leave_requests')
-    approver = db.relationship('User', foreign_keys=[approver_id])
+    requester = db.relationship('User', foreign_keys=[user_id], back_populates='leave_requests')
+    approver = db.relationship('User', foreign_keys=[approver_id], back_populates='approved_requests')
+
 
 # -------------------- CANDIDATE --------------------
 class Candidate(db.Model):
@@ -217,8 +206,7 @@ class Candidate(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relationships
-    department = db.relationship("Department", backref="candidates", lazy=True)
+    department = db.relationship("Department", back_populates="candidates", lazy=True)
 
     def __repr__(self):
         return f"<Candidate {self.full_name} - {self.applied_position} ({self.status})>"

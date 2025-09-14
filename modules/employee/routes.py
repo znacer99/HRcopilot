@@ -1,7 +1,6 @@
-# modules/employee/routes.py
-from flask import Blueprint, request, redirect, url_for, flash, current_app, send_file
+import os
+from flask import Blueprint, request, redirect, url_for, flash, current_app, send_file, render_template
 from flask_login import login_required, current_user
-from werkzeug.utils import secure_filename
 from core.decorators import permission_required
 from core.permissions import Permission
 from .services import (
@@ -14,7 +13,6 @@ from .services import (
 )
 from core.models import UserDocument
 from core.extensions import db
-import os
 
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
 
@@ -22,7 +20,6 @@ employee_bp = Blueprint('employee', __name__, url_prefix='/employee')
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
 
 # ------------------------
 # Employee CRUD Routes
@@ -32,23 +29,31 @@ def allowed_file(filename):
 @permission_required(Permission.ADMIN)
 def create():
     try:
-        employee = create_employee(request.form)
+        files = request.files.getlist('documents') or []
+        single = request.files.get('document')
+        if single and getattr(single, "filename", ""):
+            files.append(single)
+
+        employee = create_employee(request.form, files)
         flash(f'✅ Employee {employee.full_name} created successfully.', 'success')
         return redirect(url_for('dashboard.employee_management'))
     except Exception as e:
+        db.session.rollback()
         flash(f'❌ Error creating employee: {str(e)}', 'danger')
         return redirect(url_for('dashboard.employee_form'))
-
 
 @employee_bp.route('/<int:employee_id>/update', methods=['POST'])
 @login_required
 @permission_required(Permission.EDIT)
 def update(employee_id):
     try:
+        # Only pass form data to update_employee
         employee = update_employee(employee_id, request.form)
+
         flash(f'✅ Employee {employee.full_name} updated successfully.', 'success')
         return redirect(url_for('dashboard.employee_profile', id=employee.id))
     except Exception as e:
+        db.session.rollback()
         flash(f'❌ Error updating employee: {str(e)}', 'danger')
         return redirect(url_for('dashboard.edit_employee', id=employee_id))
 
@@ -62,9 +67,9 @@ def delete(employee_id):
         flash(f'🗑️ Employee {employee.full_name} deleted successfully.', 'success')
         return redirect(url_for('dashboard.employee_management'))
     except Exception as e:
+        db.session.rollback()
         flash(f'❌ Error deleting employee: {str(e)}', 'danger')
         return redirect(url_for('dashboard.employee_profile', id=employee_id))
-
 
 # ------------------------
 # Document Routes
@@ -87,7 +92,6 @@ def create_folder():
 
     return redirect(url_for('dashboard.role_dashboard'))
 
-
 @employee_bp.route('/upload-document', methods=['POST'])
 @login_required
 def upload_document():
@@ -107,7 +111,6 @@ def upload_document():
     allowed_roles = request.form.get("allowed_roles")
     allowed_departments = request.form.get("allowed_departments")
 
-    # Lock employee uploads to certain roles
     if current_user.role == 'employee':
         visibility_type = 'roles'
         allowed_roles = 'it_manager,general_director'
@@ -133,7 +136,6 @@ def upload_document():
         return redirect(url_for('dashboard.employee_dashboard'))
     return redirect(url_for('dashboard.role_dashboard'))
 
-
 @employee_bp.route('/document/<int:doc_id>')
 @login_required
 def download_document(doc_id):
@@ -149,12 +151,11 @@ def download_document(doc_id):
 
     return send_file(full_path, as_attachment=True)
 
-
 @employee_bp.route('/document/<int:doc_id>/delete', methods=['POST'])
 @login_required
 def delete_document(doc_id):
     doc = UserDocument.query.get_or_404(doc_id)
-    if not doc.can_user_access(current_user) or current_user.id != doc.user_id:
+    if not doc.can_user_access(current_user) or current_user.id != doc.owner_id:
         flash("❌ You cannot delete this document.", "danger")
         return redirect(url_for('dashboard.employee_dashboard') if current_user.role == 'employee' else 'dashboard.role_dashboard')
 
@@ -172,7 +173,6 @@ def delete_document(doc_id):
 
     return redirect(url_for('dashboard.employee_dashboard') if current_user.role == 'employee' else 'dashboard.role_dashboard')
 
-
 @employee_bp.route('/document/<int:doc_id>/visibility', methods=['POST'])
 @login_required
 def change_visibility(doc_id):
@@ -185,3 +185,25 @@ def change_visibility(doc_id):
         flash(f"❌ Error changing visibility: {str(e)}", "danger")
 
     return redirect(url_for('dashboard.employee_dashboard') if current_user.role == 'employee' else 'dashboard.role_dashboard')
+
+# ------------------------
+# Employee List Page
+# ------------------------
+@employee_bp.route('/list')
+@login_required
+@permission_required(Permission.VIEW)
+def list_employees():
+    from core.models import Employee  # ensure Employee model is imported
+    employees = Employee.query.all()
+    employee_data = []
+
+    for emp in employees:
+        employee_data.append({
+            'id': emp.id,
+            'full_name': emp.full_name,
+            'job_title': emp.job_title,
+            'phone': emp.phone,
+            'department': emp.department.name if emp.department else '-'
+        })
+
+    return render_template('dashboard/employees/list.html', employees=employee_data)

@@ -1,8 +1,9 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, SelectField, DateField, TextAreaField
-from wtforms.validators import DataRequired, Email, Length
+from wtforms.validators import DataRequired, Email, Length, Optional
 from core.models import Department
 from flask_wtf.file import FileField, FileAllowed
+
 
 class LoginForm(FlaskForm):
     email = StringField('Email', validators=[
@@ -26,14 +27,18 @@ class UserForm(FlaskForm):
         ('general_director', 'General Director'),
         ('it_manager', 'IT Manager')
     ], validators=[DataRequired()])
-    department = SelectField('Department', coerce=int, validators=[DataRequired()])
-    position = StringField('Position / Job Title')
-    phone = StringField('Phone Number')
+    department = SelectField('Department', coerce=int, validators=[Optional()])
+    position = StringField('Position / Job Title', validators=[Optional()])
+    phone = StringField('Phone Number', validators=[Optional()])
     password = PasswordField('Password', validators=[
-        DataRequired("Please enter a password"),
+        Optional(),
         Length(min=8, message="Password must be at least 8 characters")
     ])
-    documents = FileField('Upload Documents', validators=[FileAllowed(['pdf', 'doc', 'docx', 'jpg', 'png'], 'Documents only!')], render_kw={"multiple": True})
+    documents = FileField(
+        'Upload Documents', 
+        validators=[FileAllowed(['pdf', 'doc', 'docx', 'jpg', 'png'], 'Documents only!')],
+        render_kw={"multiple": True}
+    )
     submit = SubmitField('Save User')
     
     def __init__(self, *args, **kwargs):

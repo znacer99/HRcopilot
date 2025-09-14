@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, abort, current_app, send_file, jsonify
 from flask_login import login_required, current_user
 from sqlalchemy.orm import joinedload
-from sqlalchemy import or_, func
+from sqlalchemy import or_, func, extract
 from core.decorators import permission_required, role_required
 from core.models import User, Department, ActivityLog, db, UserDocument, Folder, Employee
 from core.permissions import Permission
@@ -10,12 +10,16 @@ from .services import get_director_dashboard_data, get_manager_dashboard_data
 from modules.employee.services import (
     create_employee as create_employee_service,
     update_employee as update_employee_service,
-    delete_employee as delete_employee_service
+    delete_employee as delete_employee_service,
+    _save_documents
 )
 from core.logger import audit_log
 from datetime import datetime, timedelta
 from modules.leave.services import LeaveRequest
 import os
+import calendar
+from collections import OrderedDict
+from dateutil.relativedelta import relativedelta
 
 dashboard_bp = Blueprint('dashboard', __name__, template_folder='templates')
 
@@ -39,145 +43,228 @@ def role_dashboard():
 @login_required
 @role_required(['it_manager'])
 def it_manager_dashboard():
-    q = (request.args.get('q') or '').strip()
-    role_filter = (request.args.get('role') or '').strip()
-    dept_filter = (request.args.get('department') or '').strip()
-    try:
-        page = max(int(request.args.get('page', 1)), 1)
-    except Exception:
-        page = 1
-    per_page = 10
+    # --- Employees Stats ---
+    total_employees = Employee.query.count()
+    active_employees = Employee.query.join(User, isouter=True).filter(
+        or_(User.is_active == True, Employee.user_id == None)
+    ).count()
+    inactive_employees = total_employees - active_employees
 
-    query = User.query
+    # --- Hiring trend (last 6 months) ---
+    months_dict = OrderedDict()
+    for i in range(5, -1, -1):
+        dt = datetime.utcnow() - relativedelta(months=i)
+        months_dict[dt.strftime("%b %Y")] = 0
 
-    if q:
-        like = f"%{q}%"
-        query = query.filter(or_(User.name.ilike(like), User.email.ilike(like)))
+    hires = db.session.query(
+        extract('month', Employee.created_at).label('month'),
+        extract('year', Employee.created_at).label('year'),
+        func.count(Employee.id)
+    ).group_by('year', 'month').all()
 
-    if role_filter:
-        query = query.filter(User.role == role_filter)
+    for month, year, count in hires:
+        key = f"{calendar.month_abbr[int(month)]} {int(year)}"
+        if key in months_dict:
+            months_dict[key] = count
 
-    if dept_filter:
-        try:
-            dept_id = int(dept_filter)
-            query = query.filter(User.department_id == dept_id)
-        except ValueError:
-            pass
+    hiring_months = list(months_dict.keys())
+    hiring_counts = list(months_dict.values())
 
-    total = query.count()
-    users = query.order_by(User.created_at.desc()).limit(per_page).offset((page - 1) * per_page).all()
+    # --- Employees per department ---
     departments = Department.query.order_by(Department.name).all()
+    department_names = [d.name for d in departments]
+    employees_per_dept = [
+        Employee.query.filter_by(department_id=d.id).count() for d in departments
+    ]
 
-    # Dashboard stats
-    user_counts = db.session.query(User.role, func.count(User.id)).group_by(User.role).all()
+    # --- Users Stats ---
+    total_users = User.query.count()
     week_ago = datetime.utcnow() - timedelta(days=7)
     new_users_count = User.query.filter(User.created_at >= week_ago).count()
     month_ago = datetime.utcnow() - timedelta(days=30)
     inactive_users_count = User.query.filter(
         or_(User.last_login == None, User.last_login < month_ago)
     ).count()
+    user_counts = dict(db.session.query(User.role, func.count(User.id)).group_by(User.role).all())
+
+    # --- Recent Activities ---
     recent_activities = ActivityLog.query.order_by(ActivityLog.timestamp.desc()).limit(10).all()
 
+    # --- Render template ---
     return render_template(
-        'dashboard/it_manager.html',
+        'dashboard/it_manager.html',  # IT Manager template, same layout as General Director
         user=current_user,
-        user_list=users,
-        total=total,
-        page=page,
-        per_page=per_page,
-        departments=departments,
-        q=q,
-        role_filter=role_filter,
-        dept_filter=dept_filter,
-        user_counts=user_counts,
-        new_users_count=new_users_count,
+        # Employee stats
+        total_employees=total_employees,
+        active_employees=active_employees,
+        inactive_employees=inactive_employees,
+        # User stats
+        total_users=total_users,
+        active_users=total_users - inactive_users_count,
         inactive_users_count=inactive_users_count,
-        recent_activities=recent_activities,
-        view_functions=current_app.view_functions
+        new_users_count=new_users_count,
+        user_counts=user_counts,
+        # Chart data
+        hiring_months=hiring_months,
+        hiring_counts=hiring_counts,
+        department_names=department_names,
+        employees_per_dept=employees_per_dept,
+        # Logs
+        recent_activities=recent_activities
     )
+
+
 
 @dashboard_bp.route('/general_director')
 @login_required
 @role_required(['general_director'])
 def director_dashboard():
-    q = (request.args.get('q') or '').strip()
-    role_filter = (request.args.get('role') or '').strip()
-    dept_filter = (request.args.get('department') or '').strip()
-    page = max(int(request.args.get('page', 1)), 1)
-    per_page = 10
+    # --- Employees Stats ---
+    total_employees = Employee.query.count()
+    active_employees = Employee.query.join(User, isouter=True).filter(
+        or_(User.is_active == True, Employee.user_id == None)
+    ).count()
+    inactive_employees = total_employees - active_employees
 
-    query = User.query
-    if q:
-        query = query.filter(or_(User.name.ilike(f"%{q}%"), User.email.ilike(f"%{q}%")))
-    if role_filter:
-        query = query.filter(User.role == role_filter)
-    if dept_filter:
-        try:
-            dept_id = int(dept_filter)
-            query = query.filter(User.department_id == dept_id)
-        except ValueError:
-            pass
+    # --- Hiring trend (last 6 months) ---
+    months_dict = OrderedDict()
+    for i in range(5, -1, -1):
+        dt = datetime.utcnow() - relativedelta(months=i)
+        months_dict[dt.strftime("%b %Y")] = 0
 
-    total = query.count()
-    employees = query.order_by(User.created_at.desc()).limit(per_page).offset((page-1)*per_page).all()
+    hires = db.session.query(
+        extract('month', Employee.created_at).label('month'),
+        extract('year', Employee.created_at).label('year'),
+        func.count(Employee.id)
+    ).group_by('year', 'month').all()
+
+    for month, year, count in hires:
+        key = f"{calendar.month_abbr[int(month)]} {int(year)}"
+        if key in months_dict:
+            months_dict[key] = count
+
+    hiring_months = list(months_dict.keys())
+    hiring_counts = list(months_dict.values())
+
+    # --- Employees per department ---
     departments = Department.query.order_by(Department.name).all()
-    active_count = User.query.filter_by(is_active=True).count()
-    inactive_count = total - active_count
-    user_counts = {"active": active_count, "inactive": inactive_count}
+    department_names = [d.name for d in departments]
+    employees_per_dept = [
+        Employee.query.filter_by(department_id=d.id).count() for d in departments
+    ]
 
+    # --- Users Stats ---
+    total_users = User.query.count()
+    week_ago = datetime.utcnow() - timedelta(days=7)
+    new_users_count = User.query.filter(User.created_at >= week_ago).count()
+    month_ago = datetime.utcnow() - timedelta(days=30)
+    inactive_users_count = User.query.filter(
+        or_(User.last_login == None, User.last_login < month_ago)
+    ).count()
+    user_counts = dict(db.session.query(User.role, func.count(User.id)).group_by(User.role).all())
+
+    # --- Recent Activities ---
     recent_activities = ActivityLog.query.order_by(ActivityLog.timestamp.desc()).limit(10).all()
 
+    # --- Render template (stats only, no employee list) ---
     return render_template(
         'dashboard/general_director.html',
         user=current_user,
-        user_list=employees,
-        total=total,
-        page=page,
-        per_page=per_page,
-        departments=departments,
-        q=q,
-        role_filter=role_filter,
-        dept_filter=dept_filter,
+        # Employee stats
+        total_employees=total_employees,
+        active_employees=active_employees,
+        inactive_employees=inactive_employees,
+        # User stats
+        total_users=total_users,
+        active_users=total_users - inactive_users_count,
+        inactive_users_count=inactive_users_count,
+        new_users_count=new_users_count,
         user_counts=user_counts,
-        new_users_count=User.query.filter(User.created_at >= (datetime.utcnow()-timedelta(days=7))).count(),
-        inactive_users_count=inactive_count,
+        # Chart data
+        hiring_months=hiring_months,
+        hiring_counts=hiring_counts,
+        department_names=department_names,
+        employees_per_dept=employees_per_dept,
+        # Logs
         recent_activities=recent_activities
     )
+
+
+
+
+
+
+
 
 @dashboard_bp.route('/employee/create', methods=['GET', 'POST'])
 @login_required
 @role_required(['it_manager', 'general_director'])
 def employee_create():
     departments = Department.query.order_by(Department.name).all()
+
     if request.method == 'POST':
         form_data = request.form.to_dict()
+        files = request.files.getlist('documents') or []  # handle multiple documents
+        single_file = request.files.get('document')
+        if single_file and getattr(single_file, 'filename', ''):
+            files.append(single_file)
+
         try:
-            employee = create_employee_service(form_data)  # use service
-            audit_log(f'Created employee: {employee.email}', user_id=current_user.id, action='create')
+            # Use the Employee service
+            employee = create_employee_service(form_data, files=files)
+
+            audit_log(
+                f'Created employee: {employee.full_name} (ID: {employee.id})',
+                user_id=current_user.id,
+                action='create'
+            )
+
             flash('Employee created successfully', 'success')
             return redirect(url_for('dashboard.role_dashboard'))
+
         except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'Error creating employee: {str(e)}')
             flash(f'Error creating employee: {str(e)}', 'danger')
             return redirect(url_for('dashboard.employee_create'))
+
     return render_template('dashboard/employee_form.html', departments=departments)
+
 
 
 @dashboard_bp.route('/employee/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 @role_required(['it_manager', 'general_director'])
 def employee_edit(id):
-    employee = User.query.get_or_404(id)
+    employee = Employee.query.get_or_404(id)
     departments = Department.query.order_by(Department.name).all()
+
     if request.method == 'POST':
         form_data = request.form.to_dict()
+        files = request.files.getlist('documents') or []
+        single_file = request.files.get('document')
+        if single_file and getattr(single_file, 'filename', ''):
+            files.append(single_file)
+
         try:
-            employee = update_employee_service(id, form_data)
-            audit_log(f'Updated employee: {employee.email}', user_id=current_user.id, action='update')
+            # Pass files to service
+            employee = update_employee_service(employee.id, form_data, files=files)
+
+            audit_log(
+                f'Updated employee: {employee.full_name} (ID: {employee.id})',
+                user_id=current_user.id,
+                action='update'
+            )
+
             flash('Employee updated successfully', 'success')
             return redirect(url_for('dashboard.role_dashboard'))
+
         except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'Error updating employee: {str(e)}')
             flash(f'Error updating employee: {str(e)}', 'danger')
             return redirect(url_for('dashboard.employee_edit', id=id))
+
     return render_template('dashboard/employee_form.html', employee=employee, departments=departments)
 
 @dashboard_bp.route('/employee/<int:id>/delete', methods=['POST'])
@@ -185,12 +272,17 @@ def employee_edit(id):
 @role_required(['it_manager', 'general_director'])
 def employee_delete(id):
     try:
+        # Use the Employee service to delete
         employee = delete_employee_service(id)
-        audit_log(f'Deleted employee: {employee.email}', user_id=current_user.id, action='delete')
+        audit_log(f'Deleted employee: {employee.full_name}', user_id=current_user.id, action='delete')
         flash('Employee deleted successfully', 'success')
     except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error deleting employee {id}: {str(e)}")
         flash(f'Error deleting employee: {str(e)}', 'danger')
+
     return redirect(url_for('dashboard.role_dashboard'))
+
 
 
 
@@ -210,22 +302,28 @@ def manager_dashboard():
 @login_required
 @role_required(['employee'])
 def employee_dashboard():
+    # -----------------------
     # User's own documents
-    from core.models import UserDocument
+    # -----------------------
     documents = UserDocument.query.filter_by(user_id=current_user.id)\
         .order_by(UserDocument.uploaded_at.desc()).all()
 
-    # Shared documents (accessible but not uploaded by user)
-    shared_documents = [
-        doc for doc in UserDocument.query.all()
-        if doc.can_user_access(current_user) and doc.user_id != current_user.id
-    ]
+    # -----------------------
+    # Shared documents (not uploaded by user)
+    # -----------------------
+    # Optimized: only load documents that are accessible by this user
+    all_docs = UserDocument.query.filter(UserDocument.user_id != current_user.id).all()
+    shared_documents = [doc for doc in all_docs if doc.can_user_access(current_user)]
 
+    # -----------------------
     # Recent activities
+    # -----------------------
     recent_activities = ActivityLog.query.filter_by(user_id=current_user.id)\
         .order_by(ActivityLog.timestamp.desc()).limit(10).all()
 
-    # Optional: user's recent leave requests
+    # -----------------------
+    # Recent leave requests
+    # -----------------------
     latest_leaves = LeaveRequest.query.filter_by(user_id=current_user.id)\
         .order_by(LeaveRequest.created_at.desc()).limit(3).all()
 
@@ -244,52 +342,63 @@ def employee_dashboard():
 @dashboard_bp.route('/employee/upload_document', methods=['POST'])
 @login_required
 def employee_upload_document():
-    folder_id = request.form.get('folder_id')
-    files = request.files.getlist('document')
-    visibility_type = request.form.get('visibility_type', 'private')
-
-    if not files or all(f.filename == '' for f in files):
-        flash("No files selected for upload.", "danger")
-        return redirect(url_for('dashboard.employee_dashboard'))
-
-    for file in files:
-        if file.filename == '':
-            continue  # skip empty file inputs
-
-        try:
-            # Create folder if it doesn't exist
-            os.makedirs("uploads/personal", exist_ok=True)
-
-            # Safe filename
-            safe_filename = f"{current_user.id}_{file.filename.replace(' ', '_')}"
-            filepath = os.path.join("uploads/personal", safe_filename)
-            file.save(filepath)
-
-            # Insert document record
-            new_doc = UserDocument(
-                user_id=current_user.id,          # REQUIRED
-                filename=file.filename,
-                filepath=filepath,
-                folder_id=int(folder_id) if folder_id else None,
-                visibility_type=visibility_type,
-                uploaded_at=datetime.utcnow()     # make sure the column exists
-            )
-            db.session.add(new_doc)
-
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f"Error uploading {file.filename}: {str(e)}")
-            flash(f"Error uploading {file.filename}: {str(e)}", "danger")
-
     try:
+        # -----------------------
+        # Collect files: multiple or single
+        # -----------------------
+        files = request.files.getlist("documents") or []
+        single_file = request.files.get("document")
+        if single_file and getattr(single_file, "filename", ""):
+            files.append(single_file)
+
+        # -----------------------
+        # Validate files
+        # -----------------------
+        allowed_extensions = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
+        valid_files = [f for f in files if f and '.' in f.filename and f.filename.rsplit('.', 1)[1].lower() in allowed_extensions]
+
+        if not valid_files:
+            flash("No valid files selected for upload.", "danger")
+            return redirect(url_for('dashboard.employee_dashboard'))
+
+        # -----------------------
+        # Determine folder & visibility
+        # -----------------------
+        folder_name = request.form.get("folder_name")
+        visibility_type = (request.form.get("visibility_type") or "private").lower()
+        allowed_users = request.form.get("allowed_users")
+        allowed_roles = request.form.get("allowed_roles")
+        allowed_departments = request.form.get("allowed_departments")
+
+        # Restrict employee uploads to certain roles if needed
+        if current_user.role == 'employee':
+            visibility_type = 'roles'
+            allowed_roles = 'it_manager,general_director'
+
+        # -----------------------
+        # Save documents
+        # -----------------------
+        _save_documents(
+            current_user,
+            valid_files,
+            folder_name=folder_name,
+            visibility_type=visibility_type,
+            allowed_users=allowed_users,
+            allowed_roles=allowed_roles,
+            allowed_departments=allowed_departments
+        )
+
         db.session.commit()
         flash("Document(s) uploaded successfully!", "success")
+
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"DB commit failed: {str(e)}")
-        flash("Failed to save documents. Please try again.", "danger")
+        current_app.logger.error(f"Error uploading documents: {str(e)}")
+        flash(f"Failed to upload documents: {str(e)}", "danger")
 
     return redirect(url_for('dashboard.employee_dashboard'))
+
+
 
 
 
@@ -298,35 +407,26 @@ def employee_upload_document():
 @login_required
 @role_required(['it_manager', 'general_director'])
 def employee_summary():
-    employees = User.query.order_by(User.created_at.desc()).all()
-    return render_template('dashboard/partials/employee_summary.html', employees=employees)
-
-
-# -------------------- DEPARTMENT SUMMARY FOR DASHBOARD --------------------
-@dashboard_bp.route('/department-summary')
-@login_required
-@permission_required(Permission.VIEW)
-def department_summary():
-    # Preload employees + their users to avoid N+1 queries
-    departments = Department.query.options(
-        joinedload(Department.employees).joinedload(Employee.user)
-    ).order_by(Department.name).all()
-
-    summary = []
-    for dept in departments:
-        summary.append({
-            'id': dept.id,
-            'name': dept.name,
-            'description': dept.description,
-            'members': dept.members,  # comes from your @property
-            'member_count': len(dept.members)
+    # Fetch all employees, ordered by creation date
+    employees = Employee.query.order_by(Employee.created_at.desc()).all()
+    
+    # Prepare any extra data for the template if needed
+    # (e.g., department name)
+    employee_list = []
+    for emp in employees:
+        employee_list.append({
+            'id': emp.id,
+            'full_name': emp.full_name,
+            'job_title': emp.job_title,
+            'phone': emp.phone,
+            'department': emp.department.name if emp.department else None,
+            'created_at': emp.created_at
         })
 
     return render_template(
-        'dashboard/departments/list.html',  # ✅ use the partial
-        departments=summary
+        'dashboard/employees/list.html',
+        employees=employee_list
     )
-
 
 
 @dashboard_bp.route('/recent-activities')
@@ -360,9 +460,6 @@ def create_user():
                 phone=form.phone.data,
                 position=form.position.data
             )
-
-            # Set the department separately
-            user.department_id = form.department.data
 
             # Set password (hashed)
             user.set_password(form.password.data)

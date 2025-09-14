@@ -2,132 +2,137 @@
 
 {% block dashboard_title %}IT Manager Dashboard{% endblock %}
 
-{% block extra_head %}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-<style>
-/* Color Palette */
-:root {
-    --primary-color: #2c3e50;
-    --secondary-color: #34495e;
-    --accent-color: #16a085;
-    --card-bg: #ffffff;
-    --card-shadow: rgba(0,0,0,0.12);
-}
+{% block dashboard_content %}
+<div class="container-fluid mt-4">
 
-/* Carousel */
-.user-carousel-container {
-    position: relative;
-    overflow: hidden;
-}
-.user-carousel {
-    display: flex;
-    gap: 1rem;
-    animation: scroll-left 20s linear infinite;
-}
-.user-carousel:hover { animation-play-state: paused; }
-@keyframes scroll-left { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <h5>Total Employees</h5>
+                    <p class="fs-3">{{ total_employees }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <h5>Active Employees</h5>
+                    <p class="fs-3">{{ active_employees }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-danger">
+                <div class="card-body">
+                    <h5>Inactive Employees</h5>
+                    <p class="fs-3">{{ inactive_employees }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <h5>Total Users</h5>
+                    <p class="fs-3">{{ total_users }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
-/* User Card */
-.user-card {
-    min-width: 220px;
-    background: var(--card-bg);
-    border-radius: 12px;
-    padding: 1rem;
-    box-shadow: 0 6px 18px var(--card-shadow);
-    flex-shrink: 0;
-    transition: transform 0.4s ease, box-shadow 0.4s ease;
-}
-.user-card:hover {
-    transform: scale(1.05);
-    box-shadow: 0 12px 30px rgba(0,0,0,0.2);
-}
-.user-avatar { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin-bottom: 0.5rem; }
-.user-name { font-weight: 600; font-size: 1rem; }
-.user-role { font-size: 0.85rem; opacity: 0.8; }
-.user-stats { display: flex; justify-content: space-between; font-size: 0.8rem; margin-top: 0.5rem; opacity: 0.9; }
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5>Hiring Trend (Last 6 Months)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="hiringTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5>Employees per Department</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="deptEmployeesChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
 
-/* Cards & Charts */
-.summary-card {
-    background: var(--card-bg);
-    color: var(--primary-color);
-    border-radius: 12px;
-    padding: 1rem;
-    box-shadow: 0 6px 18px var(--card-shadow);
-}
+    <!-- User Breakdown -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header">
+            <h5>User Breakdown by Role</h5>
+        </div>
+        <div class="card-body">
+            {% if user_counts %}
+                <ul class="list-group">
+                    {% for role, count in user_counts.items() %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ role|replace('_', ' ')|title }}
+                            <span class="badge bg-primary rounded-pill">{{ count }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-muted">No users found.</p>
+            {% endif %}
+        </div>
+    </div>
 
-/* Leave Section */
-.leave-section .btn { border-radius: 50px; font-weight: 600; transition: transform 0.2s ease; }
-.leave-section .btn:hover { transform: scale(1.03); box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
-.leave-section h4 { border-bottom: 2px solid var(--accent-color); padding-bottom: 0.5rem; margin-bottom: 1rem; }
-</style>
+    <!-- Recent Activities -->
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h5>Recent Activities</h5>
+        </div>
+        <div class="card-body">
+            {% include 'dashboard/partials/recent_activities.html' %}
+        </div>
+    </div>
+</div>
 {% endblock %}
 
-{% block dashboard_content %}
-
-<!-- Users Carousel -->
-<div class="mb-4">
-    <h4 class="mb-3">Team Members</h4>
-    <div class="user-carousel-container">
-        <div class="user-carousel">
-            {% for user in user_list %}
-            <div class="user-card">
-                <img src="{{ user.avatar or url_for('static', filename='images/default_avatar.png') }}" alt="avatar" class="user-avatar">
-                <div class="user-name">{{ user.name }}</div>
-                <div class="user-role">{{ user.role|replace('_',' ')|title }}</div>
-                <div class="user-stats">
-                    <span>Dept: {{ user.department.name if user.department else 'N/A' }}</span>
-                    <span>Login: {{ user.login_count }}</span>
-                </div>
-            </div>
-            {% endfor %}
-            {% for user in user_list %} <!-- duplicate for infinite scroll -->
-            <div class="user-card">
-                <img src="{{ user.avatar or url_for('static', filename='images/default_avatar.png') }}" alt="avatar" class="user-avatar">
-                <div class="user-name">{{ user.name }}</div>
-                <div class="user-role">{{ user.role|replace('_',' ')|title }}</div>
-                <div class="user-stats">
-                    <span>Dept: {{ user.department.name if user.department else 'N/A' }}</span>
-                    <span>Login: {{ user.login_count }}</span>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-</div>
-
-<!-- Dashboard Charts -->
-<div class="row g-3 mb-4">
-    <div class="col-md-6">
-        <div class="summary-card">
-            <h5>User Roles Distribution</h5>
-            <canvas id="rolesChart"></canvas>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="summary-card">
-            <h5>User Activity (Last 30 Days)</h5>
-            <canvas id="activityChart"></canvas>
-        </div>
-    </div>
-</div>
-
-<!-- Leave Requests Section -->
-<div class="leave-section mb-4 p-3 border rounded bg-light">
-    <h4>Leave Requests</h4>
-    <div class="row g-3">
-        <div class="col-md-4">
-            <a href="{{ url_for('leave.new_request') }}" class="btn btn-success w-100"><i class="bi bi-plus-circle-fill"></i> New Leave Request</a>
-        </div>
-        <div class="col-md-4">
-            <a href="{{ url_for('leave.my_requests') }}" class="btn btn-primary w-100"><i class="bi bi-card-checklist"></i> My Leaves</a>
-        </div>
-        <div class="col-md-4">
-            <a href="{{ url_for('leave.pending_requests') }}" class="btn btn-warning w-100"><i class="bi bi-hourglass-split"></i> Pending Leaves</a>
-        </div>
-    </div>
-</div>
-
+{% block scripts %}
+{{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="{{ url_for('static', filename='js/it_manager.js') }}"></script>
+<script>
+    // Hiring Trend Chart
+    const ctxHiring = document.getElementById('hiringTrendChart').getContext('2d');
+    new Chart(ctxHiring, {
+        type: 'line',
+        data: {
+            labels: {{ hiring_months|tojson }},
+            datasets: [{
+                label: 'Hires',
+                data: {{ hiring_counts|tojson }},
+                borderColor: '#6b4cff',
+                backgroundColor: 'rgba(107, 76, 255, 0.2)',
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: { responsive: true }
+    });
 
+    // Employees per Department Chart
+    const ctxDept = document.getElementById('deptEmployeesChart').getContext('2d');
+    new Chart(ctxDept, {
+        type: 'bar',
+        data: {
+            labels: {{ department_names|tojson }},
+            datasets: [{
+                label: 'Employees',
+                data: {{ employees_per_dept|tojson }},
+                backgroundColor: '#2ad29b'
+            }]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: true } } }
+    });
+</script>
 {% endblock %}

@@ -49,9 +49,9 @@ def create_app():
     register_blueprints(app)
 
     # Initialize database and default data
-    with app.app_context():
-        db.create_all()
-        initialize_database()
+    #with app.app_context():
+        #db.create_all()
+    # Do not initialize DB here; scripts will handle it
 
     return app
 
@@ -65,6 +65,7 @@ def register_blueprints(app):
     from routes.document_routes import docs_bp
     from modules.department.routes import department_bp
     from modules.candidate.routes import candidate_bp
+    from modules.user.routes import user_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
@@ -73,6 +74,7 @@ def register_blueprints(app):
     app.register_blueprint(docs_bp)
     app.register_blueprint(department_bp)
     app.register_blueprint(candidate_bp, url_prefix='/candidate')
+    app.register_blueprint(user_bp)
 
     print("All registered endpoints:")
     for rule in app.url_map.iter_rules():
@@ -82,6 +84,7 @@ def register_blueprints(app):
 def initialize_database():
     """Create departments, employees, and initial users safely (idempotent)"""
     from core.models import User, Department, Employee
+    from core.extensions import db
 
     # 1️⃣ Departments
     departments_data = [
@@ -90,16 +93,17 @@ def initialize_database():
         {"key": "hr", "name": "Human Resources", "description": "HR team"},
         {"key": "operations", "name": "Operations", "description": "Company operations"}
     ]
+
     departments = {}
     for dept_data in departments_data:
         dept = Department.query.filter_by(name=dept_data["name"]).first()
         if not dept:
             dept = Department(name=dept_data["name"], description=dept_data["description"])
             db.session.add(dept)
-            db.session.commit()  # commit now to get dept.id
+            db.session.flush()  # get dept.id without committing
         departments[dept_data["key"]] = dept
 
-    # 2️⃣ Users
+    # 2️⃣ Users & Employees (only employees who need a User account)
     users_data = [
         {"email": "it@alghaith.com", "name": "IT Manager", "role": "it_manager", "dept": "it", "access_code": "IT-001", "password": "SecurePassword123!"},
         {"email": "director@alghaith.com", "name": "General Director", "role": "general_director", "dept": "executive", "access_code": "GD-001", "password": "DirectorPass123!"},
@@ -110,11 +114,7 @@ def initialize_database():
     ]
 
     for user_data in users_data:
-        # Skip if user already exists
-        if User.query.filter_by(email=user_data["email"]).first():
-            continue
-
-        # Create Employee first if not exists
+        # 2a️⃣ Ensure Employee exists
         employee = Employee.query.filter_by(full_name=user_data["name"]).first()
         if not employee:
             employee = Employee(
@@ -124,23 +124,32 @@ def initialize_database():
                 phone=""
             )
             db.session.add(employee)
-            db.session.commit()  # commit to get employee.id
+            db.session.flush()  # get employee.id
 
-        # Create User
-        user = User(
-            email=user_data["email"],
-            name=user_data["name"],
-            role=user_data["role"],
-            access_code=user_data["access_code"],
-            employee_id=employee.id,
-            avatar=user_data["name"][0] + user_data["name"].split()[-1][0],
-            is_active=True
-        )
-        user.set_password(user_data["password"])
-        db.session.add(user)
+        # 2b️⃣ Ensure User exists
+        user = User.query.filter_by(email=user_data["email"]).first()
+        if not user:
+            user = User(
+                email=user_data["email"],
+                name=user_data["name"],
+                role=user_data["role"],
+                access_code=user_data["access_code"],
+                avatar=user_data["name"][0] + user_data["name"].split()[-1][0],
+                is_active=True
+            )
+            user.set_password(user_data["password"])
+            db.session.add(user)
+            db.session.flush()  # get user.id
+
+        # 2c️⃣ Link Employee -> User
+        if not employee.user_id:
+            employee.user_id = user.id
 
     db.session.commit()
     print("✅ Database initialized successfully (idempotent)!")
+
+
+
 
 
 

@@ -5,6 +5,8 @@
 {% block dashboard_title %}Manager Dashboard{% endblock %}
 
 {% block dashboard_content %}
+
+<!-- Team Members Summary -->
 <div class="row mb-4">
     <div class="col-md-4">
         <div class="card text-white bg-primary">
@@ -27,6 +29,8 @@
     </form>
   </div>
   <div class="card-body">
+
+    <!-- Upload Form -->
     <form action="{{ url_for('employee.upload_document') }}" method="POST" enctype="multipart/form-data" class="row g-2 align-items-end">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="col-md-4">
@@ -60,6 +64,7 @@
 
     <hr>
 
+    <!-- My Documents -->
     <div class="row">
       <div class="col-md-6">
         <h6>My Documents</h6>
@@ -102,6 +107,7 @@
         {% endif %}
       </div>
 
+      <!-- Shared Documents -->
       <div class="col-md-6">
         <h6>Shared With Me</h6>
         {% if shared_documents and shared_documents|length > 0 %}
@@ -125,10 +131,10 @@
   </div>
 </div>
 
-<!-- Leave Request Cards -->
+<!-- Leave Requests Cards -->
 <div class="row mb-4">
     <div class="col-md-3">
-        <a href="{{ url_for('leave.my_requests') }}" class="text-decoration-none">
+        <a href="{{ url_for('leave.leaves_dashboard') }}" class="text-decoration-none">
             <div class="card text-center dashboard-link-card">
                 <div class="card-body">
                     <h5 class="card-title">My Leave Requests</h5>
@@ -137,9 +143,8 @@
         </a>
     </div>
 
-    {% if current_user.role in ['manager', 'head_of_department', 'it_manager'] %}
     <div class="col-md-3">
-        <a href="{{ url_for('leave.pending_requests') }}" class="text-decoration-none">
+        <a href="{{ url_for('leave.leaves_dashboard') }}" class="text-decoration-none">
             <div class="card text-center dashboard-link-card">
                 <div class="card-body">
                     <h5 class="card-title">Pending Leave Requests</h5>
@@ -147,9 +152,9 @@
             </div>
         </a>
     </div>
-    {% endif %}
 </div>
 
+<!-- Recent Activities -->
 <div class="card mb-4">
     <div class="card-header">
         <h5>Department Activities</h5>
@@ -159,6 +164,7 @@
     </div>
 </div>
 
+<!-- My Team -->
 <div class="card">
     <div class="card-header">
         <h5>My Team</h5>
@@ -167,4 +173,5 @@
         {% include 'dashboard/partials/employee_summary.html' %}
     </div>
 </div>
+
 {% endblock %}

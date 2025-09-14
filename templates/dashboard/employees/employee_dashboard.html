@@ -1,0 +1,49 @@
+{% extends "dashboard/base_dashboard.html" %}
+
+{% block dashboard_title %}Employees{% endblock %}
+
+{% block dashboard_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Employees</h2>
+    <a href="{{ url_for('dashboard.employee_form') }}" class="btn btn-primary">Create Employee</a>
+</div>
+
+<div class="mb-3">
+  <input class="form-control" id="searchInput" type="text" placeholder="Search employees...">
+</div>
+
+<div class="row" id="employeeCards">
+  {% for emp in employees %}
+  <div class="col-md-4 mb-3 employee-card">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h5 class="card-title">{{ emp.full_name }}</h5>
+        <p class="card-text"><strong>Job Title:</strong> {{ emp.job_title or '-' }}</p>
+        <p class="card-text"><strong>Phone:</strong> {{ emp.phone or '-' }}</p>
+        <p class="card-text"><strong>Department:</strong> {{ emp.department or '-' }}</p>
+      </div>
+      <div class="card-footer d-flex justify-content-between">
+        <a href="{{ url_for('dashboard.employee_edit', id=emp.id) }}" class="btn btn-sm btn-warning">Edit</a>
+        <form method="POST" action="{{ url_for('dashboard.employee_delete', id=emp.id) }}" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this employee?')">Delete</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<script>
+const searchInput = document.getElementById('searchInput');
+const employeeCards = Array.from(document.querySelectorAll('.employee-card'));
+
+searchInput.addEventListener('keyup', function() {
+    const filter = this.value.toLowerCase();
+    employeeCards.forEach(card => {
+        const text = card.textContent.toLowerCase();
+        card.style.display = text.includes(filter) ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}

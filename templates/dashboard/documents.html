@@ -12,21 +12,22 @@
         <!-- Upload Buttons -->
         <div class="d-flex gap-3 mb-3">
             <!-- Create Folder -->
-            <form action="{{ url_for('dashboard.employee_upload_document') }}" method="POST" class="d-flex gap-1">
+            <form action="{{ url_for('docs.create_folder') }}" method="POST" class="d-flex gap-1">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="text" name="folder_name" placeholder="Folder name" required class="form-control form-control-sm">
                 <button type="submit" class="btn btn-sm btn-primary">+ Folder</button>
             </form>
 
             <!-- Upload Documents -->
-            <form action="{{ url_for('dashboard.employee_upload_document') }}" method="POST" enctype="multipart/form-data" class="d-flex gap-1">
-                <input type="file" name="document" multiple required class="form-control form-control-sm">
+            <form action="{{ url_for('docs.upload_document') }}" method="POST" enctype="multipart/form-data" class="d-flex gap-1">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="file" name="documents" multiple required class="form-control form-control-sm">
                 <select name="folder_id" class="form-select form-select-sm">
                     <option value="">-- Root --</option>
                     {% for folder in folders %}
                     <option value="{{ folder.id }}">{{ folder.name }}</option>
                     {% endfor %}
                 </select>
-                <input type="hidden" name="visibility_type" value="private">
                 <button type="submit" class="btn btn-sm btn-success">Upload</button>
             </form>
         </div>
@@ -49,10 +50,13 @@
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 {{ doc.filename }}
                                 <div class="d-flex gap-2">
-                                    <a href="{{ url_for('dashboard.download_document', doc_id=doc.id) }}" class="btn btn-sm btn-info">Download</a>
-                                    {% if doc.can_user_delete(current_user) %}
-                                    <form action="{{ url_for('dashboard.delete_document', doc_id=doc.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete document?');">
-                                        <button class="btn btn-sm btn-danger">Delete</button>
+                                    {% if doc.can_owner_access(current_user) %}
+                                    <a href="{{ url_for('docs.download_document', doc_id=doc.id) }}" class="btn btn-sm btn-primary">⬇️ Download</a>
+                                    {% endif %}
+                                    {% if doc.can_owner_delete(current_user) %}
+                                    <form action="{{ url_for('docs.delete_document', doc_id=doc.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete document?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button class="btn btn-sm btn-danger">🗑 Delete</button>
                                     </form>
                                     {% endif %}
                                 </div>
@@ -65,6 +69,7 @@
 
                         <!-- Delete Folder -->
                         <form action="{{ url_for('docs.delete_folder', folder_id=folder.id) }}" method="POST" onsubmit="return confirm('Delete folder and all its documents?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button class="btn btn-sm btn-danger">Delete Folder</button>
                         </form>
                     </div>
@@ -85,10 +90,13 @@
                 <li class="list-group-item d-flex justify-content-between align-items-center">
                     {{ doc.filename }}
                     <div class="d-flex gap-2">
-                        <a href="{{ url_for('dashboard.download_document', doc_id=doc.id) }}" class="btn btn-sm btn-info">Download</a>
-                        {% if doc.can_user_delete(current_user) %}
-                        <form action="{{ url_for('dashboard.delete_document', doc_id=doc.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete document?');">
-                            <button class="btn btn-sm btn-danger">Delete</button>
+                        {% if doc.can_owner_access(current_user) %}
+                        <a href="{{ url_for('docs.download_document', doc_id=doc.id) }}" class="btn btn-sm btn-primary">⬇️ Download</a>
+                        {% endif %}
+                        {% if doc.can_owner_delete(current_user) %}
+                        <form action="{{ url_for('docs.delete_document', doc_id=doc.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete document?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-sm btn-danger">🗑 Delete</button>
                         </form>
                         {% endif %}
                     </div>
@@ -104,8 +112,10 @@
         <h2>🌐 Shared Documents</h2>
 
         {% if current_user.role.lower() != "employee" %}
-        <form action="{{ url_for('dashboard.employee_upload_document') }}" method="POST" enctype="multipart/form-data" class="mb-3 d-flex gap-2">
-            <input type="file" name="document" multiple required class="form-control form-control-sm">
+        <form action="{{ url_for('docs.upload_document') }}" method="POST" enctype="multipart/form-data" class="mb-3 d-flex gap-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="file" name="documents" multiple required class="form-control form-control-sm">
+            <input type="hidden" name="folder_id" value="">
             <input type="hidden" name="visibility_type" value="shared">
             <button type="submit" class="btn btn-sm btn-success">Upload to Shared</button>
         </form>
@@ -117,10 +127,13 @@
             <li class="list-group-item d-flex justify-content-between align-items-center">
                 {{ doc.filename }} by {{ doc.user.name }} ({{ doc.user.role }})
                 <div class="d-flex gap-2">
-                    <a href="{{ url_for('dashboard.download_document', doc_id=doc.id) }}" class="btn btn-sm btn-info">Download</a>
-                    {% if doc.can_user_delete(current_user) %}
-                    <form action="{{ url_for('dashboard.delete_document', doc_id=doc.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete document?');">
-                        <button class="btn btn-sm btn-danger">Delete</button>
+                    {% if doc.can_owner_access(current_user) %}
+                    <a href="{{ url_for('docs.download_document', doc_id=doc.id) }}" class="btn btn-sm btn-primary">⬇️ Download</a>
+                    {% endif %}
+                    {% if doc.can_owner_delete(current_user) %}
+                    <form action="{{ url_for('docs.delete_document', doc_id=doc.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete document?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-sm btn-danger">🗑 Delete</button>
                     </form>
                     {% endif %}
                 </div>

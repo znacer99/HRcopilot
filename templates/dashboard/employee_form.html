@@ -12,12 +12,7 @@
 
       <div class="mb-3">
         <label class="form-label">Full name</label>
-        <input name="name" class="form-control" value="{{ employee.name if employee else '' }}" required>
-      </div>
-
-      <div class="mb-3">
-        <label class="form-label">Email</label>
-        <input name="email" type="email" class="form-control" value="{{ employee.email if employee else '' }}" required>
+        <input name="name" class="form-control" value="{{ employee.full_name if employee else '' }}" required>
       </div>
 
       <div class="mb-3">
@@ -27,20 +22,7 @@
 
       <div class="mb-3">
         <label class="form-label">Position / Title</label>
-        <input name="position" type="text" class="form-control" value="{{ employee.position if employee else '' }}">
-      </div>
-
-      <div class="mb-3">
-        <label class="form-label">Role</label>
-        <select name="role" class="form-select" required>
-          {% set current_role = employee.role if employee else '' %}
-          <option value="employee" {% if current_role=='employee' %}selected{% endif %}>Employee</option>
-          <option value="manager" {% if current_role=='manager' %}selected{% endif %}>Manager</option>
-          <option value="head_of_department" {% if current_role=='head_of_department' %}selected{% endif %}>Head of Department</option>
-          <option value="general_manager" {% if current_role=='general_manager' %}selected{% endif %}>General Manager</option>
-          <option value="general_director" {% if current_role=='general_director' %}selected{% endif %}>General Director</option>
-          <option value="it_manager" {% if current_role=='it_manager' %}selected{% endif %}>IT Manager</option>
-        </select>
+        <input name="position" type="text" class="form-control" value="{{ employee.job_title if employee else '' }}">
       </div>
 
       <div class="mb-3">
@@ -51,21 +33,6 @@
             <option value="{{ d.id }}" {% if employee and employee.department_id == d.id %}selected{% endif %}>{{ d.name }}</option>
           {% endfor %}
         </select>
-      </div>
-
-      <div class="mb-3">
-        <label class="form-label">Access code (optional)</label>
-        <input name="access_code" class="form-control" value="{{ employee.access_code if employee else '' }}">
-      </div>
-
-      <div class="mb-3">
-        <label class="form-label">Avatar (optional)</label>
-        <input name="avatar" type="text" class="form-control" value="{{ employee.avatar if employee else '' }}" placeholder="e.g. initials or emoji">
-      </div>
-
-      <div class="mb-3">
-        <label class="form-label">Password {% if not employee %}(required){% endif %}</label>
-        <input name="password" type="password" class="form-control" {% if not employee %}required{% endif %}>
       </div>
 
       <div class="mb-3">
