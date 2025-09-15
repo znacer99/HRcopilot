@@ -24,7 +24,8 @@ def list_departments():
                 'full_name': emp.full_name,
                 'job_title': emp.job_title,
                 'phone': emp.phone,
-                'address': emp.address,
+                'actual_address': emp.actual_address,
+                'mother_country_address': emp.mother_country_address,
                 'nationality': emp.nationality,
                 'id_number': emp.id_number
             } for emp in employees
@@ -98,38 +99,46 @@ def delete_department(dept_id):
 
 
 # -------------------- VIEW DEPARTMENT TEAM --------------------
+from flask import render_template
+from flask_login import login_required
+from modules.department.forms import DeleteForm
+from core.models import Department, Employee, Candidate, EmployeeDocument
+from sqlalchemy.orm import joinedload
+
 @department_bp.route('/<int:dept_id>/view')
 @login_required
 def view_department(dept_id):
+    # Get department
     dept = Department.query.get_or_404(dept_id)
-    
-    # Get employees only (no user data)
-    employees = Employee.query.filter_by(department_id=dept.id).all()
-    serialized_employees = [
-        {
-            'id': emp.id,
-            'full_name': emp.full_name,
-            'job_title': emp.job_title,
-            'phone': emp.phone,
-            'address': emp.address,
-            'nationality': emp.nationality,
-            'id_number': emp.id_number
-        } for emp in employees
-    ]
 
-    # Candidates are optional; keep if needed
+    # Get all employees in this department, eager load documents
+    employees = Employee.query.options(joinedload(Employee.documents)) \
+        .filter_by(department_id=dept.id).all()
+
+    # Prepare a mapping of employee_id -> documents
+    employee_docs = {e.id: e.documents for e in employees}
+
+    # Get candidates
     candidates = Candidate.query.filter_by(department_id=dept.id).all()
-    
-    # Delete form for CSRF
+
+    # Delete form for CSRF protection
     delete_form = DeleteForm()
 
+    # Render template
     return render_template(
         'dashboard/departments/team.html',
-        department={'id': dept.id, 'name': dept.name, 'description': dept.description},
-        employees=serialized_employees,   # Only employee fields
-        candidates=candidates,            # Candidates optional
-        delete_form=delete_form           # For delete button
+        department={
+            'id': dept.id,
+            'name': dept.name,
+            'description': dept.description
+        },
+        employees=employees,
+        candidates=candidates,
+        employee_docs=employee_docs,
+        delete_form=delete_form
     )
+
+
 
 
 # -------------------- DEPARTMENT SUMMARY --------------------
@@ -140,7 +149,6 @@ def department_summary():
     summary = []
 
     for dept in departments:
-        # Get only employees, not users
         employees = Employee.query.filter_by(department_id=dept.id).all()
         serialized_employees = [
             {
@@ -148,7 +156,11 @@ def department_summary():
                 'full_name': emp.full_name,
                 'job_title': emp.job_title,
                 'phone': emp.phone,
-                'address': emp.address,
+                'actual_address': emp.actual_address,
+                'mother_country_address': emp.mother_country_address,
+                'country': emp.country,
+                'state': emp.state,
+                'birth_date': emp.birth_date.strftime('%Y-%m-%d') if emp.birth_date else None,
                 'nationality': emp.nationality,
                 'id_number': emp.id_number
             } for emp in employees

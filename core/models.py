@@ -66,14 +66,23 @@ class Employee(db.Model):
     full_name = db.Column(db.String(120), nullable=False)
     job_title = db.Column(db.String(120), nullable=True)
     phone = db.Column(db.String(20), nullable=True)
-    address = db.Column(db.String(255), nullable=True)
-    nationality = db.Column(db.String(50), nullable=True)
-    id_number = db.Column(db.String(50), unique=True, nullable=True)
+
+    # New fields
+    actual_address = db.Column(db.String(255), nullable=True)
+    mother_country_address = db.Column(db.String(255), nullable=True)
+    country = db.Column(db.String(100), nullable=True)
+    state = db.Column(db.String(100), nullable=True)
+    birth_date = db.Column(db.Date, nullable=True)
+    id_number = db.Column(db.String(50), unique=True, nullable=True)  # Identity card / Passport number
+    nationality = db.Column(db.String(100), nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Foreign Keys
     department_id = db.Column(db.Integer, db.ForeignKey("departments.id"))
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # Optional link to a user account
+    documents = db.relationship('EmployeeDocument', back_populates='employee', cascade='all, delete-orphan')
+
 
     # Relationships
     department = db.relationship("Department", back_populates="employees")
@@ -81,6 +90,7 @@ class Employee(db.Model):
 
     def __repr__(self):
         return f"<Employee {self.full_name} - {self.job_title}>"
+
 
 # -------------------- DEPARTMENT --------------------
 class Department(db.Model):
@@ -130,14 +140,22 @@ class UserDocument(db.Model):
     visibility_type = db.Column(db.String(50), default='private')
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # New field for document type
+    document_type = db.Column(db.String(50), nullable=False, server_default='additional')  # passport, contract, medical, additional
+
+    # Access control fields
+    allowed_users = db.Column(db.String, nullable=True)        # comma-separated user IDs
+    allowed_roles = db.Column(db.String, nullable=True)        # comma-separated role names
+    allowed_departments = db.Column(db.String, nullable=True)  # comma-separated department IDs
+
     # Relationships
     folder = db.relationship('Folder', back_populates='documents')
     user = db.relationship('User', back_populates='documents', foreign_keys=[user_id])
 
     def __repr__(self):
-        return f"<UserDocument id={self.id} filename={self.filename} owner={self.owner_type}:{self.owner_id} folder_id={self.folder_id}>"
+        return f"<UserDocument id={self.id} filename={self.filename} owner={self.owner_type}:{self.owner_id} folder_id={self.folder_id} type={self.document_type}>"
 
-     # ------------------------
+    # ------------------------
     # Access control
     # ------------------------
     def can_owner_access(self, owner):
@@ -155,6 +173,8 @@ class UserDocument(db.Model):
     def visible_documents_for(owner):
         all_docs = UserDocument.query.all()
         return [doc for doc in all_docs if doc.can_owner_access(owner)]
+
+
 
 # -------------------- ACTIVITY LOG --------------------
 class ActivityLog(db.Model):
@@ -210,3 +230,21 @@ class Candidate(db.Model):
 
     def __repr__(self):
         return f"<Candidate {self.full_name} - {self.applied_position} ({self.status})>"
+
+# -------------------- EmployeeDocument ----------------
+
+class EmployeeDocument(db.Model):
+    __tablename__ = 'employee_documents'
+
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(255), nullable=False)
+    filepath = db.Column(db.String(255), nullable=False)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
+    document_type = db.Column(db.String(50), nullable=False, default='additional')  # passport, contract, medical, etc.
+    visibility_type = db.Column(db.String(50), default='private')
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # Relationship
+    employee = db.relationship('Employee', back_populates='documents')
+
+    def __repr__(self):
+        return f"<EmployeeDocument id={self.id} filename={self.filename} employee_id={self.employee_id}>"

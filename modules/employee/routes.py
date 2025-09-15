@@ -7,9 +7,8 @@ from .services import (
     create_employee,
     update_employee,
     delete_employee,
-    _save_documents,
-    create_folder_for_user,
-    update_document_visibility,
+    _save_employee_documents,
+    create_folder_for_employee,
 )
 from core.models import UserDocument
 from core.extensions import db
@@ -83,7 +82,7 @@ def create_folder():
         return redirect(url_for('dashboard.role_dashboard'))
 
     try:
-        create_folder_for_user(current_user, folder_name)
+        create_folder_for_employee(current_user, folder_name)
         db.session.commit()
         flash(f'📁 Folder "{folder_name}" created.', 'success')
     except Exception as e:
@@ -115,7 +114,7 @@ def upload_document():
         visibility_type = 'roles'
         allowed_roles = 'it_manager,general_director'
 
-    _save_documents(
+    _save_employee_documents(
         current_user,
         valid_files,
         folder_name=folder_name,
@@ -170,19 +169,6 @@ def delete_document(doc_id):
     except Exception as e:
         db.session.rollback()
         flash(f'❌ Error deleting document: {str(e)}', 'danger')
-
-    return redirect(url_for('dashboard.employee_dashboard') if current_user.role == 'employee' else 'dashboard.role_dashboard')
-
-@employee_bp.route('/document/<int:doc_id>/visibility', methods=['POST'])
-@login_required
-def change_visibility(doc_id):
-    try:
-        update_document_visibility(doc_id, request.form, current_user)
-        flash("🔒 Visibility updated.", "success")
-    except PermissionError as pe:
-        flash(f"❌ {str(pe)}", "danger")
-    except Exception as e:
-        flash(f"❌ Error changing visibility: {str(e)}", "danger")
 
     return redirect(url_for('dashboard.employee_dashboard') if current_user.role == 'employee' else 'dashboard.role_dashboard')
 

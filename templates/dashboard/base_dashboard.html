@@ -1,306 +1,269 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Dashboard{% endblock %} - Alghaith HR</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Dashboard{% endblock %} - Alghaith HR</title>
 
-    <!-- Bootstrap -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- Bootstrap -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <!-- Custom Styles -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+<!-- Bootstrap Icons -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
 
-    <style>
-        /* ------------------------------
-           Global Theme Variables
-        -------------------------------*/
-        :root {
-            --brand-primary: #6b4cff;
-            --brand-secondary: #2ad29b;
-            --brand-accent: #4cbfff;
-            --background: #ffffff;
-            --card-bg: #f5f7fb;
-            --text-main: #2e2e2e;
-            --text-muted: #8a94a6;
-            --success: #2ecc71;
-            --warning: #f1c40f;
-            --danger: #e74c3c;
-            --shadow-soft: 0 10px 30px rgba(0,0,0,0.08);
-            --radius-lg: 1rem;
-        }
+<!-- Custom Styles -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 
-        body {
-            background-color: var(--background);
-            color: var(--text-main);
-            font-family: "Inter", sans-serif;
-        }
+<style>
+:root {
+    --brand-primary: #6b4cff;
+    --brand-secondary: #2ad29b;
+    --brand-accent: #4cbfff;
+    --background: #ffffff;
+    --card-bg: #f5f7fb;
+    --text-main: #2e2e2e;
+    --text-muted: #8a94a6;
+    --success: #2ecc71;
+    --warning: #f1c40f;
+    --danger: #e74c3c;
+    --shadow-soft: 0 10px 30px rgba(0,0,0,0.08);
+    --radius-lg: 1rem;
+}
 
-        /* ------------------------------
-           Navbar
-        -------------------------------*/
-        .navbar {
-            box-shadow: var(--shadow-soft);
-        }
+body {
+    background-color: var(--background);
+    color: var(--text-main);
+    font-family: "Inter", sans-serif;
+    overflow-x: hidden;
+}
 
-        /* ------------------------------
-           Sidebar
-        -------------------------------*/
-        .sidebar {
-            min-height: 100vh;
-            background: linear-gradient(180deg, var(--brand-primary), var(--brand-accent));
-            color: white;
-            border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
-            padding: 1rem;
-        }
+.navbar {
+    box-shadow: var(--shadow-soft);
+}
 
-        .sidebar .nav-link {
-            color: white;
-            margin-bottom: 0.5rem;
-            border-radius: var(--radius-lg);
-            padding: 0.5rem 1rem;
-            transition: all 0.2s ease-in-out;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
+.sidebar {
+    background: linear-gradient(180deg, var(--brand-primary), var(--brand-accent));
+    color: white;
+    padding: 1rem;
+    min-height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 220px;
+    overflow-y: auto;
+    transition: all 0.3s ease;
+    z-index: 1020;
+}
 
-        .sidebar .nav-link.active,
-        .sidebar .nav-link:hover {
-            background: rgba(255,255,255,0.1);
-            font-weight: bold;
-            transform: scale(1.02);
-        }
+.sidebar.collapsed {
+    width: 60px;
+}
 
-        /* ------------------------------
-           Role Header
-        -------------------------------*/
-        .role-header {
-            background: var(--brand-primary);
-            color: white;
-            padding: 2rem 1rem;
-            margin-bottom: 2rem;
-            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-            box-shadow: var(--shadow-soft);
-        }
+.sidebar .nav-link {
+    color: white;
+    margin-bottom: 0.5rem;
+    border-radius: var(--radius-lg);
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+}
 
-        .role-indicator {
-            background: var(--brand-secondary);
-            color: white;
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.9rem;
-        }
+.sidebar .nav-link i {
+    font-size: 1.2rem;
+}
 
-        /* ------------------------------
-           Cards
-        -------------------------------*/
-        .card, .dashboard-link-card {
-            background: var(--card-bg);
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-soft);
-            transition: transform 0.2s;
-        }
+.sidebar .nav-link.active,
+.sidebar .nav-link:hover {
+    background: rgba(255,255,255,0.1);
+    font-weight: bold;
+}
 
-        .card:hover, .dashboard-link-card:hover {
-            transform: scale(1.02);
-        }
+.role-header {
+    background: var(--brand-primary);
+    color: white;
+    padding: 1.5rem 1rem;
+    margin-left: 220px;
+    margin-bottom: 1rem;
+    border-radius: 0 0 var(--radius-lg) 0;
+    box-shadow: var(--shadow-soft);
+    transition: margin-left 0.3s ease;
+}
 
-        /* ------------------------------
-           Buttons
-        -------------------------------*/
-        .btn-primary {
-            background: var(--brand-primary);
-            border: none;
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-soft);
-        }
+.main-content {
+    padding: 1.5rem 2rem;
+    margin-left: 220px;
+    transition: margin-left 0.3s ease;
+}
 
-        .btn-primary:hover {
-            background: var(--brand-accent);
-        }
+.card, .dashboard-link-card {
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-soft);
+    transition: transform 0.2s;
+}
 
-        /* ------------------------------
-           Tables
-        -------------------------------*/
-        table {
-            background: var(--card-bg);
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-soft);
-        }
+.card:hover, .dashboard-link-card:hover {
+    transform: scale(1.02);
+}
 
-        /* ------------------------------
-           Main Content
-        -------------------------------*/
-        .main-content {
-            padding: 2rem;
-        }
+.btn-primary {
+    background: var(--brand-primary);
+    border: none;
+    border-radius: var(--radius-lg);
+}
 
-        /* ------------------------------
-           Flash Messages
-        -------------------------------*/
-        .flash-messages {
-            position: fixed;
-            top: 70px;
-            left: 50%;
-            transform: translateX(-50%);
-            max-width: 500px;
-            z-index: 1050;
-        }
-    </style>
+.btn-primary:hover {
+    background: var(--brand-accent);
+}
 
-    {% block extra_head %}{% endblock %}
+.flash-messages {
+    position: fixed;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 500px;
+    z-index: 1050;
+}
+
+table {
+    width: 100%;
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-soft);
+    overflow-x: auto;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+    .sidebar {
+        left: -220px;
+        position: fixed;
+    }
+
+    .sidebar.collapsed {
+        left: 0;
+        width: 220px;
+    }
+
+    .role-header {
+        margin-left: 0;
+        border-radius: 0;
+    }
+
+    .main-content {
+        margin-left: 0;
+        padding: 1rem;
+    }
+}
+
+/* Mobile-friendly form input */
+input, select, textarea {
+    height: 45px;
+    font-size: 1rem;
+    padding: 0.5rem 0.75rem;
+}
+</style>
+
+{% block extra_head %}{% endblock %}
 </head>
 <body>
 
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <a class="navbar-brand" href="
-                {% if current_user.role.lower() == 'general_director' %}
-                    {{ url_for('dashboard.director_dashboard') }}
-                {% elif current_user.role.lower() == 'it_manager' %}
-                    {{ url_for('dashboard.it_manager_dashboard') }}
-                {% else %}
-                    {{ url_for('dashboard.role_dashboard') }}
-                {% endif %}
-            ">Alghaith HR</a>
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+<div class="container">
+    <a class="navbar-brand" href="{{ url_for('dashboard.role_dashboard') }}">Alghaith HR</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMenu">
+        <span class="navbar-toggler-icon"></span>
+    </button>
 
-            <div class="d-flex align-items-center">
-                <span class="role-indicator me-3">{{ current_user.role|replace('_', ' ')|title }}</span>
-                {% if current_user.is_authenticated %}
-                <form method="post" action="{{ url_for('auth.logout') }}" class="ms-2 d-inline">
-                    {{ logout_form.csrf_token }}
-                    <button type="submit" class="btn btn-sm btn-outline-light">Logout</button>
-                </form>
-                {% endif %}
-            </div>
-        </div>
-    </nav>
-
-    <!-- Flash Messages -->
-    <div class="flash-messages">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-    </div>
-
-    <!-- Role Header -->
-    <div class="role-header">
-        <div class="container">
-            <h1>{% block dashboard_title %}Dashboard{% endblock %}</h1>
-            <p class="lead">Welcome, {{ current_user.name }}</p>
-        </div>
-    </div>
-    
-    <!-- Main Container -->
-    <div class="container-fluid">
-        <div class="row">
+    <div class="collapse navbar-collapse justify-content-end" id="navbarMenu">
+        <div class="d-flex align-items-center">
+            <span class="role-indicator me-3">{{ current_user.role|replace('_', ' ')|title }}</span>
             {% if current_user.is_authenticated %}
-            <!-- Sidebar -->
-            <div class="col-md-2 sidebar">
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link" href="
-                            {% if current_user.role.lower() == 'general_director' %}
-                                {{ url_for('dashboard.director_dashboard') }}
-                            {% elif current_user.role.lower() == 'it_manager' %}
-                                {{ url_for('dashboard.it_manager_dashboard') }}
-                            {% else %}
-                                {{ url_for('dashboard.role_dashboard') }}
-                            {% endif %}
-                        ">
-                            <i class="bi bi-speedometer2"></i> Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('docs.list_documents') }}"><i class="bi bi-folder2-open"></i> Documents</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('leave.leaves_dashboard') }}"><i class="bi bi-calendar-check"></i> Leaves</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard.employee_summary') }}"><i class="bi bi-people"></i> Employees</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('department.department_summary') }}"><i class="bi bi-diagram-3"></i> Departments</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard.user_management') }}"><i class="bi bi-person-lines-fill"></i> Users</a></li>
-                </ul>
-            </div>
-
-            <!-- Main Content -->
-            <div class="col-md-10 main-content">
-                {% block dashboard_content %}{% endblock %}
-            </div>
-            {% else %}
-            <div class="col-12 main-content">
-                <p>Please log in to access the system.</p>
-            </div>
+            <form method="post" action="{{ url_for('auth.logout') }}" class="ms-2 d-inline">
+                {{ logout_form.csrf_token }}
+                <button type="submit" class="btn btn-sm btn-outline-light">Logout</button>
+            </form>
             {% endif %}
         </div>
     </div>
+</div>
+</nav>
 
-    <!-- Footer -->
-    <footer class="text-center mt-4 p-3 bg-light border-top">
-        &copy; 2025 Alghaith HR System
-    </footer>
+<!-- Flash Messages -->
+<div class="flash-messages">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+</div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Sidebar -->
+<div class="sidebar" id="sidebarMenu">
+<ul class="nav flex-column">
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('dashboard.role_dashboard') }}">
+            <i class="bi bi-speedometer2"></i> <span class="link-text">Dashboard</span>
+        </a>
+    </li>
+    <li class="nav-item"><a class="nav-link" href="{{ url_for('docs.list_documents') }}"><i class="bi bi-folder2-open"></i> <span class="link-text">Documents</span></a></li>
+    <li class="nav-item"><a class="nav-link" href="{{ url_for('leave.leaves_dashboard') }}"><i class="bi bi-calendar-check"></i> <span class="link-text">Leaves</span></a></li>
+    <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard.employee_summary') }}"><i class="bi bi-people"></i> <span class="link-text">Employees</span></a></li>
+    <li class="nav-item"><a class="nav-link" href="{{ url_for('department.department_summary') }}"><i class="bi bi-diagram-3"></i> <span class="link-text">Departments</span></a></li>
+    <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard.user_management') }}"><i class="bi bi-person-lines-fill"></i> <span class="link-text">Users</span></a></li>
+</ul>
+</div>
 
-    {% block scripts %}
-    <!-- Only flash messages handling -->
-    <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            const flashMessages = document.querySelectorAll('.flash-messages .alert');
-            flashMessages.forEach(msg => {
-                setTimeout(() => {
-                    const alert = new bootstrap.Alert(msg);
-                    alert.close();
-                }, 1500);
-            });
-        });
-    </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const statsContainer = document.getElementById('department-stats-container');
-            if (!statsContainer) return;
-        
-            fetch('/department/summary')
-                .then(response => response.json())
-                .then(data => {
-                    statsContainer.innerHTML = ''; // clear any existing content
-        
-                    data.forEach(dept => {
-                        const card = document.createElement('div');
-                        card.className = 'col-md-3 mb-3';
-                        card.innerHTML = `
-                            <div class="card shadow-sm h-100">
-                                <div class="card-body">
-                                    <h5 class="card-title">${dept.name}</h5>
-                                    <p class="card-text text-truncate" title="${dept.description}">
-                                        ${dept.description || 'No description provided'}
-                                    </p>
-                                    <span class="badge bg-info">${dept.employee_count} Employees</span>
-                                </div>
-                                <div class="card-footer text-end">
-                                    <a href="/department/${dept.id}/view" class="btn btn-sm btn-outline-primary">
-                                        View Team
-                                    </a>
-                                </div>
-                            </div>
-                        `;
-                        statsContainer.appendChild(card);
-                    });
-                })
-                .catch(err => {
-                    console.error('Error fetching department stats:', err);
-                });
-        });
-        </script>
-        
+<!-- Role Header -->
+<div class="role-header">
+    <div class="container">
+        <h1>{% block dashboard_title %}Dashboard{% endblock %}</h1>
+        <p class="lead">Welcome, {{ current_user.name }}</p>
+    </div>
+</div>
 
-    {% endblock %}
+<!-- Main Content -->
+<div class="main-content">
+    {% block dashboard_content %}{% endblock %}
+</div>
 
+<!-- Footer -->
+<footer class="text-center mt-4 p-3 bg-light border-top">
+    &copy; 2025 Alghaith HR System
+</footer>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+// Flash messages auto-close
+document.addEventListener("DOMContentLoaded", function() {
+    const flashMessages = document.querySelectorAll('.flash-messages .alert');
+    flashMessages.forEach(msg => {
+        setTimeout(() => {
+            const alert = new bootstrap.Alert(msg);
+            alert.close();
+        }, 2000);
+    });
+});
+</script>
+
+<script>
+// Sidebar toggle for mobile
+const sidebar = document.getElementById('sidebarMenu');
+document.querySelector('.navbar-toggler')?.addEventListener('click', () => {
+    sidebar.classList.toggle('collapsed');
+});
+</script>
+
+{% block scripts %}{% endblock %}
 </body>
 </html>

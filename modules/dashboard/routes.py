@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_, func, extract
 from core.decorators import permission_required, role_required
-from core.models import User, Department, ActivityLog, db, UserDocument, Folder, Employee
+from core.models import User, Department, ActivityLog, db, UserDocument, Folder, Employee, EmployeeDocument
 from core.permissions import Permission
 from core.forms import UserForm
 from .services import get_director_dashboard_data, get_manager_dashboard_data
@@ -11,7 +11,7 @@ from modules.employee.services import (
     create_employee as create_employee_service,
     update_employee as update_employee_service,
     delete_employee as delete_employee_service,
-    _save_documents
+    _save_employee_documents
 )
 from core.logger import audit_log
 from datetime import datetime, timedelta
@@ -192,25 +192,25 @@ def director_dashboard():
 
 
 
-
-
-
-
 @dashboard_bp.route('/employee/create', methods=['GET', 'POST'])
 @login_required
 @role_required(['it_manager', 'general_director'])
 def employee_create():
     departments = Department.query.order_by(Department.name).all()
-
+    
     if request.method == 'POST':
         form_data = request.form.to_dict()
-        files = request.files.getlist('documents') or []  # handle multiple documents
-        single_file = request.files.get('document')
-        if single_file and getattr(single_file, 'filename', ''):
-            files.append(single_file)
+
+        # Collect all uploaded files
+        files = request.files.getlist('documents') or []
+
+        # Special files: passport, contract, medical
+        for field in ['passport', 'contract', 'medical']:
+            f = request.files.get(field)
+            if f and getattr(f, 'filename', ''):
+                files.append(f)
 
         try:
-            # Use the Employee service
             employee = create_employee_service(form_data, files=files)
 
             audit_log(
@@ -220,7 +220,7 @@ def employee_create():
             )
 
             flash('Employee created successfully', 'success')
-            return redirect(url_for('dashboard.role_dashboard'))
+            return redirect(url_for('dashboard.employee_summary'))
 
         except Exception as e:
             db.session.rollback()
@@ -229,7 +229,6 @@ def employee_create():
             return redirect(url_for('dashboard.employee_create'))
 
     return render_template('dashboard/employee_form.html', departments=departments)
-
 
 
 @dashboard_bp.route('/employee/<int:id>/edit', methods=['GET', 'POST'])
@@ -242,12 +241,14 @@ def employee_edit(id):
     if request.method == 'POST':
         form_data = request.form.to_dict()
         files = request.files.getlist('documents') or []
-        single_file = request.files.get('document')
-        if single_file and getattr(single_file, 'filename', ''):
-            files.append(single_file)
+
+        # Special files: passport, contract, medical
+        for field in ['passport', 'contract', 'medical']:
+            f = request.files.get(field)
+            if f and getattr(f, 'filename', ''):
+                files.append(f)
 
         try:
-            # Pass files to service
             employee = update_employee_service(employee.id, form_data, files=files)
 
             audit_log(
@@ -257,7 +258,7 @@ def employee_edit(id):
             )
 
             flash('Employee updated successfully', 'success')
-            return redirect(url_for('dashboard.role_dashboard'))
+            return redirect(url_for('dashboard.employee_summary'))
 
         except Exception as e:
             db.session.rollback()
@@ -267,13 +268,14 @@ def employee_edit(id):
 
     return render_template('dashboard/employee_form.html', employee=employee, departments=departments)
 
+
 @dashboard_bp.route('/employee/<int:id>/delete', methods=['POST'])
 @login_required
 @role_required(['it_manager', 'general_director'])
 def employee_delete(id):
+    employee = Employee.query.get_or_404(id)
     try:
-        # Use the Employee service to delete
-        employee = delete_employee_service(id)
+        delete_employee_service(id)
         audit_log(f'Deleted employee: {employee.full_name}', user_id=current_user.id, action='delete')
         flash('Employee deleted successfully', 'success')
     except Exception as e:
@@ -281,7 +283,7 @@ def employee_delete(id):
         current_app.logger.error(f"Error deleting employee {id}: {str(e)}")
         flash(f'Error deleting employee: {str(e)}', 'danger')
 
-    return redirect(url_for('dashboard.role_dashboard'))
+    return redirect(url_for('dashboard.employee_summary'))
 
 
 
@@ -343,44 +345,31 @@ def employee_dashboard():
 @login_required
 def employee_upload_document():
     try:
-        # -----------------------
-        # Collect files: multiple or single
-        # -----------------------
         files = request.files.getlist("documents") or []
         single_file = request.files.get("document")
         if single_file and getattr(single_file, "filename", ""):
             files.append(single_file)
 
-        # -----------------------
-        # Validate files
-        # -----------------------
         allowed_extensions = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
-        valid_files = [f for f in files if f and '.' in f.filename and f.filename.rsplit('.', 1)[1].lower() in allowed_extensions]
+        valid_files = [
+            f for f in files
+            if f and '.' in f.filename and f.filename.rsplit('.', 1)[1].lower() in allowed_extensions
+        ]
 
         if not valid_files:
             flash("No valid files selected for upload.", "danger")
             return redirect(url_for('dashboard.employee_dashboard'))
 
-        # -----------------------
-        # Determine folder & visibility
-        # -----------------------
         folder_name = request.form.get("folder_name")
         visibility_type = (request.form.get("visibility_type") or "private").lower()
         allowed_users = request.form.get("allowed_users")
         allowed_roles = request.form.get("allowed_roles")
         allowed_departments = request.form.get("allowed_departments")
 
-        # Restrict employee uploads to certain roles if needed
-        if current_user.role == 'employee':
-            visibility_type = 'roles'
-            allowed_roles = 'it_manager,general_director'
-
-        # -----------------------
-        # Save documents
-        # -----------------------
-        _save_documents(
-            current_user,
-            valid_files,
+        # This is the key change: use _save_employee_documents instead of _save_documents
+        _save_employee_documents(
+            employee=current_user,
+            files=valid_files,
             folder_name=folder_name,
             visibility_type=visibility_type,
             allowed_users=allowed_users,
@@ -397,36 +386,64 @@ def employee_upload_document():
         flash(f"Failed to upload documents: {str(e)}", "danger")
 
     return redirect(url_for('dashboard.employee_dashboard'))
+# ------------------------
+# Employee Document Actions
+# ------------------------
+# Download employee document
+@dashboard_bp.route('/employee/document/<int:doc_id>/download')
+@login_required
+@role_required(['it_manager', 'general_director'])
+def employee_document_download(doc_id):
+    doc = EmployeeDocument.query.get_or_404(doc_id)
+    abs_path = os.path.join(current_app.config['UPLOAD_FOLDER'], doc.filepath)
+    if not os.path.exists(abs_path):
+        flash("File not found on server.", "danger")
+        return redirect(url_for('dashboard.employee_summary'))
+    return send_file(abs_path, as_attachment=True, download_name=doc.filename)
 
 
-
-
+# Delete employee document
+@dashboard_bp.route('/employee/document/<int:doc_id>/delete', methods=['POST'])
+@login_required
+@role_required(['it_manager', 'general_director'])
+def employee_document_delete(doc_id):
+    doc = EmployeeDocument.query.get_or_404(doc_id)
+    try:
+        db.session.delete(doc)
+        db.session.commit()
+        flash('Document deleted successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting document: {str(e)}', 'danger')
+    return redirect(url_for('dashboard.employee_summary'))
 
 
 @dashboard_bp.route('/employee-summary')
 @login_required
 @role_required(['it_manager', 'general_director'])
 def employee_summary():
-    # Fetch all employees, ordered by creation date
-    employees = Employee.query.order_by(Employee.created_at.desc()).all()
-    
-    # Prepare any extra data for the template if needed
-    # (e.g., department name)
-    employee_list = []
-    for emp in employees:
-        employee_list.append({
-            'id': emp.id,
-            'full_name': emp.full_name,
-            'job_title': emp.job_title,
-            'phone': emp.phone,
-            'department': emp.department.name if emp.department else None,
-            'created_at': emp.created_at
-        })
+    """
+    Display a summary of all employees along with their documents.
+    """
+    # Load all employees with their department to avoid lazy-loading issues
+    employees = Employee.query.options(joinedload(Employee.department))\
+        .order_by(Employee.created_at.desc()).all()
 
+    # Preload EmployeeDocument for all employees
+    employee_docs = {}
+    for emp in employees:
+        docs = EmployeeDocument.query.filter_by(
+            employee_id=emp.id
+        ).order_by(EmployeeDocument.id.desc()).all()
+        employee_docs[emp.id] = docs
+
+    # Pass employees and their documents to the template
     return render_template(
         'dashboard/employees/list.html',
-        employees=employee_list
+        employees=employees,
+        employee_docs=employee_docs
     )
+
 
 
 @dashboard_bp.route('/recent-activities')
