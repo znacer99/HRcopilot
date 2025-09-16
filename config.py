@@ -25,9 +25,12 @@ class DevelopmentConfig(Config):
 
 class ProductionConfig(Config):
     DEBUG = False
-    SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = False   # keep False until you add HTTPS
     SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"  # allows cross-device cookie use
+    SESSION_COOKIE_DOMAIN = None     # OR set to your VPS domain/IP
     PERMANENT_SESSION_LIFETIME = timedelta(hours=8)
+
 
 config = {
     'development': DevelopmentConfig,
