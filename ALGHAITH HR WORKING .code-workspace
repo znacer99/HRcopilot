@@ -5,6 +5,14 @@
 		},
 		{
 			"path": "."
+		},
+		{
+			"name": "gotaxii-backend",
+			"path": "../../Desktop/RUKOOO TAX/gotaxii-backend"
+		},
+		{
+			"name": "kuro-hr-v1",
+			"path": "../kuro-hr-v1"
 		}
 	],
 	"settings": {}

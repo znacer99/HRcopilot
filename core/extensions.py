@@ -5,11 +5,13 @@ from flask_migrate import Migrate
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError, InvalidHash  # Correct import
 from flask import current_app
+from flask_babel import Babel
 
 # Initialize extensions
 db = SQLAlchemy()
 login_manager = LoginManager()
 migrate = Migrate()
+babel = Babel()
 
 # Password hashing
 ph = PasswordHasher()

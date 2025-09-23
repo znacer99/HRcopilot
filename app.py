@@ -5,11 +5,12 @@
 import logging
 import os
 from datetime import datetime
-from flask import Flask, render_template, redirect, url_for
+from flask import Flask, render_template, redirect, url_for, request, current_app, session
 from flask_wtf.csrf import CSRFProtect
 from flask_login import current_user, logout_user
 from config import config
-from core.extensions import db, login_manager, migrate
+from core.extensions import db, login_manager, migrate, babel
+from flask_babel import get_locale as babel_get_locale
 
 logging.basicConfig()
 logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
@@ -26,11 +27,19 @@ def create_app():
     else:
         app.config.from_object('config.DevelopmentConfig')
 
+    # Language configuration
+    app.config['LANGUAGES'] = ['en', 'ar']
+    app.config['BABEL_DEFAULT_LOCALE'] = 'en'
+    app.config['BABEL_TRANSLATION_DIRECTORIES'] = 'translations'
+
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
+    
+    # Initialize Babel with the correct locale selector
+    babel.init_app(app, locale_selector=get_locale)
 
     csrf = CSRFProtect()
     csrf.init_app(app)
@@ -38,22 +47,47 @@ def create_app():
     # Make sure SECRET_KEY is set
     app.config['SECRET_KEY'] = app.config.get('SECRET_KEY') or 'mqM_nXhDHOYlb0T8E9bT4c7XCLiDImpINnVHFmCLR-Q'
 
-    # Inject logout_form
-    from modules.auth.forms import LogoutForm
-
+    # Inject logout_form and locale information
     @app.context_processor
-    def inject_logout_form():
-        return dict(logout_form=LogoutForm())
+    def inject_common_variables():
+        from modules.auth.forms import LogoutForm
+        return dict(
+            logout_form=LogoutForm(),
+            get_locale=babel_get_locale,
+            current_lang=session.get('lang', 'en')
+        )
 
     # Register blueprints
     register_blueprints(app)
 
-    # Initialize database and default data
-    #with app.app_context():
-        #db.create_all()
-    # Do not initialize DB here; scripts will handle it
-
     return app
+
+
+def get_locale():
+    """Determine the best locale for the current request"""
+    # 1. Check if language is specified in URL parameters
+    lang = request.args.get('lang')
+    if lang in current_app.config['LANGUAGES']:
+        session['lang'] = lang
+        return lang
+    
+    # 2. Check session for stored language preference
+    if 'lang' in session and session['lang'] in current_app.config['LANGUAGES']:
+        return session['lang']
+    
+    # 3. Check cookies for language preference (backward compatibility)
+    lang_cookie = request.cookies.get('user_lang')
+    if lang_cookie in current_app.config['LANGUAGES']:
+        session['lang'] = lang_cookie
+        return lang_cookie
+    
+    # 4. Fallback to browser settings
+    browser_lang = request.accept_languages.best_match(current_app.config['LANGUAGES'])
+    if browser_lang:
+        return browser_lang
+    
+    # 5. Default to English
+    return current_app.config['BABEL_DEFAULT_LOCALE']
 
 
 def register_blueprints(app):
@@ -66,6 +100,9 @@ def register_blueprints(app):
     from modules.department.routes import department_bp
     from modules.candidate.routes import candidate_bp
     from modules.user.routes import user_bp
+    from routes.landing_routes import landing_bp
+    from routes.language_routes import lang_bp
+    from routes.profile_routes import profile_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
@@ -73,8 +110,11 @@ def register_blueprints(app):
     app.register_blueprint(employee_bp, url_prefix='/employee')
     app.register_blueprint(docs_bp)
     app.register_blueprint(department_bp)
-    app.register_blueprint(candidate_bp, url_prefix='/candidate')
+    app.register_blueprint(candidate_bp)
     app.register_blueprint(user_bp)
+    app.register_blueprint(landing_bp)
+    app.register_blueprint(lang_bp)
+    app.register_blueprint(profile_bp)
 
     print("All registered endpoints:")
     for rule in app.url_map.iter_rules():
@@ -149,10 +189,6 @@ def initialize_database():
     print("✅ Database initialized successfully (idempotent)!")
 
 
-
-
-
-
 # Create the app instance
 app = create_app()
 
@@ -180,6 +216,9 @@ def internal_error(error):
     db.session.rollback()
     return render_template('errors/500.html'), 500
 
+@app.before_request
+def make_session_permanent():
+    session.permanent = True
 
 # Routes
 @app.route('/')

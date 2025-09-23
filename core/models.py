@@ -219,10 +219,13 @@ class Candidate(db.Model):
     phone = db.Column(db.String(20), nullable=True)
     nationality = db.Column(db.String(50), nullable=True)
     applied_position = db.Column(db.String(120), nullable=True)
+    experience = db.Column(db.String(50), nullable=True)  # Add this field
+    education = db.Column(db.String(50), nullable=True)   # Add this field
+    skills = db.Column(db.Text, nullable=True)           # Add this field
     department_id = db.Column(db.Integer, db.ForeignKey('departments.id'), nullable=True)
     cv_filepath = db.Column(db.String(255), nullable=True)
     id_document_filepath = db.Column(db.String(255), nullable=True)
-    status = db.Column(db.String(50), default='new')  # new, interviewed, hired, rejected
+    status = db.Column(db.String(50), default='new')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -230,7 +233,6 @@ class Candidate(db.Model):
 
     def __repr__(self):
         return f"<Candidate {self.full_name} - {self.applied_position} ({self.status})>"
-
 # -------------------- EmployeeDocument ----------------
 
 class EmployeeDocument(db.Model):
