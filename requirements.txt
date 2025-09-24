@@ -29,4 +29,4 @@ SQLAlchemy==2.0.43
 typing_extensions==4.14.1
 Werkzeug==2.3.7
 WTForms==3.2.1
-Flask-Babel==2.0.0
+Flask-Babel==3.1.0
