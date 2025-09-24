@@ -5,7 +5,7 @@
 import logging
 import os
 from datetime import datetime
-from flask import Flask, render_template, redirect, url_for, request, current_app, session
+from flask import Flask, render_template, redirect, url_for, request, current_app, session, send_from_directory
 from flask_wtf.csrf import CSRFProtect
 from flask_login import current_user, logout_user
 from config import config
