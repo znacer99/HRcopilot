@@ -22,10 +22,7 @@ def create_app():
 
     # Load configuration
     env = os.environ.get('FLASK_ENV', 'development')
-    if env == 'production':
-        app.config.from_object('config.ProductionConfig')
-    else:
-        app.config.from_object('config.DevelopmentConfig')
+    app.config.from_object(config[env])  # <- dynamically pick DevelopmentConfig or ProductionConfig
 
     # Language configuration
     app.config['LANGUAGES'] = ['en', 'ar']
