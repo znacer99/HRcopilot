@@ -29,6 +29,8 @@ def create_app():
     app.config['BABEL_DEFAULT_LOCALE'] = 'en'
     app.config['BABEL_TRANSLATION_DIRECTORIES'] = 'translations'
 
+    # File upload size limit (10MB)
+    app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024 # 10 MB limit
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
