@@ -192,8 +192,11 @@ def initialize_database():
 app = create_app()
 
 with app.app_context():
-    db.create_all()
-    initialize_database()
+    try:
+        db.create_all()
+        initialize_database()
+    except Exception as e:
+        print(f"Database initialization error (non-critical): {e}")
 
 # User loader
 @login_manager.user_loader
