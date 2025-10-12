@@ -21,8 +21,8 @@
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Candidate List</h5>
-            <div class="d-flex">
-                <input type="text" id="searchInput" class="form-control form-control-sm me-2" placeholder="Search candidates...">
+            <div class="d-flex gap-2">
+                <input type="text" id="searchInput" class="form-control form-control-sm" placeholder="Search candidates...">
                 <select id="statusFilter" class="form-select form-select-sm">
                     <option value="">All Status</option>
                     <option value="new">New</option>
@@ -30,22 +30,43 @@
                     <option value="hired">Hired</option>
                     <option value="rejected">Rejected</option>
                 </select>
-                <select id="positionFilter" class="form-select form-select-sm ms-2">
+                <select id="positionFilter" class="form-select form-select-sm">
                     <option value="">All Positions</option>
-                    <option value="Senior Software Engineer">Senior Software Engineer</option>
-                    <option value="HR Business Partner">HR Business Partner</option>
-                    <option value="Project Manager">Project Manager</option>
+                    <option value="Engineer">Engineer</option>
+                    <option value="Technician">Technician</option>
+                    <option value="Helper">Helper</option>
+                    <option value="Unskilled Worker">Unskilled Worker</option>
+                </select>
+                <select id="departmentFilter" class="form-select form-select-sm">
+                    <option value="">All Departments</option>
+                    {% if candidates %}
+                        {% set departments = [] %}
+                        {% for candidate in candidates %}
+                            {% if candidate.department and candidate.department.name not in departments %}
+                                {% set _ = departments.append(candidate.department.name) %}
+                                <option value="{{ candidate.department.name }}">{{ candidate.department.name }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                </select>
+                <select id="specialtyFilter" class="form-select form-select-sm">
+                    <option value="">All Specialties</option>
+                    {% for specialty in specialties %}
+                    <option value="{{ specialty }}">{{ specialty }}</option>
+                    {% endfor %}
                 </select>
             </div>
         </div>
         <div class="card-body">
             {% if candidates %}
             <div class="table-responsive" style="overflow-x:auto;">
-                <table class="table table-hover table-striped" id="candidatesTable" style="min-width: 1100px;">
+                <table class="table table-hover table-striped" id="candidatesTable" style="min-width: 1200px;">
                     <thead>
                         <tr>
                             <th>Name</th>
                             <th>Position</th>
+                            <th>Specialty</th>
+                            <th>Department</th>
                             <th>Email</th>
                             <th>Phone</th>
                             <th>Experience</th>
@@ -72,6 +93,20 @@
                                 </div>
                             </td>
                             <td>{{ candidate.applied_position }}</td>
+                            <td>
+                                {% if candidate.specialty %}
+                                <span class="badge bg-secondary">{{ candidate.specialty }}</span>
+                                {% else %}
+                                <span class="text-muted">Not specified</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if candidate.department %}
+                                <span class="badge bg-light text-dark">{{ candidate.department.name }}</span>
+                                {% else %}
+                                <span class="text-muted">Not assigned</span>
+                                {% endif %}
+                            </td>
                             <td>{{ candidate.email }}</td>
                             <td>{{ candidate.phone }}</td>
                             <td>
@@ -103,8 +138,12 @@
                                 <div class="btn-group">
                                     <button type="button" class="btn btn-sm btn-outline-secondary" 
                                             data-bs-toggle="popover" 
-                                            data-bs-title="Skills & Qualifications"
-                                            data-bs-content="{{ candidate.skills or 'No skills specified' }}">
+                                            data-bs-title="Candidate Details"
+                                            data-bs-content="
+                                                <strong>Skills:</strong><br>{{ candidate.skills or 'No skills specified' }}<br><br>
+                                                <strong>Specialty:</strong><br>{{ candidate.specialty or 'Not specified' }}
+                                            "
+                                            data-bs-html="true">
                                         <i class="bi bi-eye"></i>
                                     </button>
                                     <a href="{{ url_for('candidates.edit_candidate', id=candidate.id) }}" class="btn btn-sm btn-outline-primary">
@@ -112,8 +151,14 @@
                                     </a>
                                     {% if candidate.cv_filepath %}
                                     <a href="{{ url_for('static', filename=candidate.cv_filepath) }}" 
-                                       target="_blank" class="btn btn-sm btn-outline-info">
+                                       target="_blank" class="btn btn-sm btn-outline-info" title="View CV">
                                         <i class="bi bi-file-earmark-text"></i>
+                                    </a>
+                                    {% endif %}
+                                    {% if candidate.id_document_filepath %}
+                                    <a href="{{ url_for('static', filename=candidate.id_document_filepath) }}" 
+                                       target="_blank" class="btn btn-sm btn-outline-warning" title="View ID Document">
+                                        <i class="bi bi-person-badge"></i>
                                     </a>
                                     {% endif %}
                                     <form method="POST" action="{{ url_for('candidates.delete_candidate', id=candidate.id) }}" class="d-inline">
@@ -153,6 +198,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('searchInput');
     const statusFilter = document.getElementById('statusFilter');
     const positionFilter = document.getElementById('positionFilter');
+    const specialtyFilter = document.getElementById('specialtyFilter');
     const table = document.getElementById('candidatesTable');
     const rows = table ? table.getElementsByTagName('tbody')[0].getElementsByTagName('tr') : [];
     
@@ -164,33 +210,42 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function filterCandidates() {
         const searchText = searchInput.value.toLowerCase();
-        const statusValue = statusFilter.value;
-        const positionValue = positionFilter.value;
+        const statusValue = statusFilter.value.toLowerCase();
+        const positionValue = positionFilter.value.toLowerCase();
+        const departmentValue = departmentFilter.value.toLowerCase();
+        const specialtyValue = specialtyFilter.value.toLowerCase();
         
         for (let row of rows) {
             const name = row.cells[0].textContent.toLowerCase();
             const position = row.cells[1].textContent.toLowerCase();
-            const email = row.cells[2].textContent.toLowerCase();
-            const experience = row.cells[4].textContent.toLowerCase();
-            const education = row.cells[5].textContent.toLowerCase();
-            const status = row.cells[6].textContent.toLowerCase();
+            const specialty = row.cells[2].textContent.toLowerCase();
+            const department = row.cells[3].textContent.toLowerCase();
+            const email = row.cells[4].textContent.toLowerCase();
+            const experience = row.cells[6].textContent.toLowerCase();
+            const education = row.cells[7].textContent.toLowerCase();
+            const status = row.cells[8].textContent.toLowerCase();
             
-            const matchesSearch = name.includes(searchText) || 
+            const matchesSearch = searchText === '' || name.includes(searchText) || 
                                  position.includes(searchText) || 
+                                 specialty.includes(searchText) ||
                                  email.includes(searchText) ||
                                  experience.includes(searchText) ||
                                  education.includes(searchText);
             
             const matchesStatus = statusValue === '' || status.includes(statusValue);
             const matchesPosition = positionValue === '' || position.includes(positionValue);
+            const matchesDepartment = departmentValue === '' || department.includes(departmentValue);
+            const matchesSpecialty = specialtyValue === '' || specialty.includes(specialtyValue);
             
-            row.style.display = (matchesSearch && matchesStatus && matchesPosition) ? '' : 'none';
+            row.style.display = (matchesSearch && matchesStatus && matchesPosition && matchesDepartment && matchesSpecialty) ? '' : 'none';
         }
     }
     
     if (searchInput) searchInput.addEventListener('input', filterCandidates);
     if (statusFilter) statusFilter.addEventListener('change', filterCandidates);
     if (positionFilter) positionFilter.addEventListener('change', filterCandidates);
+    if (departmentFilter) departmentFilter.addEventListener('change', filterCandidates);
+    if (specialtyFilter) specialtyFilter.addEventListener('change', filterCandidates);
 });
 </script>
 {% endblock %}

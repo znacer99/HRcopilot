@@ -29,12 +29,20 @@ def save_candidate(form_data, cv_file=None, id_file=None):
         phone=form_data.get("phone"),
         nationality=form_data.get("nationality"),
         applied_position=form_data.get("applied_position"),
+        specialty=form_data.get("specialty"),  # NEW FIELD
+        experience=form_data.get("experience"),  # Now being used
+        education=form_data.get("education"),    # Now being used
+        skills=form_data.get("skills"),          # Now being used
         department_id=form_data.get("department_id"),
         status=form_data.get("status") or "new",
     )
 
     candidate.cv_filepath = save_file(cv_file)
     candidate.id_document_filepath = save_file(id_file)
+
+    # Validate required fields for public applications
+    if not candidate.id_document_filepath:
+        raise ValueError("ID document is required")
 
     db.session.add(candidate)
     db.session.commit()
@@ -48,6 +56,10 @@ def update_candidate(candidate_id, form_data, cv_file=None, id_file=None):
     candidate.phone = form_data.get("phone", candidate.phone)
     candidate.nationality = form_data.get("nationality", candidate.nationality)
     candidate.applied_position = form_data.get("applied_position", candidate.applied_position)
+    candidate.specialty = form_data.get("specialty", candidate.specialty)  # NEW FIELD
+    candidate.experience = form_data.get("experience", candidate.experience)
+    candidate.education = form_data.get("education", candidate.education)
+    candidate.skills = form_data.get("skills", candidate.skills)
     candidate.department_id = form_data.get("department_id", candidate.department_id)
     candidate.status = form_data.get("status", candidate.status)
 

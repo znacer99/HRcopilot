@@ -50,20 +50,39 @@
         </div>
       </div>
 
+      <!-- Position and Specialty Fields -->
       <div class="row">
         <div class="col-md-6">
           <div class="mb-3">
             <label for="applied_position" class="form-label">Applied Position</label>
             <select name="applied_position" id="applied_position" class="form-select">
               <option value="">Select Position</option>
-              <option value="Senior Software Engineer" {{ "selected" if candidate and candidate.applied_position == "Senior Software Engineer" }}>Senior Software Engineer</option>
-              <option value="HR Business Partner" {{ "selected" if candidate and candidate.applied_position == "HR Business Partner" }}>HR Business Partner</option>
-              <option value="Project Manager" {{ "selected" if candidate and candidate.applied_position == "Project Manager" }}>Project Manager</option>
+              <option value="Engineer" {{ "selected" if candidate and candidate.applied_position == "Engineer" }}>Engineer</option>
+              <option value="Technician" {{ "selected" if candidate and candidate.applied_position == "Technician" }}>Technician</option>
+              <option value="Helper" {{ "selected" if candidate and candidate.applied_position == "Helper" }}>Helper</option>
+              <option value="Unskilled Worker" {{ "selected" if candidate and candidate.applied_position == "Unskilled Worker" }}>Unskilled Worker</option>
               <option value="Other" {{ "selected" if candidate and candidate.applied_position == "Other" }}>Other</option>
             </select>
           </div>
         </div>
         
+        <!-- Specialty Dropdown -->
+        <div class="col-md-6">
+          <div class="mb-3">
+            <label for="specialty" class="form-label">Specialty *</label>
+            <select name="specialty" id="specialty" class="form-select" required>
+              <option value="">Select Specialty</option>
+              {% for specialty in specialties %}
+              <option value="{{ specialty }}" {{ "selected" if candidate and candidate.specialty == specialty }}>
+                {{ specialty }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
         <div class="col-md-6">
           <div class="mb-3">
             <label for="department_id" class="form-label">Department</label>
@@ -75,6 +94,18 @@
                 {{ dept.name }}
               </option>
               {% endfor %}
+            </select>
+          </div>
+        </div>
+        
+        <div class="col-md-6">
+          <div class="mb-3">
+            <label for="status" class="form-label">Status</label>
+            <select name="status" id="status" class="form-select">
+              <option value="new" {{ "selected" if candidate and candidate.status == "new" }}>New</option>
+              <option value="interviewed" {{ "selected" if candidate and candidate.status == "interviewed" }}>Interviewed</option>
+              <option value="hired" {{ "selected" if candidate and candidate.status == "hired" }}>Hired</option>
+              <option value="rejected" {{ "selected" if candidate and candidate.status == "rejected" }}>Rejected</option>
             </select>
           </div>
         </div>
@@ -115,17 +146,6 @@
                   placeholder="List relevant skills and qualifications...">{{ candidate.skills if candidate else '' }}</textarea>
       </div>
 
-      <!-- Status -->
-      <div class="mb-3">
-        <label for="status" class="form-label">Status</label>
-        <select name="status" id="status" class="form-select">
-          <option value="new" {{ "selected" if candidate and candidate.status == "new" }}>New</option>
-          <option value="interviewed" {{ "selected" if candidate and candidate.status == "interviewed" }}>Interviewed</option>
-          <option value="hired" {{ "selected" if candidate and candidate.status == "hired" }}>Hired</option>
-          <option value="rejected" {{ "selected" if candidate and candidate.status == "rejected" }}>Rejected</option>
-        </select>
-      </div>
-
       <!-- Documents -->
       <div class="row">
         <div class="col-md-6">
@@ -140,10 +160,13 @@
         
         <div class="col-md-6">
           <div class="mb-3">
-            <label for="id_document" class="form-label">Upload ID Document</label>
-            <input type="file" name="id_document" id="id_document" class="form-control">
+            <label for="id_document" class="form-label">Upload ID Document *</label>
+            <input type="file" name="id_document" id="id_document" class="form-control" 
+                   {{ 'required' if not candidate else '' }}>
             {% if candidate and candidate.id_document_filepath %}
               <small class="text-muted">Current: <a href="{{ url_for('static', filename=candidate.id_document_filepath) }}" target="_blank">View Document</a></small>
+            {% else %}
+              <small class="text-muted text-danger">ID Document is required for new candidates</small>
             {% endif %}
           </div>
         </div>

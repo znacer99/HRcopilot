@@ -550,7 +550,7 @@
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
         
-        /* Application Form - Previous Style */
+        /* Application Form - Updated */
         .application-container {
             display: grid;
             grid-template-columns: 2fr 1fr;
@@ -1221,14 +1221,26 @@
                             <label for="applied_position">{% if session.get('lang', 'en') == 'ar' %}الوظيفة المتقدم لها *{% else %}Position Applying For *{% endif %}</label>
                             <select id="applied_position" name="applied_position" required>
                                 <option value="">{% if session.get('lang', 'en') == 'ar' %}اختر الوظيفة{% else %}Select a position{% endif %}</option>
-                                <option value="Senior Software Engineer">{% if session.get('lang', 'en') == 'ar' %}مهندس برمجيات كبير{% else %}Senior Software Engineer{% endif %}</option>
-                                <option value="HR Business Partner">{% if session.get('lang', 'en') == 'ar' %}شريك أعمال للموارد البشرية{% else %}HR Business Partner{% endif %}</option>
-                                <option value="Project Manager">{% if session.get('lang', 'en') == 'ar' %}مدير مشاريع{% else %}Project Manager{% endif %}</option>
-                                <option value="Other">{% if session.get('lang', 'en') == 'ar' %}أخرى{% else %}Other{% endif %}</option>
+                                <option value="Engineer">{% if session.get('lang', 'en') == 'ar' %}مهندس{% else %}Engineer{% endif %}</option>
+                                <option value="Technician">{% if session.get('lang', 'en') == 'ar' %}فني{% else %}Technician{% endif %}</option>
+                                <option value="Helper">{% if session.get('lang', 'en') == 'ar' %}مساعد{% else %}Helper{% endif %}</option>
+                                <option value="Unskilled Worker">{% if session.get('lang', 'en') == 'ar' %}عامل غير ماهر{% else %}Unskilled Worker{% endif %}</option>
                             </select>
                         </div>
                     </div>
-                </div>
+
+                    <!-- SPECIALTY DROPDOWN -->
+                    <div class="form-row">
+                        <div class="form-group full-width">
+                            <label for="specialty">{% if session.get('lang', 'en') == 'ar' %}التخصص *{% else %}Specialty *{% endif %}</label>
+                            <select id="specialty" name="specialty" required class="form-group" style="padding: 0.9rem; border: 1px solid #dce4ec; border-radius: 4px; font-family: 'Inter', sans-serif;">
+                                <option value="">{% if session.get('lang', 'en') == 'ar' %}اختر التخصص{% else %}Select a specialty{% endif %}</option>
+                                {% for specialty in specialties %}
+                                <option value="{{ specialty }}">{{ specialty }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
                 
                 <div class="form-section">
                     <h3>{% if session.get('lang', 'en') == 'ar' %}الخلفية المهنية{% else %}Professional Background{% endif %}</h3>
@@ -1268,9 +1280,10 @@
                             <label for="resume">{% if session.get('lang', 'en') == 'ar' %}رفع السيرة الذاتية (PDF) *{% else %}Upload Resume/CV (PDF) *{% endif %}</label>
                             <input type="file" id="resume" name="resume" accept=".pdf,.doc,.docx" required>
                         </div>
+                        <!-- UPDATED: ID Document is now required -->
                         <div class="form-group">
-                            <label for="id_document">{% if session.get('lang', 'en') == 'ar' %}وثيقة الهوية (اختياري){% else %}ID Document (Optional){% endif %}</label>
-                            <input type="file" id="id_document" name="id_document" accept=".pdf,.doc,.docx,.jpg,.png">
+                            <label for="id_document">{% if session.get('lang', 'en') == 'ar' %}وثيقة الهوية *{% else %}ID Document *{% endif %}</label>
+                            <input type="file" id="id_document" name="id_document" accept=".pdf,.doc,.docx,.jpg,.png" required>
                         </div>
                     </div>
                 </div>

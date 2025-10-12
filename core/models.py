@@ -218,13 +218,23 @@ class Candidate(db.Model):
     email = db.Column(db.String(120), nullable=True)
     phone = db.Column(db.String(20), nullable=True)
     nationality = db.Column(db.String(50), nullable=True)
-    applied_position = db.Column(db.String(120), nullable=True)
-    experience = db.Column(db.String(50), nullable=True)  # Add this field
-    education = db.Column(db.String(50), nullable=True)   # Add this field
-    skills = db.Column(db.Text, nullable=True)           # Add this field
+    
+    # UPDATED: Changed from specific positions to categories
+    applied_position = db.Column(db.String(120), nullable=True)  # Engineer, Technician, Helper, Unskilled Worker
+    
+    # NEW: Added specialty field
+    specialty = db.Column(db.String(255), nullable=True)  # Specific field of work/specialization
+    
+    experience = db.Column(db.String(50), nullable=True)  # 0-2, 3-5, 6-10, 10+
+    education = db.Column(db.String(50), nullable=True)   # High School, Bachelor's, Master's, PhD
+    skills = db.Column(db.Text, nullable=True)           # Skills and qualifications
+    
     department_id = db.Column(db.Integer, db.ForeignKey('departments.id'), nullable=True)
     cv_filepath = db.Column(db.String(255), nullable=True)
-    id_document_filepath = db.Column(db.String(255), nullable=True)
+    
+    # UPDATED: Changed from nullable to required (nullable=False)
+    id_document_filepath = db.Column(db.String(255), nullable=False)
+    
     status = db.Column(db.String(50), default='new')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -233,6 +243,8 @@ class Candidate(db.Model):
 
     def __repr__(self):
         return f"<Candidate {self.full_name} - {self.applied_position} ({self.status})>"
+
+
 # -------------------- EmployeeDocument ----------------
 
 class EmployeeDocument(db.Model):
