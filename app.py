@@ -191,6 +191,9 @@ def initialize_database():
 # Create the app instance
 app = create_app()
 
+with app.app_context():
+    db.create_all()
+    initialize_database()
 
 # User loader
 @login_manager.user_loader
