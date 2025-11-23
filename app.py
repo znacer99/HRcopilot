@@ -102,6 +102,7 @@ def register_blueprints(app):
     from routes.landing_routes import landing_bp
     from routes.language_routes import lang_bp
     from routes.profile_routes import profile_bp
+    from modules.auth.api_routes import api_auth_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
@@ -114,6 +115,7 @@ def register_blueprints(app):
     app.register_blueprint(landing_bp)
     app.register_blueprint(lang_bp)
     app.register_blueprint(profile_bp)
+    app.register_blueprint(api_auth_bp)
 
     print("All registered endpoints:")
     for rule in app.url_map.iter_rules():
