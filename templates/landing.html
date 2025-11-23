@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="{{ session.get('lang', 'en') }}">
 <head>
-    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon-new.ico') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% if session.get('lang', 'en') == 'ar' %}مجموعة الغيث العالمية{% else %}ALGHAITH Int Group{% endif %}</title>
@@ -14,7 +14,7 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+        B
         body {
             font-family: 'Inter', sans-serif;
             line-height: 1.6;
@@ -423,7 +423,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-        }
+}
         
         .job-header h3 {
             font-size: 1.3rem;
@@ -453,7 +453,7 @@
             display: flex;
             gap: 1.5rem;
             margin-bottom: 1.2rem;
-        }
+}
         
         .job-location, .job-department {
             display: flex;
@@ -482,7 +482,7 @@
             transition: color 0.3s ease;
         }
         
-        .job-card:hover .job-responsibilities li {
+          .job-card:hover .job-responsibilities li {
             color: #2c3e50;
         }
         
@@ -554,11 +554,11 @@
         .application-container {
             display: grid;
             grid-template-columns: 2fr 1fr;
-            gap: 3rem;
+ gap: 3rem;
             margin-top: 3rem;
         }
         
-        .application-form {
+          .application-form {
             background: white;
             border-radius: 8px;
             padding: 2.5rem;
@@ -614,7 +614,7 @@
         }
         
         .form-group input:focus,
-        .form-group select:focus,
+        .Bform-group select:focus,
         .form-group textarea:focus {
             border-color: #3498db;
             outline: none;
@@ -669,7 +669,7 @@
             background-color: #2980b9;
             transform: translateY(-2px);
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }
+ }
         
         .application-info {
             background: white;
@@ -680,7 +680,7 @@
             transition: all 0.3s ease;
         }
         
-        .application-info:hover {
+.application-info:hover {
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         }
         
@@ -695,7 +695,7 @@
         
         .process-steps {
             margin-top: 2rem;
-        }
+          }
         
         .process-step {
             display: flex;
@@ -789,7 +789,7 @@
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 2.5rem;
             margin-top: 3rem;
-        }
+        }A
         
         .collaborate-card {
             background: white;
@@ -800,7 +800,7 @@
             text-align: center;
             border-top: 4px solid #3498db;
             position: relative;
-            overflow: hidden;
+ overflow: hidden;
         }
         
         .collaborate-card:before {
@@ -868,7 +868,7 @@
             color: white;
         }
         
-        .contact .section-subtitle {
+          .contact .section-subtitle {
             color: #bdc3c7;
         }
         
@@ -899,7 +899,7 @@
         .contact-card h3 {
             font-size: 1.3rem;
             margin-bottom: 1.5rem;
-            display: flex;
+ display: flex;
             align-items: center;
             gap: 0.7rem;
             color: #3498db;
@@ -983,12 +983,12 @@
         .footer {
             background-color: #34495e;
             color: #bdc3c7;
-            text-align: center;
+ text-align: center;
             padding: 2.5rem;
         }
         
         /* Responsive Design */
-        @media (max-width: 768px) {
+ @media (max-width: 768px) {
             .navbar {
                 flex-direction: column;
                 padding: 1rem;
@@ -1009,7 +1009,7 @@
                 font-size: 2.5rem;
             }
             
-            .about-cards, .first-row, .second-row {
+            .about-cards, .first-row, .second-row {A
                 flex-direction: column;
                 align-items: center;
             }
@@ -1023,7 +1023,7 @@
                 flex-direction: column;
             }
             
-            .contact-info {
+ .contact-info {
                 grid-template-columns: 1fr;
             }
             
@@ -1031,12 +1031,66 @@
                 grid-template-columns: 1fr;
             }
         }
+        /* Success Notification */
+            .success-notification {
+                background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+                border-radius: 8px;
+                padding: 1.5rem;
+                margin-bottom: 2rem;
+                box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3);
+                border-left: 5px solid #27ae60;
+                display: none;
+            }
+
+            .success-notification.show {
+                display: block !important;
+            }
+
+            .success-content {
+                display: flex;
+                align-items: flex-start;
+                gap: 1.5rem;
+                color: white;
+            }
+
+            .success-content i {
+                font-size: 2rem;
+                flex-shrink: 0;
+                margin-top: 0.3rem;
+            }
+
+            .success-content h4 {
+                font-size: 1.2rem;
+                margin-bottom: 0.5rem;
+                font-weight: 600;
+            }
+
+            .success-content p {
+                margin: 0;
+                opacity: 0.95;
+                font-size: 0.95rem;
+            }
+
+        @media (max-width: 768px) {
+            .success-notification {
+                padding: 1.2rem;
+            }
+    
+            .success-content {
+                gap: 1rem;
+            }
+    
+            .success-content i {
+                font-size: 1.5rem;
+            }
+        }
     </style>
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body dir="{{ 'rtl' if session.get('lang', 'en') == 'ar' else 'ltr' }}">
 <!-- Navbar -->
 <nav class="navbar">
-    <!-- Logo Section -->
+    <!-- Logo SecAtion -->
     <div class="logo">
         <img src="{{ url_for('static', filename='images/LOGO_ALGHAITH.png') }}" 
              alt="Alghaith International Group" 
@@ -1149,7 +1203,7 @@
                     <li>{% if session.get('lang', 'en') == 'ar' %}معرفة أساسية في التركيبات الميكانيكية{% else %}Basic knowledge in mechanical installation{% endif %}</li>
                     <li>{% if session.get('lang', 'en') == 'ar' %}القدرة على استخدام الأدوات اليدوية واتباع تعليمات المشرف{% else %}Able to use hand tools and follow supervisor instructions{% endif %}</li>
                     <li>{% if session.get('lang', 'en') == 'ar' %}الجدية في العمل والاستعداد الفوري للبدء{% else %}Hardworking, serious, and ready to start immediately{% endif %}</li>
-                </ul>
+                  </ul>
             </div>
             <div class="job-footer">
                 <a href="#apply" class="btn-apply-now">{% if session.get('lang', 'en') == 'ar' %}قدم الآن{% else %}Apply Now{% endif %}</a>
@@ -1264,7 +1318,7 @@
                                 <option value="Master's">{% if session.get('lang', 'en') == 'ar' %}ماجستير{% else %}Master's Degree{% endif %}</option>
                                 <option value="PhD">{% if session.get('lang', 'en') == 'ar' %}دكتوراه{% else %}PhD{% endif %}</option>
                             </select>
-                        </div>
+                       </div>
                     </div>
                     
                     <div class="form-group full-width">
@@ -1288,6 +1342,21 @@
                     </div>
                 </div>
                 
+                <!-- SUCCESS MESSAGE NOTIFICATION -->
+                <div class="success-notification fade-in" id="successMessage">
+                    <div class="success-content">
+                        <i class="fas fa-check-circle"></i>
+                        <div>
+                            <h4>{% if session.get('lang', 'en') == 'ar' %}تم إرسال طلبك بنجاح!{% else %}Application Submitted Successfully!{% endif %}</h4>
+                            <p>{% if session.get('lang', 'en') == 'ar' %}شكراً لتقديمك. سيتم التواصل معك قريباً.{% else %}Thank you for your application. We'll be in touch soon.{% endif %}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group full-width" style="display: flex; justify-content: center; margin: 1.5rem 0;">
+                    <div class="g-recaptcha" data-sitekey="6Lc20u0rAAAAAO4hjrdL-JWtTMDXCx2Y_NvXrCcc"></div>
+                </div>
+
                 <div class="form-actions">
                     <button type="submit" class="btn-submit">{% if session.get('lang', 'en') == 'ar' %}إرسال الطلب{% else %}Submit Application{% endif %}</button>
                 </div>
@@ -1327,7 +1396,7 @@
                 </div>
                 
                 <div class="contact-recruitment">
-                    <h4>{% if session.get('lang', 'en') == 'ar' %}أسئلة حول التوظيف؟{% else %}Questions About Recruitment?{% endif %}</h4>
+                      <h4>{% if session.get('lang', 'en') == 'ar' %}أسئلة حول التوظيف؟{% else %}Questions About Recruitment?{% endif %}</h4>
                     <p>{% if session.get('lang', 'en') == 'ar' %}راسل فريق الموارد البشرية على:{% else %}Email our HR team at:{% endif %} <a href="mailto:HR@alghaithcompanies.group">HR@alghaithcompanies.group</a></p>
                 </div>
             </div>
@@ -1391,7 +1460,7 @@
                 <div class="contact-details">
                     <div class="contact-item">
                         <i class="fas fa-user-tie"></i>
-                        <div>
+                          <div>
                             <div>{% if session.get('lang', 'en') == 'ar' %}المدير العام{% else %}General Director{% endif %}</div>
                             <a href="tel:+218919996900">+218 919996900</a>
                         </div>
@@ -1416,7 +1485,7 @@
                             <div>{% if session.get('lang', 'en') == 'ar' %}المقر الرئيسي{% else %}Headquarters{% endif %}</div>
                             <div>{% if session.get('lang', 'en') == 'ar' %}طرابلس، ليبيا{% else %}Tripoli, Libya{% endif %}</div>
                         </div>
-                    </div>
+                     </div>
                     <div class="contact-item">
                         <i class="fas fa-clock"></i>
                         <div>
@@ -1439,7 +1508,7 @@
                         Map of our headquarters location in Tripoli, Libya
                     {% endif %}
                 </span>
-            </div>
+ </div>
         
             <!-- Embedded Google Map -->
             <div class="map-embed" style="width: 100%; height: 450px; border: 1px solid #ccc; border-radius: 6px; overflow: hidden;">
@@ -1455,7 +1524,6 @@
             </div>
         </div>
     </section>
-
     <!-- Footer -->
     <footer class="footer">
         <p>&copy; 2025 {% if session.get('lang', 'en') == 'ar' %}مجموعة الغيث العالمية. جميع الحقوق محفوظة.{% else %}ALGHAITH Int Group. All rights reserved.{% endif %}</p>
@@ -1497,9 +1565,9 @@
             
             // Smooth scrolling for anchor links
             document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-                anchor.addEventListener('click', function (e) {
+                   anchor.addEventListener('click', function (e) {
                     e.preventDefault();
-                    
+                        
                     const targetId = this.getAttribute('href');
                     if (targetId === '#') return;
                     
@@ -1513,6 +1581,18 @@
                 });
             });
         });
+            document.addEventListener("DOMContentLoaded", function() {
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('submitted') === 'success') {
+                    const msg = document.getElementById('successMessage');
+                    if (msg) {
+                        msg.style.display = "flex";
+                        msg.classList.add("fade-in");
+                        setTimeout(() => msg.style.display = "none", 5000);
+                    }
+                }
+            });
     </script>
 </body>
 </html>
+B
