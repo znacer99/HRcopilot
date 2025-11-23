@@ -6,6 +6,12 @@ from datetime import datetime
 
 api_auth_bp = Blueprint('api_auth', __name__, url_prefix='/api/auth')
 
+# Disable CSRF for this entire blueprint
+@api_auth_bp.before_app_request
+def disable_csrf():
+    from flask import g
+    g._csrf_enabled = False
+
 @api_auth_bp.route('/login', methods=['POST'])
 def api_login():
     data = request.get_json()
