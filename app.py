@@ -43,6 +43,14 @@ def create_app():
     csrf = CSRFProtect()
     csrf.init_app(app)
 
+    # Exempt API routes from CSRF
+    from flask import request
+    @app.before_request
+    def exempt_api_from_csrf():
+        if request.path.startswith('/api/'):
+            from flask_wtf.csrf import CSRFProtect
+            CSRFProtect.exempt = True
+
     # Make sure SECRET_KEY is set
     app.config['SECRET_KEY'] = app.config.get('SECRET_KEY') or 'mqM_nXhDHOYlb0T8E9bT4c7XCLiDImpINnVHFmCLR-Q'
 

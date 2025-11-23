@@ -6,17 +6,21 @@ from datetime import datetime
 
 api_auth_bp = Blueprint('api_auth', __name__, url_prefix='/api/auth')
 
-# Disable CSRF for this entire blueprint
-@api_auth_bp.before_app_request
-def disable_csrf():
-    from flask import g
-    g._csrf_enabled = False
+# Disable CSRF for all routes in this blueprint
+api_auth_bp.config = {}
+api_auth_bp.config['WTF_CSRF_CHECK_DEFAULT'] = False
 
 @api_auth_bp.route('/login', methods=['POST'])
 def api_login():
     data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'message': 'No data provided'}), 400
+        
     email = data.get('email')
     password = data.get('password')
+    
+    if not email or not password:
+        return jsonify({'success': False, 'message': 'Email and password required'}), 400
     
     user = User.query.filter_by(email=email).first()
     
