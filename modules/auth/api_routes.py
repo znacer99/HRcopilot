@@ -35,7 +35,7 @@ def api_login():
             'user': {
                 'id': user.id,
                 'email': user.email,
-                'name': user.full_name,
+                'name': user.name,
                 'role': user.role
             }
         }), 200
