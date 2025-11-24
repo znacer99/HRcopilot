@@ -1,17 +1,14 @@
 from flask import Blueprint, request, jsonify
-from flask_login import login_user
-from core.extensions import db
 from core.models import User
-from datetime import datetime
+from core.extensions import db
+import jwt
+from datetime import datetime, timedelta
+from config import Config
 
-api_auth_bp = Blueprint('api_auth', __name__, url_prefix='/api/auth')
+api_mobile_auth_bp = Blueprint('api_mobile_auth', __name__, url_prefix='/api/mobile/auth')
 
-# Disable CSRF for all routes in this blueprint
-api_auth_bp.config = {}
-api_auth_bp.config['WTF_CSRF_CHECK_DEFAULT'] = False
-
-@api_auth_bp.route('/login', methods=['POST'])
-def api_login():
+@api_mobile_auth_bp.route('/login', methods=['POST'])
+def mobile_login():
     data = request.get_json()
     if not data:
         return jsonify({'success': False, 'message': 'No data provided'}), 400
@@ -24,20 +21,25 @@ def api_login():
     
     user = User.query.filter_by(email=email).first()
     
-    if user and user.check_password(password):
-        login_user(user)
-        user.login_count += 1
-        user.last_login = datetime.utcnow()
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'user': {
-                'id': user.id,
-                'email': user.email,
-                'name': user.name,
-                'role': user.role
-            }
-        }), 200
+    if not user or not user.check_password(password):
+        return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
     
-    return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
+    token = jwt.encode(
+        {
+            "id": user.id,
+            "exp": datetime.utcnow() + timedelta(days=7)
+        },
+        Config.JWT_SECRET_KEY,
+        algorithm="HS256"
+    )
+    
+    return jsonify({
+        'success': True,
+        'token': token,
+        'user': {
+            'id': user.id,
+            'email': user.email,
+            'name': user.name,
+            'role': user.role
+        }
+    }), 200

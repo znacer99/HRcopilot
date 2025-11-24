@@ -1,13 +1,13 @@
 from flask import Blueprint, jsonify, request, send_file
-from flask_login import login_required
 from core.extensions import db
 from core.models import Candidate, Department
 from datetime import datetime
+from modules.auth.jwt_utils import mobile_auth_required
 
 api_candidate_bp = Blueprint('api_candidate', __name__, url_prefix='/api/candidates')
 
 @api_candidate_bp.route('', methods=['GET'])
-@login_required
+@mobile_auth_required
 def get_candidates():
     try:
         candidates = Candidate.query.all()
@@ -34,7 +34,7 @@ def get_candidates():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @api_candidate_bp.route('/<int:id>', methods=['GET'])
-@login_required
+@mobile_auth_required
 def get_candidate(id):
     try:
         c = Candidate.query.get_or_404(id)
@@ -66,7 +66,7 @@ def get_candidate(id):
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @api_candidate_bp.route('/<int:id>/status', methods=['PUT'])
-@login_required
+@mobile_auth_required
 def update_status(id):
     try:
         c = Candidate.query.get_or_404(id)
@@ -79,7 +79,7 @@ def update_status(id):
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @api_candidate_bp.route('/<int:id>/cv', methods=['GET'])
-@login_required
+@mobile_auth_required
 def download_cv(id):
     try:
         c = Candidate.query.get_or_404(id)
@@ -90,7 +90,7 @@ def download_cv(id):
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @api_candidate_bp.route('/<int:id>/id-document', methods=['GET'])
-@login_required
+@mobile_auth_required
 def download_id_document(id):
     try:
         c = Candidate.query.get_or_404(id)

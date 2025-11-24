@@ -1,13 +1,24 @@
 from flask import Blueprint, jsonify, request
-from flask_login import login_required
 from core.extensions import db
-from core.models import Employee, Department
+from core.models import Employee, Department, User
 from datetime import datetime
+from modules.auth.jwt_utils import mobile_auth_required
 
 api_employee_bp = Blueprint('api_employee', __name__, url_prefix='/api/employees')
 
+# Helper to get user from JWT token
+def get_current_user():
+    user_id = getattr(request, "user_id", None)
+    if not user_id:
+        return None
+    return User.query.get(user_id)
+
+
+# --------------------------------------------------------
+# GET ALL EMPLOYEES
+# --------------------------------------------------------
 @api_employee_bp.route('', methods=['GET'])
-@login_required
+@mobile_auth_required
 def get_employees():
     try:
         employees = Employee.query.all()
@@ -26,11 +37,16 @@ def get_employees():
                 'nationality': emp.nationality
             } for emp in employees]
         }), 200
+
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
+
+# --------------------------------------------------------
+# GET SINGLE EMPLOYEE
+# --------------------------------------------------------
 @api_employee_bp.route('/<int:id>', methods=['GET'])
-@login_required
+@mobile_auth_required
 def get_employee(id):
     try:
         emp = Employee.query.get_or_404(id)
@@ -55,11 +71,16 @@ def get_employee(id):
                 'created_at': emp.created_at.isoformat() if emp.created_at else None
             }
         }), 200
+
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
+
+# --------------------------------------------------------
+# CREATE EMPLOYEE
+# --------------------------------------------------------
 @api_employee_bp.route('', methods=['POST'])
-@login_required
+@mobile_auth_required
 def create_employee():
     try:
         data = request.json
@@ -72,7 +93,8 @@ def create_employee():
             mother_country_address=data.get('mother_country_address'),
             country=data.get('country'),
             state=data.get('state'),
-            birth_date=datetime.strptime(data['birth_date'], '%Y-%m-%d').date() if data.get('birth_date') else None,
+            birth_date=datetime.strptime(data['birth_date'], '%Y-%m-%d').date()
+                if data.get('birth_date') else None,
             id_number=data.get('id_number'),
             nationality=data.get('nationality'),
             department_id=data.get('department_id')
@@ -86,12 +108,17 @@ def create_employee():
             'message': 'Employee created successfully',
             'employee_id': emp.id
         }), 201
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
 
+
+# --------------------------------------------------------
+# UPDATE EMPLOYEE
+# --------------------------------------------------------
 @api_employee_bp.route('/<int:id>', methods=['PUT'])
-@login_required
+@mobile_auth_required
 def update_employee(id):
     try:
         emp = Employee.query.get_or_404(id)
@@ -117,12 +144,17 @@ def update_employee(id):
             'success': True,
             'message': 'Employee updated successfully'
         }), 200
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
 
+
+# --------------------------------------------------------
+# DELETE EMPLOYEE
+# --------------------------------------------------------
 @api_employee_bp.route('/<int:id>', methods=['DELETE'])
-@login_required
+@mobile_auth_required
 def delete_employee(id):
     try:
         emp = Employee.query.get_or_404(id)
@@ -133,6 +165,7 @@ def delete_employee(id):
             'success': True,
             'message': 'Employee deleted successfully'
         }), 200
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
