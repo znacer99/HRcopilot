@@ -112,6 +112,7 @@ def register_blueprints(app):
     from modules.dashboard.api_routes import api_dashboard_bp
     from modules.employee.api_routes import api_employee_bp
     from modules.department.api_routes import api_department_bp
+    from modules.department.api_routes import api_leaves_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
@@ -128,6 +129,7 @@ def register_blueprints(app):
     app.register_blueprint(api_dashboard_bp)
     app.register_blueprint(api_employee_bp)
     app.register_blueprint(api_department_bp)
+    app.register_blueprint(api_leaves_bp)
 
     print("All registered endpoints:")
     for rule in app.url_map.iter_rules():
