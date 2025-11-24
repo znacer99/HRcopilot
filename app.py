@@ -112,7 +112,7 @@ def register_blueprints(app):
     from modules.dashboard.api_routes import api_dashboard_bp
     from modules.employee.api_routes import api_employee_bp
     from modules.department.api_routes import api_department_bp
-    from modules.department.api_routes import api_leave_bp
+    from modules.leave.api_routes import api_leave_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
