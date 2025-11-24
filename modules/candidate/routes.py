@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
-from flask_wtf.csrf import csrf
+from flask_wtf import csrf
 from flask_login import login_required
 from core.models import Candidate, Department
 from modules.candidate.services import candidate_services
