@@ -1,5 +1,4 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
-from flask_wtf import csrf
 from flask_login import login_required
 from core.models import Candidate, Department
 from modules.candidate.services import candidate_services
@@ -18,6 +17,7 @@ candidate_bp = Blueprint("candidates", __name__, url_prefix="/candidates")
 def list_candidates():
     candidates = Candidate.query.order_by(Candidate.created_at.desc()).all()
     return render_template("dashboard/candidates/list.html", candidates=candidates, specialties=SPECIALTIES)
+
 
 @candidate_bp.route("/create", methods=["GET", "POST"])
 @login_required
@@ -57,9 +57,7 @@ def delete_candidate(id):
 # ---------------- PUBLIC ROUTES ---------------- #
 
 @candidate_bp.route("/apply", methods=["POST"])
-@csrf.exempt
 def public_apply():
-    print("=== PUBLIC APPLY ROUTE HIT ===")
     current_app.logger.info("PUBLIC APPLY ROUTE HIT")
 
     # ----- reCAPTCHA (soft mode) -----
@@ -79,9 +77,6 @@ def public_apply():
                 return redirect(url_for("landing.landing"))
         except Exception as e:
             current_app.logger.error("ReCAPTCHA ERROR: %s", e)
-            # skip failure
-    else:
-        current_app.logger.warning("Skipping reCAPTCHA check – missing secret or response")
 
     # ----- Validate files -----
     cv_file = request.files.get("resume")

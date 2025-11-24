@@ -42,9 +42,11 @@ def create_app():
     
     class CustomCSRF(CSRFProtect):
         def protect(self):
-            if request.path.startswith('/api/'):
+            # Allow API & public candidate apply
+            if request.path.startswith('/api/') or request.path == '/candidates/apply':
                 return
             return super(CustomCSRF, self).protect()
+
     
     csrf = CustomCSRF()
     csrf.init_app(app)
