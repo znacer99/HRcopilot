@@ -1,12 +1,12 @@
 from flask import Blueprint, jsonify, request
-from flask_login import login_required
 from core.extensions import db
 from core.models import Department
+from modules.auth.jwt_utils import mobile_auth_required
 
 api_department_bp = Blueprint('api_department', __name__, url_prefix='/api/departments')
 
 @api_department_bp.route('', methods=['GET'])
-@login_required
+@mobile_auth_required
 def get_departments():
     try:
         departments = Department.query.all()
@@ -23,7 +23,7 @@ def get_departments():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @api_department_bp.route('/<int:id>', methods=['GET'])
-@login_required
+@mobile_auth_required
 def get_department(id):
     try:
         dept = Department.query.get_or_404(id)
@@ -45,7 +45,7 @@ def get_department(id):
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @api_department_bp.route('', methods=['POST'])
-@login_required
+@mobile_auth_required
 def create_department():
     try:
         data = request.json
@@ -65,7 +65,7 @@ def create_department():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @api_department_bp.route('/<int:id>', methods=['PUT'])
-@login_required
+@mobile_auth_required
 def update_department(id):
     try:
         dept = Department.query.get_or_404(id)
@@ -79,7 +79,7 @@ def update_department(id):
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @api_department_bp.route('/<int:id>', methods=['DELETE'])
-@login_required
+@mobile_auth_required
 def delete_department(id):
     try:
         dept = Department.query.get_or_404(id)
