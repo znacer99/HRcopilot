@@ -57,7 +57,7 @@ def delete_candidate(id):
 # ---------------- PUBLIC ROUTES ---------------- #
 
 @candidate_bp.route("/apply", methods=["POST"])
-@csrf_exempt
+@csrf.exempt
 def public_apply():
     print("=== PUBLIC APPLY ROUTE HIT ===")
     current_app.logger.info("PUBLIC APPLY ROUTE HIT")
