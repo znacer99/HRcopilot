@@ -22,7 +22,12 @@ def get_candidates():
                 'applied_position': c.applied_position,
                 'specialty': c.specialty,
                 'experience': c.experience,
+                'education': c.education,
+                'skills': c.skills,
                 'status': c.status,
+                'cv_filepath': c.cv_filepath,
+                'id_document_filepath': c.id_document_filepath,
+                'updated_at': c.updated_at.isoformat() if c.updated_at else None,
                 'department': {
                     'id': c.department.id,
                     'name': c.department.name
@@ -30,8 +35,10 @@ def get_candidates():
                 'created_at': c.created_at.isoformat()
             } for c in candidates]
         }), 200
+
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+
 
 @api_candidate_bp.route('/<int:id>', methods=['GET'])
 @mobile_auth_required

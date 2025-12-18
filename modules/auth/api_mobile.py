@@ -29,6 +29,9 @@ def mobile_login():
         algorithm="HS256"
     )
 
+    if isinstance(token, bytes):
+        token = token.decode("utf-8")
+
     return jsonify({
         "success": True,
         "token": token,

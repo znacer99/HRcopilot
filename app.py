@@ -110,7 +110,6 @@ def register_blueprints(app):
     from routes.landing_routes import landing_bp
     from routes.language_routes import lang_bp
     from routes.profile_routes import profile_bp
-    from modules.auth.api_routes import api_auth_bp
     from modules.dashboard.api_routes import api_dashboard_bp
     from modules.employee.api_routes import api_employee_bp
     from modules.department.api_routes import api_department_bp
@@ -131,7 +130,6 @@ def register_blueprints(app):
     app.register_blueprint(landing_bp)
     app.register_blueprint(lang_bp)
     app.register_blueprint(profile_bp)
-    app.register_blueprint(api_auth_bp)
     app.register_blueprint(api_dashboard_bp)
     app.register_blueprint(api_employee_bp)
     app.register_blueprint(api_department_bp)
