@@ -7,3 +7,11 @@ instance/
 .env.save
 static/candidates/
 landing_backup.html
+__pycache__/
+*.pyc
+instance/
+.env
+.env.save
+.env.save.save
+venv/
+cookies.txt

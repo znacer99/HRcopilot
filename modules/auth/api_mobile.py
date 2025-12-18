@@ -43,3 +43,5 @@ def mobile_login():
         }
     }), 200
 
+api_mobile_bp = api_mobile_auth
+api_mobile_auth_bp = api_mobile_auth
