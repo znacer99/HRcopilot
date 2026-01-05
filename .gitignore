@@ -15,3 +15,60 @@ instance/
 .env.save.save
 venv/
 cookies.txt
+
+# local envs
+HRcopilot-venv/
+venv/
+
+# caches
+__pycache__/
+*.pyc
+.DS_Store
+node_modules/
+
+# uploads/runtime
+uploads/
+
+# secrets
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+
+# python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.log
+.pytest_cache/
+.mypy_cache/
+
+# venvs (NEVER commit)
+venv/
+HRcopilot-venv/
+
+# node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# mac
+.DS_Store
+
+# editor
+.vscode/
+.idea/
+
+# build / artifacts
+dist/
+build/
+*.sqlite
+*.db
+
+# uploads/runtime (usually not committed)
+uploads/
+instance/

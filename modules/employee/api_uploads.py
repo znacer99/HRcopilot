@@ -24,25 +24,30 @@ def allowed(filename):
 def upload_documents(emp_id):
     emp = Employee.query.get_or_404(emp_id)
 
-    if "files" not in request.files:
+    if "file" not in request.files:
         return jsonify({"success": False, "message": "No files part"}), 400
-
-    files = request.files.getlist("files")
-
+        
+        
+    f = request.files["file"]
+    
     saved_files = []
 
     # create employee folder if not exists
     emp_folder = os.path.join(UPLOAD_FOLDER, str(emp_id))
     os.makedirs(emp_folder, exist_ok=True)
 
-    for file in files:
-        if file and allowed(file.filename):
-            filename = secure_filename(file.filename)
-            save_path = os.path.join(emp_folder, filename)
-            file.save(save_path)
+    if not f or f.filename == "":
+        return jsonify({"success": False, "message": "Empty filename"}), 400
+        
+    if not allowed(f.filename):
+        return jsonify({"success": False, "message": "File type not allowed"}), 400
 
-            saved_files.append(filename)
+    filename = secure_filename(f.filename)
+    save_path = os.path.join(emp_folder, filename)
+    f.save(save_path)
 
+    saved_files.append(filename)
+    
     return jsonify({
         "success": True,
         "message": "Files uploaded successfully",
