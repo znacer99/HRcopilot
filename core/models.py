@@ -73,7 +73,8 @@ class Employee(db.Model):
     country = db.Column(db.String(100), nullable=True)
     state = db.Column(db.String(100), nullable=True)
     birth_date = db.Column(db.Date, nullable=True)
-    id_number = db.Column(db.String(50), unique=True, nullable=True)  # Identity card / Passport number
+    id_number = db.Column(db.String(50), nullable=True)  # Identity card / Passport number
+    id_type = db.Column(db.String(50), nullable=True)    # Passport, National ID, etc.
     nationality = db.Column(db.String(100), nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

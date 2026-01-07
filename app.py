@@ -5,7 +5,7 @@
 import logging
 import os
 from datetime import datetime
-from flask import Flask, render_template, redirect, url_for, request, current_app, session, send_from_directory
+from flask import Flask, render_template, redirect, url_for, request, current_app, session, send_from_directory, jsonify
 from flask_wtf.csrf import CSRFProtect
 from flask_login import current_user, logout_user
 from config import config
@@ -118,6 +118,7 @@ def register_blueprints(app):
     from modules.candidate.api_routes import api_candidate_bp
     from modules.user.api_routes import api_user_bp
     from modules.auth.api_mobile import api_mobile_auth_bp
+    from modules.employee.api_uploads import api_employee_upload_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
@@ -138,6 +139,7 @@ def register_blueprints(app):
     app.register_blueprint(api_candidate_bp)
     app.register_blueprint(api_user_bp)
     app.register_blueprint(api_mobile_auth_bp)
+    app.register_blueprint(api_employee_upload_bp)
 
     print("All registered endpoints:")
     for rule in app.url_map.iter_rules():
@@ -232,17 +234,23 @@ def load_user(user_id):
 # Error handlers
 @app.errorhandler(403)
 def forbidden_error(error):
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'message': 'Forbidden', 'status': 403}), 403
     return render_template('errors/403.html'), 403
 
 
 @app.errorhandler(404)
 def not_found_error(error):
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'message': 'Resource not found', 'status': 404}), 404
     return render_template('errors/404.html'), 404
 
 
 @app.errorhandler(500)
 def internal_error(error):
     db.session.rollback()
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'message': 'Internal Server Error', 'status': 500}), 500
     return render_template('errors/500.html'), 500
 
 @app.before_request

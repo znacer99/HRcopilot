@@ -15,6 +15,7 @@ DB_PATH = os.path.join(INSTANCE_DIR, 'app.db')
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'mqM_nXhDHOYlb0T8E9bT4c7XCLiDImpINnVHFmCLR'
+    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'secret-jwt-key'
     SQLALCHEMY_DATABASE_URI = f"sqlite:///{DB_PATH}"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     UPLOAD_FOLDER = UPLOAD_FOLDER

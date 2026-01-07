@@ -19,4 +19,4 @@ EXPOSE 5000
 ENV FLASK_APP=app.py
 ENV FLASK_ENV=production
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app", "--workers", "3"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app", "--workers", "3", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"]

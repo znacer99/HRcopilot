@@ -1,6 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = "http://102.213.182.101:5000";
+const DEFAULT_BASE_URL = "http://192.168.1.11:5000";
+const BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, "");
+
+console.log("✅ API BASE_URL:", BASE_URL);
 
 const apiService = {
 
@@ -33,7 +36,8 @@ const apiService = {
         data = { success: false, message: "Invalid JSON response", raw: text };
       }
 
-      if (!response.ok) throw data;
+      if (!response.ok) throw { ...data, status: response.status };
+
 
       return data;
 
@@ -48,6 +52,24 @@ const apiService = {
     return this.request('/api/mobile/auth/login', {
       method: 'POST',
       body: { email, password }
+    });
+  },
+
+  async getMe() {
+    return this.request('/api/mobile/auth/me');
+  },
+
+  async updateProfile(data) {
+    return this.request('/api/mobile/auth/profile', {
+      method: 'PUT',
+      body: data
+    });
+  },
+
+  async changePassword(oldPassword, newPassword) {
+    return this.request('/api/mobile/auth/change-password', {
+      method: 'POST',
+      body: { old_password: oldPassword, new_password: newPassword }
     });
   },
 
@@ -96,19 +118,26 @@ const apiService = {
     return this.request('/api/leaves');
   },
 
+  async createLeave(data) {
+    return this.request('/api/leaves', {
+      method: 'POST',
+      body: data
+    });
+  },
+
   async getPendingLeaves() {
     return this.request('/api/leaves/pending');
   },
 
   async approveLeave(id) {
-    return this.request(`/api/leaves/${id}/approve`, { 
+    return this.request(`/api/leaves/${id}/approve`, {
       method: 'POST',
       body: {}
     });
   },
 
   async rejectLeave(id) {
-    return this.request(`/api/leaves/${id}/reject`, { 
+    return this.request(`/api/leaves/${id}/reject`, {
       method: 'POST',
       body: {}
     });
@@ -139,7 +168,27 @@ const apiService = {
   async getToken() {
     return await AsyncStorage.getItem("token");
   },
-  
+
+  // DEPARTMENTS
+  async getDepartments() {
+    return this.request("/api/departments");
+  },
+
+  async getDepartment(id) {
+    return this.request(`/api/departments/${id}`);
+  },
+
+  async createDepartment(data) {
+    return this.request("/api/departments", { method: "POST", body: data });
+  },
+
+  async updateDepartment(id, data) {
+    return this.request(`/api/departments/${id}`, { method: "PUT", body: data });
+  },
+
+  async deleteDepartment(id) {
+    return this.request(`/api/departments/${id}`, { method: "DELETE" });
+  },
 
   // ⚠ uploadDocument: your backend has NO /api/documents/upload
   // Web upload uses /documents/upload (HTML form + CSRF).

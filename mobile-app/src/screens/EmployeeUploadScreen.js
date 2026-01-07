@@ -57,7 +57,9 @@ export default function EmployeeUploadScreen({ route, navigation }) {
       form.append("title", title);
       form.append("description", description);
 
+      console.log("📤 STARTING UPLOAD to /api/employees/" + employee.id + "/upload");
       const res = await apiService.uploadEmployeeDocuments(employee.id, form);
+      console.log("📥 UPLOAD RESPONSE:", res);
 
       if (!res?.success) {
         throw new Error(res?.message || "Upload failed");

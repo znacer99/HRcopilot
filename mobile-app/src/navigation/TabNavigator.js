@@ -11,6 +11,8 @@ import WorkScreen from "../screens/WorkScreen";
 // TEMP / PLACEHOLDERS
 import DocumentsScreen from "../screens/DocumentsScreen";
 import DepartmentsScreen from "../screens/DepartmentsScreen";
+import DepartmentsStack from "./DepartmentsStack";
+
 
 const Tab = createBottomTabNavigator();
 
@@ -93,7 +95,10 @@ export default function TabNavigator({ user, onLogout }) {
           <Tab.Screen name="Docs">
             {(props) => <DocumentsScreen {...props} user={user} />}
           </Tab.Screen>
-          <Tab.Screen name="Depts" component={DepartmentsScreen} />
+          <Tab.Screen name="Depts">
+            {(props) => <DepartmentsStack {...props} user={user} />}
+          </Tab.Screen>
+
         </>
       )}
     </Tab.Navigator>

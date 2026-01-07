@@ -1,0 +1,10 @@
+mobile-app/
+venv/
+mobile-app/.expo
+venv
+__pycache__
+*.pyc
+.git
+instance
+migrations
+static/uploads

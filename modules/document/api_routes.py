@@ -110,21 +110,38 @@ def get_user_documents():
         if not user:
             return jsonify({'success': False, 'message': 'Unauthorized'}), 401
 
-        docs = UserDocument.visible_documents_for(user)
+        # 1. Fetch UserDocument entries (owned directly by user)
+        user_docs = UserDocument.visible_documents_for(user)
+        result = [{
+            'id': doc.id,
+            'source': 'user',
+            'filename': doc.filename,
+            'document_type': doc.document_type,
+            'visibility_type': doc.visibility_type,
+            'uploaded_at': doc.uploaded_at.isoformat(),
+            'folder': {
+                'id': doc.folder.id,
+                'name': doc.folder.name
+            } if doc.folder else None
+        } for doc in user_docs]
+
+        # 2. Fetch EmployeeDocument entries (linked to the employee profile)
+        emp = Employee.query.filter_by(user_id=user.id).first()
+        if emp:
+            emp_docs = EmployeeDocument.query.filter_by(employee_id=emp.id).all()
+            result.extend([{
+                'id': edoc.id,
+                'source': 'employee',
+                'filename': edoc.filename,
+                'document_type': edoc.document_type,
+                'visibility_type': edoc.visibility_type,
+                'uploaded_at': edoc.uploaded_at.isoformat(),
+                'folder': None
+            } for edoc in emp_docs])
 
         return jsonify({
             'success': True,
-            'documents': [{
-                'id': doc.id,
-                'filename': doc.filename,
-                'document_type': doc.document_type,
-                'visibility_type': doc.visibility_type,
-                'uploaded_at': doc.uploaded_at.isoformat(),
-                'folder': {
-                    'id': doc.folder.id,
-                    'name': doc.folder.name
-                } if doc.folder else None
-            } for doc in docs]
+            'documents': result
         }), 200
 
     except Exception as e:
@@ -144,7 +161,29 @@ def download_user_document(id):
         if not doc.can_owner_access(user):
             return jsonify({'success': False, 'message': 'Access denied'}), 403
 
-        return send_file(doc.filepath, as_attachment=True, download_name=doc.filename)
+        abs_path = os.path.abspath(doc.filepath)
+        if not os.path.exists(abs_path):
+            print(f"❌ DOWNLOAD FAIL - FILE NOT FOUND: {abs_path}")
+            return jsonify({'success': False, 'message': 'File not found on server'}), 404
+            
+        file_size = os.path.getsize(abs_path)
+        print(f"📄 DOWNLOADING USER DOC: {abs_path} (Size: {file_size} bytes)")
+            
+        with open(abs_path, 'rb') as f:
+            file_data = f.read()
+            
+        from flask import make_response
+        response = make_response(file_data)
+        response.headers['Content-Type'] = 'application/pdf'
+        
+        # Support inline viewing vs download
+        is_inline = request.args.get('inline') == '1'
+        disp = 'inline' if is_inline else 'attachment'
+        
+        response.headers['Content-Disposition'] = f'{disp}; filename="{doc.filename}"'
+        response.headers['Content-Length'] = str(len(file_data))
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        return response
 
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -194,7 +233,29 @@ def download_employee_document(id):
         if not can_access_employee_doc(user, doc):
             return jsonify({'success': False, 'message': 'Access denied'}), 403
 
-        return send_file(doc.filepath, as_attachment=True, download_name=doc.filename)
+        abs_path = os.path.abspath(doc.filepath)
+        if not os.path.exists(abs_path):
+            print(f"❌ DOWNLOAD FAIL - FILE NOT FOUND: {abs_path}")
+            return jsonify({'success': False, 'message': 'File not found on server'}), 404
+
+        file_size = os.path.getsize(abs_path)
+        print(f"📄 DOWNLOADING EMPLOYEE DOC: {abs_path} (Size: {file_size} bytes)")
+
+        with open(abs_path, 'rb') as f:
+            file_data = f.read()
+            
+        from flask import make_response
+        response = make_response(file_data)
+        response.headers['Content-Type'] = 'application/pdf'
+        
+        # Support inline viewing vs download
+        is_inline = request.args.get('inline') == '1'
+        disp = 'inline' if is_inline else 'attachment'
+
+        response.headers['Content-Disposition'] = f'{disp}; filename="{doc.filename}"'
+        response.headers['Content-Length'] = str(len(file_data))
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        return response
 
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
