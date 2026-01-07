@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -290,12 +291,12 @@
                 transform: translateX(-260px);
                 width: 260px;
             }
-            
+
             .sidebar.show {
                 transform: translateX(0);
                 box-shadow: 5px 0 25px rgba(0, 0, 0, 0.15);
             }
-            
+
             .sidebar-overlay {
                 position: fixed;
                 top: 70px;
@@ -306,38 +307,40 @@
                 z-index: 1015;
                 display: none;
             }
-            
+
             .sidebar-overlay.show {
                 display: block;
             }
-            
+
             .main-content {
                 margin-left: 0;
                 padding: 1.5rem 1rem;
             }
-            
+
             .mobile-nav-trigger {
                 display: block;
             }
-            
+
             .desktop-logout {
                 display: none;
             }
-            
+
             .mobile-logout {
                 display: block;
                 margin-top: 2rem;
                 padding-top: 1.5rem;
                 border-top: 1px solid rgba(255, 255, 255, 0.2);
             }
-            
+
             /* Improve touch targets */
-            .btn, .nav-link, .form-control {
+            .btn,
+            .nav-link,
+            .form-control {
                 min-height: 44px;
                 display: flex;
                 align-items: center;
             }
-            
+
             .dashboard-header {
                 border-radius: 0;
                 margin: -1.5rem -1rem 2rem -1rem;
@@ -348,14 +351,16 @@
             .main-content {
                 padding: 1rem;
             }
-            
+
             .card {
                 border-radius: 0.75rem;
             }
         }
 
         /* Form improvements */
-        input, select, textarea {
+        input,
+        select,
+        textarea {
             min-height: 48px;
             font-size: 1rem;
             padding: 0.75rem;
@@ -363,13 +368,15 @@
             border-radius: var(--radius-lg);
             transition: var(--transition);
         }
-        
-        input:focus, select:focus, textarea:focus {
+
+        input:focus,
+        select:focus,
+        textarea:focus {
             border-color: var(--brand-primary);
             box-shadow: 0 0 0 3px rgba(107, 76, 255, 0.1);
             outline: none;
         }
-        
+
         /* Better focus states for accessibility */
         .btn:focus,
         .nav-link:focus {
@@ -379,228 +386,273 @@
 
         /* Animation for sidebar items */
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .sidebar .nav-item {
             animation: fadeIn 0.3s ease forwards;
         }
 
-        .sidebar .nav-item:nth-child(1) { animation-delay: 0.05s; }
-        .sidebar .nav-item:nth-child(2) { animation-delay: 0.1s; }
-        .sidebar .nav-item:nth-child(3) { animation-delay: 0.15s; }
-        .sidebar .nav-item:nth-child(4) { animation-delay: 0.2s; }
-        .sidebar .nav-item:nth-child(5) { animation-delay: 0.25s; }
-        .sidebar .nav-item:nth-child(6) { animation-delay: 0.3s; }
-        .sidebar .nav-item:nth-child(7) { animation-delay: 0.35s; }
-        .sidebar .nav-item:nth-child(8) { animation-delay: 0.4s; }
-        .sidebar .nav-item:nth-child(9) { animation-delay: 0.45s; }
+        .sidebar .nav-item:nth-child(1) {
+            animation-delay: 0.05s;
+        }
+
+        .sidebar .nav-item:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+
+        .sidebar .nav-item:nth-child(3) {
+            animation-delay: 0.15s;
+        }
+
+        .sidebar .nav-item:nth-child(4) {
+            animation-delay: 0.2s;
+        }
+
+        .sidebar .nav-item:nth-child(5) {
+            animation-delay: 0.25s;
+        }
+
+        .sidebar .nav-item:nth-child(6) {
+            animation-delay: 0.3s;
+        }
+
+        .sidebar .nav-item:nth-child(7) {
+            animation-delay: 0.35s;
+        }
+
+        .sidebar .nav-item:nth-child(8) {
+            animation-delay: 0.4s;
+        }
+
+        .sidebar .nav-item:nth-child(9) {
+            animation-delay: 0.45s;
+        }
     </style>
 
     {% block extra_head %}{% endblock %}
 </head>
+
 <body>
 
-<!-- Navbar -->
-<nav class="navbar navbar-expand-lg navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="{{ url_for('dashboard.role_dashboard') }}">
-            <i class="bi bi-building me-2"></i>ALGHAITH Int Group
-        </a>
-        
-        <button class="mobile-nav-trigger" type="button" id="sidebarToggle">
-            <i class="bi bi-list"></i>
-        </button>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('dashboard.role_dashboard') }}">
+                <i class="bi bi-building me-2"></i>ALGHAITH Int Group
+            </a>
 
-        <div class="d-flex align-items-center">
-            <span class="badge bg-light text-dark me-3 d-none d-md-inline">{{ current_user.role|replace('_', ' ')|title }}</span>
-            {% if current_user.is_authenticated %}
-            <div class="desktop-logout">
-                <form method="post" action="{{ url_for('auth.logout') }}" class="ms-2 d-inline">
+            <button class="mobile-nav-trigger" type="button" id="sidebarToggle">
+                <i class="bi bi-list"></i>
+            </button>
+
+            <div class="d-flex align-items-center">
+                <span class="badge bg-light text-dark me-3 d-none d-md-inline">{{ current_user.role|replace('_', '
+                    ')|title }}</span>
+                {% if current_user.is_authenticated %}
+                <div class="desktop-logout">
+                    <form method="post" action="{{ url_for('auth.logout') }}" class="ms-2 d-inline">
+                        {{ logout_form.csrf_token }}
+                        <button type="submit" class="btn btn-sm btn-outline-light">
+                            <i class="bi bi-box-arrow-right me-1"></i> Logout
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebarMenu">
+        <div class="sidebar-header">
+            <div class="user-info">
+                <div class="user-avatar">
+                    <i class="bi bi-person-circle"></i>
+                </div>
+                <h5 class="user-name">{{ current_user.name }}</h5>
+                <div class="user-role">{{ current_user.role|replace('_', ' ')|title }}</div>
+            </div>
+        </div>
+
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('dashboard.role_dashboard') }}">
+                    <i class="bi bi-speedometer2"></i> <span class="link-text">Dashboard</span>
+                </a>
+            </li>
+
+            {% if current_user.role in ['it_manager', 'general_director', 'general_manager', 'head_of_department',
+            'manager'] %}
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('dashboard.request_list') }}">
+                    <i class="bi bi-inbox-fill"></i> <span class="link-text">Requests</span>
+                </a>
+            </li>
+            {% endif %}
+
+            <!-- NEW MY PROFILE LINK -->
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('profile.my_profile') }}">
+                    <i class="bi bi-person-gear"></i> <span class="link-text">My Profile</span>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('docs.list_documents') }}">
+                    <i class="bi bi-folder2-open"></i> <span class="link-text">Documents</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('leave.leaves_dashboard') }}">
+                    <i class="bi bi-calendar-check"></i> <span class="link-text">Leaves</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('dashboard.employee_summary') }}">
+                    <i class="bi bi-people"></i> <span class="link-text">Employees</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('department.department_summary') }}">
+                    <i class="bi bi-diagram-3"></i> <span class="link-text">Departments</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('dashboard.user_management') }}">
+                    <i class="bi bi-person-lines-fill"></i> <span class="link-text">Users</span>
+                </a>
+            </li>
+            <!-- Candidates Link -->
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('candidates.list_candidates') }}">
+                    <i class="bi bi-person-plus"></i> <span class="link-text">Candidates</span>
+                </a>
+            </li>
+
+            <!-- Mobile Logout Option -->
+            <li class="nav-item mobile-logout">
+                {% if current_user.is_authenticated %}
+                <form method="post" action="{{ url_for('auth.logout') }}">
                     {{ logout_form.csrf_token }}
-                    <button type="submit" class="btn btn-sm btn-outline-light">
-                        <i class="bi bi-box-arrow-right me-1"></i> Logout
+                    <button type="submit" class="nav-link text-start w-100 bg-transparent border-0">
+                        <i class="bi bi-box-arrow-right"></i> <span class="link-text">Logout</span>
                     </button>
                 </form>
+                {% endif %}
+            </li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Dashboard Header -->
+        <div class="dashboard-header">
+            <div class="container-fluid">
+                <h1 class="dashboard-title">{% block dashboard_title %}Dashboard{% endblock %}</h1>
+                <p class="mb-0">Welcome back, {{ current_user.name }}</p>
             </div>
-            {% endif %}
         </div>
-    </div>
-</nav>
 
-<!-- Sidebar Overlay for Mobile -->
-<div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-<!-- Sidebar -->
-<div class="sidebar" id="sidebarMenu">
-    <div class="sidebar-header">
-        <div class="user-info">
-            <div class="user-avatar">
-                <i class="bi bi-person-circle"></i>
-            </div>
-            <h5 class="user-name">{{ current_user.name }}</h5>
-            <div class="user-role">{{ current_user.role|replace('_', ' ')|title }}</div>
-        </div>
-    </div>
-
-    <ul class="nav flex-column">
-        <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('dashboard.role_dashboard') }}">
-                <i class="bi bi-speedometer2"></i> <span class="link-text">Dashboard</span>
-            </a>
-        </li>
-        
-        <!-- NEW MY PROFILE LINK -->
-        <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('profile.my_profile') }}">
-                <i class="bi bi-person-gear"></i> <span class="link-text">My Profile</span>
-            </a>
-        </li>
-        
-        <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('docs.list_documents') }}">
-                <i class="bi bi-folder2-open"></i> <span class="link-text">Documents</span>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('leave.leaves_dashboard') }}">
-                <i class="bi bi-calendar-check"></i> <span class="link-text">Leaves</span>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('dashboard.employee_summary') }}">
-                <i class="bi bi-people"></i> <span class="link-text">Employees</span>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('department.department_summary') }}">
-                <i class="bi bi-diagram-3"></i> <span class="link-text">Departments</span>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('dashboard.user_management') }}">
-                <i class="bi bi-person-lines-fill"></i> <span class="link-text">Users</span>
-            </a>
-        </li>
-        <!-- Candidates Link -->
-        <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('candidates.list_candidates') }}">
-                <i class="bi bi-person-plus"></i> <span class="link-text">Candidates</span>
-            </a>
-        </li>
-        
-        <!-- Mobile Logout Option -->
-        <li class="nav-item mobile-logout">
-            {% if current_user.is_authenticated %}
-            <form method="post" action="{{ url_for('auth.logout') }}">
-                {{ logout_form.csrf_token }}
-                <button type="submit" class="nav-link text-start w-100 bg-transparent border-0">
-                    <i class="bi bi-box-arrow-right"></i> <span class="link-text">Logout</span>
-                </button>
-            </form>
-            {% endif %}
-        </li>
-    </ul>
-</div>
-
-<!-- Main Content -->
-<div class="main-content">
-    <!-- Dashboard Header -->
-    <div class="dashboard-header">
-        <div class="container-fluid">
-            <h1 class="dashboard-title">{% block dashboard_title %}Dashboard{% endblock %}</h1>
-            <p class="mb-0">Welcome back, {{ current_user.name }}</p>
-        </div>
-    </div>
-
-    <!-- Flash Messages -->
-    <div class="flash-messages">
-        {% with messages = get_flashed_messages(with_categories=true) %}
+        <!-- Flash Messages -->
+        <div class="flash-messages">
+            {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        <i class="bi bi-info-circle me-2"></i> {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                {% endfor %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                <i class="bi bi-info-circle me-2"></i> {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
             {% endif %}
-        {% endwith %}
+            {% endwith %}
+        </div>
+
+        <!-- Page Content -->
+        {% block dashboard_content %}{% endblock %}
     </div>
 
-    <!-- Page Content -->
-    {% block dashboard_content %}{% endblock %}
-</div>
+    <!-- Footer -->
+    <footer>
+        <div class="container-fluid">
+            &copy; 2025 Alghaith Int Group. All rights reserved.
+        </div>
+    </footer>
 
-<!-- Footer -->
-<footer>
-    <div class="container-fluid">
-        &copy; 2025 Alghaith Int Group. All rights reserved.
-    </div>
-</footer>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-<!-- Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Toggle sidebar on mobile
+        document.addEventListener("DOMContentLoaded", function () {
+            const sidebar = document.getElementById('sidebarMenu');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            const sidebarToggle = document.getElementById('sidebarToggle');
 
-<script>
-// Toggle sidebar on mobile
-document.addEventListener("DOMContentLoaded", function() {
-    const sidebar = document.getElementById('sidebarMenu');
-    const sidebarOverlay = document.getElementById('sidebarOverlay');
-    const sidebarToggle = document.getElementById('sidebarToggle');
-    
-    function toggleSidebar() {
-        sidebar.classList.toggle('show');
-        sidebarOverlay.classList.toggle('show');
-        document.body.style.overflow = sidebar.classList.contains('show') ? 'hidden' : '';
-    }
-    
-    sidebarToggle.addEventListener('click', function(e) {
-        e.stopPropagation();
-        toggleSidebar();
-    });
-    
-    sidebarOverlay.addEventListener('click', function() {
-        toggleSidebar();
-    });
-    
-    // Close sidebar when a link is clicked (on mobile)
-    if (window.innerWidth < 992) {
-        const sidebarLinks = document.querySelectorAll('.sidebar .nav-link');
-        sidebarLinks.forEach(link => {
-            link.addEventListener('click', function() {
+            function toggleSidebar() {
+                sidebar.classList.toggle('show');
+                sidebarOverlay.classList.toggle('show');
+                document.body.style.overflow = sidebar.classList.contains('show') ? 'hidden' : '';
+            }
+
+            sidebarToggle.addEventListener('click', function (e) {
+                e.stopPropagation();
                 toggleSidebar();
             });
+
+            sidebarOverlay.addEventListener('click', function () {
+                toggleSidebar();
+            });
+
+            // Close sidebar when a link is clicked (on mobile)
+            if (window.innerWidth < 992) {
+                const sidebarLinks = document.querySelectorAll('.sidebar .nav-link');
+                sidebarLinks.forEach(link => {
+                    link.addEventListener('click', function () {
+                        toggleSidebar();
+                    });
+                });
+            }
+
+            // Flash messages auto-close
+            const flashMessages = document.querySelectorAll('.flash-messages .alert');
+            flashMessages.forEach(msg => {
+                setTimeout(() => {
+                    const alert = new bootstrap.Alert(msg);
+                    alert.close();
+                }, 5000);
+            });
         });
-    }
-    
-    // Flash messages auto-close
-    const flashMessages = document.querySelectorAll('.flash-messages .alert');
-    flashMessages.forEach(msg => {
-        setTimeout(() => {
-            const alert = new bootstrap.Alert(msg);
-            alert.close();
-        }, 5000);
-    });
-});
 
-// Adjust layout based on screen size
-function adjustLayout() {
-    const sidebar = document.getElementById('sidebarMenu');
-    const mainContent = document.querySelector('.main-content');
-    
-    if (window.innerWidth >= 992) {
-        mainContent.style.marginLeft = '260px';
-    } else {
-        mainContent.style.marginLeft = '0';
-    }
-}
+        // Adjust layout based on screen size
+        function adjustLayout() {
+            const sidebar = document.getElementById('sidebarMenu');
+            const mainContent = document.querySelector('.main-content');
 
-// Run on load and resize
-window.addEventListener('load', adjustLayout);
-window.addEventListener('resize', adjustLayout);
-</script>
+            if (window.innerWidth >= 992) {
+                mainContent.style.marginLeft = '260px';
+            } else {
+                mainContent.style.marginLeft = '0';
+            }
+        }
 
-{% block scripts %}{% endblock %}
+        // Run on load and resize
+        window.addEventListener('load', adjustLayout);
+        window.addEventListener('resize', adjustLayout);
+    </script>
+
+    {% block scripts %}{% endblock %}
 </body>
+
 </html>

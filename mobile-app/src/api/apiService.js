@@ -1,7 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const DEFAULT_BASE_URL = "http://192.168.1.11:5000";
-const BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, "");
+export const BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:5000").replace(/\/+$/, "");
 
 console.log("✅ API BASE_URL:", BASE_URL);
 
@@ -78,6 +76,35 @@ const apiService = {
     return this.request('/api/dashboard/stats');
   },
 
+  // USERS
+  async getUsers(includeInactive = false) {
+    return this.request(`/api/users?include_inactive=${includeInactive}`);
+  },
+
+  async getUser(id) {
+    return this.request(`/api/users/${id}`);
+  },
+
+  async createUser(data) {
+    return this.request('/api/users', {
+      method: 'POST',
+      body: data
+    });
+  },
+
+  async updateUser(id, data) {
+    return this.request(`/api/users/${id}`, {
+      method: 'PUT',
+      body: data
+    });
+  },
+
+  async deleteUser(id) {
+    return this.request(`/api/users/${id}`, {
+      method: 'DELETE'
+    });
+  },
+
   // EMPLOYEES
   async getEmployees() {
     return this.request('/api/employees');
@@ -91,6 +118,19 @@ const apiService = {
     return this.request(`/api/employees/${id}`, {
       method: 'PUT',
       body: data,
+    });
+  },
+
+  async createEmployee(data) {
+    return this.request('/api/employees', {
+      method: 'POST',
+      body: data,
+    });
+  },
+
+  async deleteEmployee(id) {
+    return this.request(`/api/employees/${id}`, {
+      method: 'DELETE',
     });
   },
 
@@ -111,6 +151,26 @@ const apiService = {
 
   async getCandidate(id) {
     return this.request(`/api/candidates/${id}`);
+  },
+
+  async createCandidate(data) {
+    return this.request('/api/candidates', {
+      method: 'POST',
+      body: data
+    });
+  },
+
+  async updateCandidate(id, data) {
+    return this.request(`/api/candidates/${id}`, {
+      method: 'PUT',
+      body: data
+    });
+  },
+
+  async deleteCandidate(id) {
+    return this.request(`/api/candidates/${id}`, {
+      method: 'DELETE'
+    });
   },
 
   // LEAVES
@@ -205,6 +265,30 @@ const apiService = {
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
+  },
+
+  // REQUESTS (Generic - IT, HR, etc)
+  async fetchRequests() {
+    return this.request('/api/mobile/requests');
+  },
+
+  async createRequest(data) {
+    return this.request('/api/mobile/requests', {
+      method: 'POST',
+      body: data
+    });
+  },
+
+  // MANAGER REQUESTS
+  async fetchAllRequests() {
+    return this.request('/api/mobile/requests/all');
+  },
+
+  async updateRequest(id, data) {
+    return this.request(`/api/mobile/requests/${id}`, {
+      method: 'PUT',
+      body: data
+    });
   },
 
 };

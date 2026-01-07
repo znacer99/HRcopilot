@@ -85,6 +85,117 @@ def update_status(id):
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
 
+
+# ------------------------------------------------------------
+# CREATE A CANDIDATE
+# ------------------------------------------------------------
+@api_candidate_bp.route('', methods=['POST'])
+@mobile_auth_required
+def create_candidate():
+    try:
+        current_user = getattr(request, "user", None)
+        if current_user.role.lower() not in ['it_manager', 'general_director', 'manager']:
+            return jsonify({'success': False, 'message': 'Permission denied'}), 403
+
+        data = request.json
+        
+        # Basic validation
+        if not data.get('full_name'):
+            return jsonify({'success': False, 'message': 'Full name is required'}), 400
+
+        new_candidate = Candidate(
+            full_name=data['full_name'],
+            email=data.get('email'),
+            phone=data.get('phone'),
+            nationality=data.get('nationality'),
+            applied_position=data.get('applied_position'),
+            specialty=data.get('specialty'),
+            experience=data.get('experience'),
+            education=data.get('education'),
+            skills=data.get('skills'),
+            status=data.get('status', 'new'),
+            department_id=data.get('department_id'),
+            id_document_filepath=data.get('id_document_filepath', '') # Require this or a placeholder
+        )
+
+        db.session.add(new_candidate)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Candidate created successfully',
+            'candidate_id': new_candidate.id
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ------------------------------------------------------------
+# UPDATE A CANDIDATE
+# ------------------------------------------------------------
+@api_candidate_bp.route('/<int:id>', methods=['PUT'])
+@mobile_auth_required
+def update_candidate(id):
+    try:
+        current_user = getattr(request, "user", None)
+        if current_user.role.lower() not in ['it_manager', 'general_director', 'manager']:
+            return jsonify({'success': False, 'message': 'Permission denied'}), 403
+
+        c = Candidate.query.get_or_404(id)
+        data = request.json
+
+        if 'full_name' in data: c.full_name = data['full_name']
+        if 'email' in data: c.email = data['email']
+        if 'phone' in data: c.phone = data['phone']
+        if 'nationality' in data: c.nationality = data['nationality']
+        if 'applied_position' in data: c.applied_position = data['applied_position']
+        if 'specialty' in data: c.specialty = data['specialty']
+        if 'experience' in data: c.experience = data['experience']
+        if 'education' in data: c.education = data['education']
+        if 'skills' in data: c.skills = data['skills']
+        if 'status' in data: c.status = data['status']
+        if 'department_id' in data: c.department_id = data['department_id']
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Candidate updated successfully'
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ------------------------------------------------------------
+# DELETE A CANDIDATE
+# ------------------------------------------------------------
+@api_candidate_bp.route('/<int:id>', methods=['DELETE'])
+@mobile_auth_required
+def delete_candidate(id):
+    try:
+        current_user = getattr(request, "user", None)
+        if current_user.role.lower() not in ['it_manager', 'general_director', 'manager']:
+            return jsonify({'success': False, 'message': 'Permission denied'}), 403
+
+        c = Candidate.query.get_or_404(id)
+        
+        db.session.delete(c)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Candidate deleted successfully'
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @api_candidate_bp.route('/<int:id>/cv', methods=['GET'])
 @mobile_auth_required
 def download_cv(id):

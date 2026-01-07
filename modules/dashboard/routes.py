@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_, func, extract
 from core.decorators import permission_required, role_required
-from core.models import User, Department, ActivityLog, db, UserDocument, Folder, Employee, EmployeeDocument
+from core.models import User, Department, ActivityLog, db, UserDocument, Folder, Employee, EmployeeDocument, EmployeeRequest
 from core.permissions import Permission
 from core.forms import UserForm
 from .services import get_director_dashboard_data, get_manager_dashboard_data
@@ -498,3 +498,52 @@ def create_user():
 
     # If GET request or validation failed, render the form again
     return render_template('dashboard/create_user.html', form=form)
+
+# ------------------------
+# Manager Requests
+# ------------------------
+@dashboard_bp.route('/requests')
+@login_required
+@role_required(['it_manager', 'general_director', 'general_manager', 'head_of_department', 'manager'])
+def request_list():
+    # Fetch all requests, ordered by newest first
+    requests = EmployeeRequest.query.order_by(
+        # Put pending first, then by date
+        (EmployeeRequest.status == 'pending').desc(),
+        EmployeeRequest.created_at.desc()
+    ).all()
+    
+    return render_template('dashboard/requests.html', requests=requests)
+
+
+@dashboard_bp.route('/requests/<int:id>/update', methods=['POST'])
+@login_required
+@role_required(['it_manager', 'general_director', 'general_manager', 'head_of_department', 'manager'])
+def request_update(id):
+    req = EmployeeRequest.query.get_or_404(id)
+    
+    status = request.form.get('status')
+    response = request.form.get('response')
+    
+    if status:
+        req.status = status
+    if response:
+        req.response = response
+        
+    try:
+        req.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        # Log the action
+        audit_log(
+            f'Updated request #{req.id} status to {req.status}',
+            user_id=current_user.id,
+            action='update_request'
+        )
+        
+        flash('Request updated successfully', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating request: {str(e)}', 'danger')
+        
+    return redirect(url_for('dashboard.request_list'))

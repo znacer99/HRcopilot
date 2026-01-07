@@ -5,11 +5,14 @@ import {
   ScrollView,
   RefreshControl,
   StyleSheet,
+  StatusBar,
+  TouchableOpacity,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
+import { Colors, Spacing, Radius, Shadow, Typography } from "../styles/theme";
+import styles from "../styles/styles";
 import apiService from "../api/apiService";
-import Card from "../components/Card";
 import LoadingIndicator from "../components/LoadingIndicator";
 import ErrorMessage from "../components/ErrorMessage";
 
@@ -39,15 +42,10 @@ export default function HomeScreen({ user, onLogout }) {
 
   function deriveAppRole(userRole = "") {
     const r = userRole.toLowerCase();
-  
     if (r.includes("it_manager")) return "admin";
-    if (r.includes("manager") || r.includes("director") || r.includes("ceo")) {
-      return "manager";
-    }
+    if (r.includes("manager") || r.includes("director") || r.includes("ceo")) return "manager";
     return "employee";
   }
-  
-  
 
   useEffect(() => {
     loadStats();
@@ -58,127 +56,138 @@ export default function HomeScreen({ user, onLogout }) {
     loadStats();
   };
 
-  if (loading) return <LoadingIndicator text="Loading dashboard..." />;
+  if (loading) return <LoadingIndicator text="Loading enterprise data..." />;
 
   return (
-    <ScrollView
-      style={localStyles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-      contentContainerStyle={{ paddingBottom: 20 }}
-    >
-      <View style={localStyles.header}>
-        <View style={localStyles.headerRow}>
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" />
+
+      <View style={styles.screenHeader}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View>
-            <Text style={localStyles.title}>Dashboard</Text>
-            <Text style={localStyles.subtitle}>Overview</Text>
+            <Text style={styles.screenTitle}>Portal</Text>
+            <Text style={styles.screenSubtitle}>System Overview</Text>
           </View>
-          <Ionicons
-            name="log-out-outline"
-            size={24}
-            color="#374151"
-            onPress={onLogout}
-          />
+          <TouchableOpacity onPress={onLogout} style={localStyles.headerAction}>
+            <Ionicons name="power-outline" size={24} color={Colors.error} />
+          </TouchableOpacity>
         </View>
       </View>
 
-      {error ? (
-        <ErrorMessage message={error} onRetry={loadStats} />
-      ) : (
-        <View style={localStyles.statsGrid}>
-          {/* ADMIN */}
-          {appRole === "admin" && (
-            <>
-              <StatCard icon="people" color="#2563eb" label="Employees" value={stats?.employees ?? 0} />
-              <StatCard icon="person-add" color="#7c3aed" label="Candidates" value={stats?.candidates ?? 0} />
-              <StatCard icon="business" color="#0284c7" label="Departments" value={stats?.departments ?? 0} />
-              <StatCard icon="pulse" color="#059669" label="System Activity" value="—" />
-            </>
-          )}
+      <ScrollView
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        contentContainerStyle={{ paddingBottom: Spacing.xl }}
+      >
+        {error ? (
+          <ErrorMessage message={error} onRetry={loadStats} />
+        ) : (
+          <View style={localStyles.statsGrid}>
+            {/* BRAND GREETING */}
+            <View style={localStyles.welcomeCard}>
+              <Text style={localStyles.welcomeUser}>Welcome, {user?.name?.split(' ')[0]}</Text>
+              <Text style={localStyles.welcomeDate}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
+            </View>
 
-          {/* MANAGER */}
-          {appRole === "manager" && (
-            <>
-              <StatCard icon="people" color="#2563eb" label="Employees" value={stats?.employees ?? 0} />
-              <StatCard icon="person-add" color="#7c3aed" label="Candidates" value={stats?.candidates ?? 0} />
-              <StatCard icon="document-text" color="#d97706" label="Pending Leaves" value={stats?.pending_leaves ?? 0} />
-              <StatCard icon="time" color="#059669" label="Recent Activity" value="—" />
-            </>
-          )}
+            {/* STATS TILES */}
+            <View style={localStyles.tilesRow}>
+              {appRole === "admin" && (
+                <>
+                  <StatTile color={Colors.accent} label="Employees" value={stats?.employees ?? 0} />
+                  <StatTile color={Colors.accent} label="Candidates" value={stats?.candidates ?? 0} />
+                  <StatTile color={Colors.accent} label="Departments" value={stats?.departments ?? 0} />
+                  <StatTile color={Colors.accent} label="Status" value="Live" />
+                </>
+              )}
 
-          {/* EMPLOYEE */}
-          {appRole === "employee" && (
-            <>
-              <StatCard icon="person" color="#2563eb" label="My Role" value={user?.role ?? "—"} />
-              <StatCard icon="calendar" color="#d97706" label="Leave Balance" value="—" />
-              <StatCard icon="folder" color="#0284c7" label="My Documents" value="—" />
-            </>
-          )}
-        </View>
-      )}
-    </ScrollView>
+              {appRole === "manager" && (
+                <>
+                  <StatTile color={Colors.accent} label="Team" value={stats?.employees ?? 0} />
+                  <StatTile color={Colors.accent} label="Candidates" value={stats?.candidates ?? 0} />
+                  <StatTile color={Colors.accent} label="Requests" value={stats?.pending_leaves ?? 0} />
+                  <StatTile color={Colors.accent} label="Operations" value="Active" />
+                </>
+              )}
+
+              {appRole === "employee" && (
+                <>
+                  <StatTile color={Colors.accent} label="Role" value={user?.role?.substring(0, 10).toUpperCase() ?? "STAFF"} />
+                  <StatTile color={Colors.accent} label="Active" value="—" />
+                  <StatTile color={Colors.accent} label="Documents" value="—" />
+                  <StatTile color={Colors.accent} label="Notifications" value="0" />
+                </>
+              )}
+            </View>
+          </View>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
-function StatCard({ icon, color, label, value }) {
+function StatTile({ color, label, value }) {
   return (
-    <Card style={localStyles.cardItem}>
-      <View style={[localStyles.iconBox, { backgroundColor: `${color}22` }]}>
-        <Ionicons name={icon} size={26} color={color} />
+    <View style={localStyles.tile}>
+      <View style={localStyles.tileContainer}>
+        <Text style={localStyles.tileLabel}>{label}</Text>
+        <Text style={localStyles.tileValue}>{value}</Text>
       </View>
-      <Text style={localStyles.statNumber}>{value}</Text>
-      <Text style={localStyles.statLabel}>{label}</Text>
-    </Card>
+    </View>
   );
 }
 
 const localStyles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
-
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+  headerAction: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-
-  title: { fontSize: 24, fontWeight: "700", color: "#1f2937" },
-  subtitle: { color: "#6b7280", marginTop: 2 },
-
   statsGrid: {
-    padding: 16,
-    gap: 14,
+    padding: Spacing.lg,
   },
-  cardItem: {
-    alignItems: "center",
-    padding: 18,
+  welcomeCard: {
+    marginBottom: Spacing.xl,
   },
-
-  iconBox: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 8,
+  welcomeUser: {
+    ...Typography.h2,
+    fontSize: 24,
   },
-
-  statNumber: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#1f2937",
-    marginBottom: 3,
+  welcomeDate: {
+    ...Typography.body,
+    color: Colors.textSecondary,
+    marginTop: 2,
   },
-  statLabel: {
-    fontSize: 12,
-    color: "#6b7280",
-    fontWeight: "500",
+  tilesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -Spacing.sm,
+  },
+  tile: {
+    width: '50%',
+    padding: Spacing.sm,
+  },
+  tileContainer: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    ...Shadow.subtle,
+  },
+  tileLabel: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+  },
+  tileValue: {
+    ...Typography.h2,
+    fontSize: 20,
+    marginBottom: 2,
+  },
+  tileLabel: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
   },
 });

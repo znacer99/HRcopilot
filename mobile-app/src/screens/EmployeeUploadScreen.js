@@ -1,4 +1,3 @@
-// src/screens/EmployeeUploadScreen.js
 import React, { useState } from "react";
 import {
   View,
@@ -9,11 +8,17 @@ import {
   ScrollView,
   TextInput,
   Alert,
+  Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import * as DocumentPicker from "expo-document-picker";
 import { Ionicons } from "@expo/vector-icons";
 import apiService from "../api/apiService";
 
+/**
+ * Employee Upload Screen - Premium Redesign
+ * Modern document upload interface with clear feedback and file selection
+ */
 export default function EmployeeUploadScreen({ route, navigation }) {
   const { employee } = route.params;
 
@@ -23,23 +28,27 @@ export default function EmployeeUploadScreen({ route, navigation }) {
   const [uploading, setUploading] = useState(false);
 
   const pickFile = async () => {
-    const result = await DocumentPicker.getDocumentAsync({
-      copyToCacheDirectory: true,
-    });
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        copyToCacheDirectory: true,
+      });
 
-    if (!result.canceled) {
-      setFile(result.assets[0]);
+      if (!result.canceled) {
+        setFile(result.assets[0]);
+      }
+    } catch (err) {
+      Alert.alert("Picker Error", "Could not open document picker.");
     }
   };
 
   const uploadNow = async () => {
     if (!file) {
-      Alert.alert("Missing file", "Please choose a file to upload.");
+      Alert.alert("Attachment Required", "Please select a document to upload.");
       return;
     }
 
     if (!title.trim()) {
-      Alert.alert("Missing title", "Document title is required.");
+      Alert.alert("Missing Metadata", "Please provide a title for this document.");
       return;
     }
 
@@ -57,82 +66,120 @@ export default function EmployeeUploadScreen({ route, navigation }) {
       form.append("title", title);
       form.append("description", description);
 
-      console.log("📤 STARTING UPLOAD to /api/employees/" + employee.id + "/upload");
       const res = await apiService.uploadEmployeeDocuments(employee.id, form);
-      console.log("📥 UPLOAD RESPONSE:", res);
 
       if (!res?.success) {
         throw new Error(res?.message || "Upload failed");
       }
 
-      Alert.alert("Success", "Document uploaded successfully.");
-
-      navigation.goBack();
+      Alert.alert("Success", "Document archived successfully.", [
+        { text: "Done", onPress: () => navigation.goBack() }
+      ]);
     } catch (err) {
       console.error("Upload error:", err);
-      Alert.alert("Upload error", "Failed to upload document.");
+      Alert.alert("Upload Failure", "We encountered an issue while saving the document.");
     } finally {
       setUploading(false);
     }
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Upload Document</Text>
-      <Text style={styles.subtitle}>{employee.full_name}</Text>
+    <View style={styles.container}>
+      <SafeAreaView style={styles.headerSafeArea} edges={['top']}>
+        <View style={styles.topNav}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navIconBtn}>
+            <Ionicons name="close-outline" size={28} color="#1e293b" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Add Document</Text>
+          <View style={{ width: 44 }} />
+        </View>
+      </SafeAreaView>
 
-      <View style={styles.card}>
-        {/* TITLE */}
-        <Text style={styles.label}>Document Title *</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. Work Contract – 2024"
-          value={title}
-          onChangeText={setTitle}
-        />
-
-        {/* DESCRIPTION */}
-        <Text style={styles.label}>Description</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          placeholder="Optional description"
-          value={description}
-          onChangeText={setDescription}
-          multiline
-        />
-
-        {/* FILE PICKER */}
-        <TouchableOpacity style={styles.pickButton} onPress={pickFile}>
-          <Ionicons name="document-outline" size={20} color="#fff" />
-          <Text style={styles.pickButtonText}>
-            {file ? "Change File" : "Choose File"}
-          </Text>
-        </TouchableOpacity>
-
-        {file && (
-          <View style={styles.fileInfo}>
-            <Ionicons name="document-text-outline" size={18} color="#2563eb" />
-            <Text style={styles.fileName}>{file.name}</Text>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.heroBlock}>
+          <View style={styles.employeeCircle}>
+            <Ionicons name="person" size={24} color="#2563eb" />
           </View>
-        )}
+          <Text style={styles.heroTitle}>{employee.full_name}</Text>
+          <Text style={styles.heroSubtitle}>Record # {employee.id}</Text>
+        </View>
 
-        {/* UPLOAD */}
-        <TouchableOpacity
-          style={[styles.uploadButton, uploading && styles.disabled]}
-          disabled={uploading}
-          onPress={uploadNow}
-        >
-          {uploading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
-              <Text style={styles.uploadButtonText}>Upload</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+        <View style={styles.uploadCard}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardIconBox}>
+              <Ionicons name="cloud-upload" size={20} color="#2563eb" />
+            </View>
+            <Text style={styles.cardTitle}>Digital Archive</Text>
+          </View>
+
+          {/* TITLE */}
+          <View style={styles.field}>
+            <Text style={styles.label}>Document Label *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. Identity Card, Contract"
+              placeholderTextColor="#94a3b8"
+              value={title}
+              onChangeText={setTitle}
+            />
+          </View>
+
+          {/* DESCRIPTION */}
+          <View style={styles.field}>
+            <Text style={styles.label}>Detailed Description</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="Additional context about this file..."
+              placeholderTextColor="#94a3b8"
+              value={description}
+              onChangeText={setDescription}
+              multiline
+            />
+          </View>
+
+          {/* FILE PICKER UI */}
+          <View style={styles.pickerSection}>
+            <Text style={styles.label}>Attachment</Text>
+            {file ? (
+              <View style={styles.fileSelectedBox}>
+                <View style={styles.fileInfoMain}>
+                  <Ionicons name="document-text" size={24} color="#3b82f6" />
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={styles.fileName} numberOfLines={1}>{file.name}</Text>
+                    <Text style={styles.fileSize}>{(file.size / 1024).toFixed(1)} KB</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setFile(null)}>
+                    <Ionicons name="trash-outline" size={20} color="#f87171" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.pickZone} onPress={pickFile}>
+                <Ionicons name="attach" size={32} color="#94a3b8" />
+                <Text style={styles.pickZoneText}>Tap to select a file</Text>
+                <Text style={styles.pickZoneSub}>PDF, Images, or Documents</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* UPLOAD BUTTON */}
+          <TouchableOpacity
+            style={[styles.uploadButton, (!file || uploading) && styles.disabled]}
+            disabled={!file || uploading}
+            onPress={uploadNow}
+          >
+            {uploading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.uploadButtonText}>Securely Upload</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -140,73 +187,171 @@ export default function EmployeeUploadScreen({ route, navigation }) {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    paddingTop: 40,
-    backgroundColor: "#f5f7fa",
+    flex: 1,
+    backgroundColor: "#f8fafc",
   },
-
-  title: { fontSize: 22, fontWeight: "700", textAlign: "center" },
-  subtitle: {
-    textAlign: "center",
-    fontSize: 14,
-    color: "#6b7280",
+  headerSafeArea: {
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  topNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  navIconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  scrollContent: {
+    padding: 24,
+    paddingBottom: 40,
+  },
+  heroBlock: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  employeeCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#eff6ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  heroTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  heroSubtitle: {
+    fontSize: 13,
+    color: '#64748b',
+    marginTop: 2,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  uploadCard: {
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  cardIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#eff6ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  field: {
     marginBottom: 20,
   },
-
-  card: {
-    backgroundColor: "#fff",
-    padding: 20,
-    borderRadius: 12,
-  },
-
   label: {
-    color: "#6b7280",
-    fontWeight: "600",
-    marginBottom: 6,
-    marginTop: 12,
+    color: "#64748b",
+    fontWeight: "700",
+    fontSize: 12,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-
   input: {
+    backgroundColor: "#f8fafc",
     borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    padding: 10,
-    backgroundColor: "#fff",
+    borderColor: "#e2e8f0",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 14,
+    fontSize: 15,
+    color: '#1e293b',
+    fontWeight: '500',
   },
-
   textArea: {
-    minHeight: 70,
+    minHeight: 100,
     textAlignVertical: "top",
   },
-
-  pickButton: {
-    marginTop: 16,
-    backgroundColor: "#2563eb",
-    padding: 12,
-    borderRadius: 10,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
+  pickerSection: {
+    marginBottom: 24,
   },
-  pickButtonText: { color: "#fff", marginLeft: 10, fontSize: 16 },
-
-  fileInfo: {
-    marginTop: 10,
-    flexDirection: "row",
-    alignItems: "center",
+  pickZone: {
+    backgroundColor: '#f1f5f9',
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+    borderStyle: 'dashed',
+    borderRadius: 20,
+    paddingVertical: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  fileName: { marginLeft: 8, color: "#111" },
-
+  pickZoneText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#475569',
+    marginTop: 8,
+  },
+  pickZoneSub: {
+    fontSize: 13,
+    color: '#94a3b8',
+    marginTop: 2,
+  },
+  fileSelectedBox: {
+    backgroundColor: '#eff6ff',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+  },
+  fileInfoMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  fileName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  fileSize: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 2,
+  },
   uploadButton: {
-    marginTop: 24,
-    backgroundColor: "#16a34a",
-    padding: 14,
-    borderRadius: 10,
-    flexDirection: "row",
-    justifyContent: "center",
+    backgroundColor: "#0f172a",
+    padding: 16,
+    borderRadius: 20,
     alignItems: "center",
   },
-  uploadButtonText: { color: "#fff", marginLeft: 10, fontSize: 16 },
-
-  disabled: { opacity: 0.5 },
+  uploadButtonText: { color: "#fff", fontWeight: "800", fontSize: 16 },
+  disabled: { opacity: 0.6 },
 });

@@ -13,9 +13,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 
 import Card from "../components/Card";
-import apiService from "../api/apiService";
-
-const BASE_URL = "http://102.213.182.101:5000";
+import apiService, { BASE_URL } from "../api/apiService";
 
 export default function DocumentsScreen({ user, navigation }) {
   const [loading, setLoading] = useState(false);

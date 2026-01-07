@@ -34,7 +34,8 @@ def get_employees():
                     'name': emp.department.name
                 } if emp.department else None,
                 'country': emp.country,
-                'nationality': emp.nationality
+                'nationality': emp.nationality,
+                'role': emp.user.role if emp.user else 'employee'  # Default to employee if no user account
             } for emp in employees]
         }), 200
 

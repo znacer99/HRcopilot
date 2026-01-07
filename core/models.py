@@ -7,6 +7,25 @@ from flask import current_app
 
 ph = PasswordHasher()
 
+# -------------------- EMPLOYEE REQUEST --------------------
+class EmployeeRequest(db.Model):
+    __tablename__ = 'employee_requests'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    category = db.Column(db.String(50), nullable=False)
+    subject = db.Column(db.String(255), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), default='pending')
+    response = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = db.relationship('User', back_populates='employee_requests')
+
+    def __repr__(self):
+        return f"<EmployeeRequest {self.id} - {self.subject} ({self.status})>"
+
 # -------------------- USER --------------------
 class User(db.Model, UserMixin):
     __tablename__ = 'users'
@@ -31,6 +50,7 @@ class User(db.Model, UserMixin):
     activities = db.relationship('ActivityLog', back_populates='user', cascade="all, delete-orphan")
     leave_requests = db.relationship('LeaveRequest', back_populates='requester', foreign_keys='LeaveRequest.user_id')
     approved_requests = db.relationship('LeaveRequest', back_populates='approver', foreign_keys='LeaveRequest.approver_id')
+    employee_requests = db.relationship('EmployeeRequest', back_populates='user', lazy='dynamic')
 
 
     def set_password(self, password):

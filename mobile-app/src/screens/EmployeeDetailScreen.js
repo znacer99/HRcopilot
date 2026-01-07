@@ -1,4 +1,3 @@
-// src/screens/EmployeeDetailScreen.js
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -8,15 +7,22 @@ import {
   TouchableOpacity,
   Linking,
   Alert,
+  Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { SafeAreaView } from "react-native-safe-area-context";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
-import apiService from "../api/apiService";
+import apiService, { BASE_URL } from "../api/apiService";
 import { getPermissions } from "../utils/permissions";
 
-const BASE_URL = "http://102.213.182.101:5000";
+const { width } = Dimensions.get('window');
 
+/**
+ * Employee Detail Screen - Premium Redesign
+ * Features a hero header and organized information modules
+ */
 export default function EmployeeDetailScreen({ route, navigation }) {
   const { employee, user } = route.params || {};
 
@@ -141,7 +147,8 @@ export default function EmployeeDetailScreen({ route, navigation }) {
   if (loading) {
     return (
       <View style={styles.center}>
-        <Text>Loading employee...</Text>
+        <ActivityIndicator size="large" color="#2563eb" />
+        <Text style={styles.loadingText}>Loading Profile...</Text>
       </View>
     );
   }
@@ -149,210 +156,464 @@ export default function EmployeeDetailScreen({ route, navigation }) {
   if (!data) {
     return (
       <View style={styles.center}>
-        <Text style={styles.error}>No employee data found.</Text>
+        <Ionicons name="alert-circle-outline" size={64} color="#f87171" />
+        <Text style={styles.errorText}>No employee data found.</Text>
+        <TouchableOpacity style={styles.retryBtn} onPress={() => navigation.goBack()}>
+          <Text style={styles.retryText}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
+  const getInitials = (name) => {
+    return name
+      ? name.split(" ").map((n) => n[0]).join("").toUpperCase().substring(0, 2)
+      : "??";
+  };
+
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={{ paddingBottom: 60 }}>
-      {/* HEADER */}
-      <View style={styles.headerCard}>
-        <View style={styles.avatar}>
-          <Ionicons name="person" size={38} color="#2563eb" />
+    <View style={styles.container}>
+      <SafeAreaView style={styles.headerSafeArea} edges={['top']}>
+        <View style={styles.topNav}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navIconBtn}>
+            <Ionicons name="arrow-back" size={24} color="#1e293b" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Profile Details</Text>
+          {canEditEmployee ? (
+            <TouchableOpacity
+              onPress={() => navigation.navigate("EmployeeEdit", { employee: data })}
+              style={styles.navIconBtn}
+            >
+              <Ionicons name="create-outline" size={24} color="#2563eb" />
+            </TouchableOpacity>
+          ) : <View style={{ width: 44 }} />}
+        </View>
+      </SafeAreaView>
+
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={{ paddingBottom: 60 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* HERO SECTION */}
+        <View style={styles.heroSection}>
+          <View style={styles.avatarLarge}>
+            <Text style={styles.avatarLargeText}>{getInitials(data.full_name)}</Text>
+          </View>
+          <Text style={styles.heroName}>{data.full_name}</Text>
+          <Text style={styles.heroRole}>{data.job_title || "Team Member"}</Text>
+          <View style={styles.heroBadge}>
+            <Ionicons name="business" size={14} color="#2563eb" style={{ marginRight: 6 }} />
+            <Text style={styles.heroDept}>{data.department?.name || "Unassigned"}</Text>
+          </View>
         </View>
 
-        <View style={{ flex: 1 }}>
-          <View style={styles.headerRow}>
-            <Text style={styles.name}>{data.full_name}</Text>
+        {/* INFO MODULES */}
+        <View style={styles.modulesContainer}>
+          <InfoCard title="Job Details" icon="briefcase" color="#3b82f6">
+            <Info label="Current Role" value={data.job_title} icon="star-outline" />
+            <Info label="Organization Unit" value={data.department?.name} icon="layers-outline" />
+            <Info label="Nationality" value={data.nationality} icon="flag-outline" />
+          </InfoCard>
 
-            {canEditEmployee && (
+          <InfoCard title="Contact Channels" icon="call" color="#10b981">
+            <Info label="Primary Phone" value={data.phone} icon="phone-portrait-outline" isLink onPress={() => Linking.openURL(`tel:${data.phone}`)} />
+            <Info label="Region" value={data.country} icon="earth-outline" />
+            <Info label="State/Province" value={data.state} icon="map-outline" />
+          </InfoCard>
+
+          <InfoCard title="Identity & Legal" icon="id-card" color="#7c3aed">
+            <Info label="Social ID / Passport" value={data.id_number} icon="barcode-outline" />
+            <Info label="Date of Birth" value={data.birth_date?.substring(0, 10)} icon="calendar-outline" />
+          </InfoCard>
+
+          <InfoCard title="Address Directory" icon="home" color="#f59e0b">
+            <Info label="Residence" value={data.actual_address} icon="location-outline" multiline />
+            <Info label="Origin Address" value={data.mother_country_address} icon="airplane-outline" multiline />
+          </InfoCard>
+
+          {/* DOCUMENTS SECTION */}
+          <View style={styles.documentSet}>
+            <View style={styles.cardHeader}>
+              <View style={[styles.cardIconBox, { backgroundColor: '#eff6ff' }]}>
+                <Ionicons name="folder-open" size={20} color="#2563eb" />
+              </View>
+              <Text style={styles.cardTitle}>Document Vault</Text>
+            </View>
+
+            {data.documents?.length ? (
+              data.documents.map((doc) => (
+                <View key={doc.id} style={styles.docItem}>
+                  <TouchableOpacity
+                    style={styles.docMain}
+                    onPress={() => openDocument(doc)}
+                  >
+                    <View style={styles.fileIconBox}>
+                      <Ionicons name="document-text" size={24} color="#3b82f6" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.docTitle} numberOfLines={1}>{doc.filename}</Text>
+                      <Text style={styles.docMeta}>
+                        {doc.document_type || "File"} • {doc.visibility_type || "Private"}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {canUploadDocs && (
+                    <TouchableOpacity onPress={() => confirmDelete(doc)} style={styles.docDelete}>
+                      <Ionicons name="trash-outline" size={20} color="#f87171" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyDocs}>
+                <Ionicons name="cloud-offline-outline" size={32} color="#d1d5db" />
+                <Text style={styles.emptyDocsText}>No digital documents found</Text>
+              </View>
+            )}
+
+            {canUploadDocs && (
               <TouchableOpacity
-                style={styles.editButton}
-                onPress={() => navigation.navigate("EmployeeEdit", { employee: data })}
+                style={styles.uploadBtn}
+                onPress={() => navigation.navigate("EmployeeUpload", { employee: data })}
               >
-                <Ionicons name="create-outline" size={14} color="#2563eb" />
-                <Text style={styles.editText}>Edit</Text>
+                <Ionicons name="cloud-upload-outline" size={20} color="white" />
+                <Text style={styles.uploadBtnText}>Add Document</Text>
               </TouchableOpacity>
             )}
           </View>
 
-          <Text style={styles.nationality}>
-            {data.nationality || "Nationality not provided"}
-          </Text>
-        </View>
-      </View>
-
-      {/* INFO SECTIONS */}
-      <InfoCard title="Job Information" icon="briefcase-outline">
-        <Info label="Job Title" value={data.job_title} />
-        <Info label="Department" value={data.department?.name} />
-      </InfoCard>
-
-      <InfoCard title="Contact Details" icon="call-outline">
-        <Info label="Phone" value={data.phone} />
-        <Info label="Country" value={data.country} />
-        <Info label="State" value={data.state} />
-      </InfoCard>
-
-      <InfoCard title="Addresses" icon="home-outline">
-        <Info label="Actual Address" value={data.actual_address} />
-        <Info label="Mother Country Address" value={data.mother_country_address} />
-      </InfoCard>
-
-      <InfoCard title="Identity" icon="id-card-outline">
-        <Info label="ID Number" value={data.id_number} />
-        <Info label="Birth Date" value={data.birth_date?.substring(0, 10)} />
-      </InfoCard>
-
-      {/* DOCUMENTS */}
-      <View style={styles.card}>
-        <SectionTitle icon="folder-open-outline" title="Documents" />
-
-        {data.documents?.length ? (
-          data.documents.map((doc) => (
-            <View key={doc.id} style={styles.docItem}>
+          {/* DANGER ZONE */}
+          {route.params?.manage && (
+            <View style={styles.dangerZone}>
               <TouchableOpacity
-                style={{ flex: 1, flexDirection: "row" }}
-                onPress={() => openDocument(doc)}
+                style={styles.deleteRecordBtn}
+                onPress={() => {
+                  Alert.alert(
+                    "Remove Employee Record",
+                    `This will permanently remove ${data.full_name} from the system.`,
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Delete Record",
+                        style: "destructive",
+                        onPress: async () => {
+                          try {
+                            const res = await apiService.deleteEmployee(data.id);
+                            if (res.success) {
+                              Alert.alert("Success", "Record removed.");
+                              navigation.goBack();
+                            }
+                          } catch (err) {
+                            Alert.alert("Error", "Failed to remove record.");
+                          }
+                        }
+                      }
+                    ]
+                  );
+                }}
               >
-                <Ionicons
-                  name="document-text-outline"
-                  size={20}
-                  color="#2563eb"
-                  style={{ marginRight: 10 }}
-                />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.docTitle}>{doc.filename}</Text>
-                  <Text style={styles.docDescription}>
-                    {doc.document_type || "document"} • {doc.visibility_type || "private"}
-                  </Text>
-                </View>
+                <Ionicons name="trash-bin-outline" size={20} color="white" />
+                <Text style={styles.deleteRecordText}>Archive Employee Record</Text>
               </TouchableOpacity>
-
-              {canUploadDocs && (
-                <TouchableOpacity onPress={() => confirmDelete(doc)} style={{ paddingLeft: 10 }}>
-                  <Ionicons name="trash-outline" size={18} color="red" />
-                </TouchableOpacity>
-              )}
             </View>
-          ))
-        ) : (
-          <Text style={styles.value}>No documents uploaded</Text>
-        )}
-
-        {canUploadDocs && (
-          <TouchableOpacity
-            style={styles.uploadButton}
-            onPress={() => navigation.navigate("EmployeeUpload", { employee: data })}
-          >
-            <Ionicons name="cloud-upload-outline" size={18} color="#2563eb" />
-            <Text style={styles.uploadText}>Upload Document</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </ScrollView>
+          )}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 /* ---------- HELPERS ---------- */
 
-function InfoCard({ title, icon, children }) {
+function InfoCard({ title, icon, color, children }) {
   return (
-    <View style={styles.card}>
-      <SectionTitle icon={icon} title={title} />
-      {children}
+    <View style={styles.infoCard}>
+      <View style={styles.cardHeader}>
+        <View style={[styles.cardIconBox, { backgroundColor: `${color}15` }]}>
+          <Ionicons name={icon} size={20} color={color} />
+        </View>
+        <Text style={styles.cardTitle}>{title}</Text>
+      </View>
+      <View style={styles.cardBody}>
+        {children}
+      </View>
     </View>
   );
 }
 
-function SectionTitle({ icon, title }) {
+function Info({ label, value, icon, isLink, onPress, multiline }) {
   return (
-    <View style={styles.sectionHeader}>
-      <Ionicons name={icon} size={18} color="#2563eb" />
-      <Text style={styles.sectionTitle}>{title}</Text>
-    </View>
-  );
-}
-
-function Info({ label, value }) {
-  return (
-    <View style={styles.infoRow}>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={styles.value}>{value || "N/A"}</Text>
-    </View>
+    <TouchableOpacity
+      style={styles.infoRow}
+      disabled={!isLink}
+      onPress={onPress}
+    >
+      <View style={styles.infoIconBox}>
+        <Ionicons name={icon} size={18} color="#94a3b8" />
+      </View>
+      <View style={styles.infoContent}>
+        <Text style={styles.infoLabel}>{label}</Text>
+        <Text
+          style={[
+            styles.infoValue,
+            isLink && styles.linkValue,
+            multiline && { lineHeight: 22 }
+          ]}
+        >
+          {value || "Not Provided"}
+        </Text>
+      </View>
+      {isLink && <Ionicons name="external-link-outline" size={14} color="#2563eb" />}
+    </TouchableOpacity>
   );
 }
 
 /* ---------- STYLES ---------- */
 
 const styles = StyleSheet.create({
-  screen: { backgroundColor: "#f5f7fa" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  error: { color: "red" },
-
-  headerCard: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    padding: 25,
-    margin: 16,
-    borderRadius: 14,
+  container: {
+    flex: 1,
+    backgroundColor: "#f8fafc"
   },
-  avatar: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: "#e8edff",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16,
+  headerSafeArea: {
+    backgroundColor: 'white',
+    // borderBottomWidth: 1,
+    // borderBottomColor: '#f1f5f9',
   },
-  headerRow: { flexDirection: "row", justifyContent: "space-between" },
-  name: { fontSize: 22, fontWeight: "700" },
+  topNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  navIconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  screen: { flex: 1 },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: 'white' },
+  loadingText: { marginTop: 16, color: '#64748b', fontWeight: '500' },
+  errorText: { fontSize: 18, color: "#64748b", marginTop: 20 },
+  retryBtn: { marginTop: 24, paddingHorizontal: 24, paddingVertical: 12, backgroundColor: '#2563eb', borderRadius: 12 },
+  retryText: { color: 'white', fontWeight: '700' },
 
-  editButton: {
-    flexDirection: "row",
-    backgroundColor: "#e0ecff",
-    paddingHorizontal: 10,
+  heroSection: {
+    alignItems: 'center',
+    paddingVertical: 30,
+    backgroundColor: 'white',
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.05,
+    shadowRadius: 20,
+    elevation: 5,
+    marginBottom: 24,
+  },
+  avatarLarge: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: '#eff6ff',
+    borderWidth: 4,
+    borderColor: '#f8fafc',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+  },
+  avatarLargeText: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#2563eb',
+  },
+  heroName: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#0f172a',
+    letterSpacing: -0.5,
+  },
+  heroRole: {
+    fontSize: 16,
+    color: '#64748b',
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  heroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+    marginTop: 12,
   },
-  editText: { marginLeft: 5, color: "#2563eb", fontWeight: "600" },
-
-  nationality: { marginTop: 6, color: "#6b7280" },
-
-  card: {
-    backgroundColor: "#fff",
-    margin: 16,
-    padding: 18,
-    borderRadius: 14,
+  heroDept: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1e293b',
+    textTransform: 'uppercase',
   },
 
-  sectionHeader: { flexDirection: "row", marginBottom: 12, gap: 6 },
-  sectionTitle: { fontSize: 18, fontWeight: "700" },
+  modulesContainer: {
+    paddingHorizontal: 20,
+  },
+  infoCard: {
+    backgroundColor: 'white',
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  cardIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  cardBody: {
+    gap: 16,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  infoIconBox: {
+    width: 18,
+    marginTop: 2,
+    marginRight: 12,
+  },
+  infoContent: {
+    flex: 1,
+  },
+  infoLabel: {
+    fontSize: 12,
+    color: '#94a3b8',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  infoValue: {
+    fontSize: 15,
+    color: '#334155',
+    fontWeight: '600',
+  },
+  linkValue: {
+    color: '#2563eb',
+    textDecorationLine: 'underline',
+  },
 
-  infoRow: { marginBottom: 12 },
-  label: { color: "#6b7280", fontSize: 13, fontWeight: "600" },
-  value: { fontSize: 15, marginTop: 3 },
-
+  documentSet: {
+    backgroundColor: 'white',
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
   docItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderColor: "#f3f4f6",
+    borderBottomColor: '#f8fafc',
   },
-  docTitle: { fontSize: 15, fontWeight: "600", color: "#2563eb" },
-  docDescription: { fontSize: 13, color: "#6b7280", marginTop: 2 },
+  docMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  fileIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  docTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  docMeta: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  docDelete: {
+    padding: 8,
+  },
+  emptyDocs: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  emptyDocsText: {
+    marginTop: 10,
+    color: '#94a3b8',
+    fontSize: 14,
+  },
+  uploadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0f172a',
+    padding: 14,
+    borderRadius: 16,
+    justifyContent: 'center',
+    marginTop: 20,
+    gap: 8,
+  },
+  uploadBtnText: {
+    color: 'white',
+    fontWeight: '700',
+    fontSize: 15,
+  },
 
-  uploadButton: {
-    flexDirection: "row",
-    marginTop: 14,
-    alignItems: "center",
+  dangerZone: {
+    marginTop: 8,
+    marginBottom: 40,
   },
-  uploadText: {
-    marginLeft: 8,
-    color: "#2563eb",
-    fontWeight: "700",
+  deleteRecordBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ef4444',
+    padding: 16,
+    borderRadius: 18,
+    justifyContent: 'center',
+    gap: 10,
+  },
+  deleteRecordText: {
+    color: 'white',
+    fontWeight: '700',
+    fontSize: 16,
   },
 });
