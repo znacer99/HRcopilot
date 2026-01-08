@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Platform } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -14,13 +14,14 @@ import DocumentsScreen from "../screens/DocumentsScreen";
 import DepartmentsStack from "./DepartmentsStack";
 import CandidateListScreen from "../screens/CandidateListScreen";
 
+// Theme
+import { useTheme } from "../context/ThemeContext";
+import { Spacing, Radius, Shadow } from "../styles/theme";
+
 const Tab = createBottomTabNavigator();
 
 /**
  * ROLE DERIVATION
- * IT Manager = Admin
- * Manager/Director/CEO = Manager
- * Everyone else = Employee
  */
 function deriveAppRole(userRole = "") {
   const r = userRole.toLowerCase();
@@ -47,26 +48,38 @@ function TabIcon({ name, focused, color, badge }) {
   );
 }
 
-import { Colors, Spacing, Radius, Shadow, Typography } from "../styles/theme";
-
 export default function TabNavigator({ user, onLogout }) {
+  const { colors } = useTheme();
   const appRole = deriveAppRole(user?.role);
 
-  // Common screen options for beautiful tab bar
   const screenOptions = ({ route }) => ({
     headerShown: false,
-    tabBarActiveTintColor: Colors.accent,
-    tabBarInactiveTintColor: Colors.textSecondary,
-    tabBarStyle: styles.tabBar,
-    tabBarLabelStyle: styles.tabLabel,
-    tabBarIconStyle: styles.tabIcon,
+    tabBarActiveTintColor: colors.accent,
+    tabBarInactiveTintColor: colors.textSecondary,
+    tabBarStyle: {
+      height: Platform.OS === 'ios' ? 88 : 72,
+      paddingTop: 8,
+      paddingBottom: Platform.OS === 'ios' ? 28 : 12,
+      backgroundColor: colors.surface,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      ...Shadow.medium,
+    },
+    tabBarLabelStyle: {
+      fontSize: 10,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginTop: 2,
+    },
+    tabBarIconStyle: {
+      marginTop: 0,
+    },
   });
 
   return (
     <Tab.Navigator screenOptions={screenOptions}>
-      {/* ═══════════════════════════════════════════════════════════════════
-          HOME - All Users
-      ═══════════════════════════════════════════════════════════════════ */}
+      {/* HOME - All Users */}
       <Tab.Screen
         name="Home"
         options={{
@@ -81,10 +94,6 @@ export default function TabNavigator({ user, onLogout }) {
       >
         {(props) => <HomeScreen {...props} user={user} onLogout={onLogout} />}
       </Tab.Screen>
-
-      {/* ═══════════════════════════════════════════════════════════════════
-          ROLE-SPECIFIC MIDDLE TABS
-      ═══════════════════════════════════════════════════════════════════ */}
 
       {/* ADMIN & MANAGER: Show Team/People */}
       {(appRole === "admin" || appRole === "manager") && (
@@ -107,8 +116,9 @@ export default function TabNavigator({ user, onLogout }) {
       {/* EMPLOYEE ONLY: Show Documents directly */}
       {appRole === "employee" && (
         <Tab.Screen
-          name="Docs"
+          name="Documents"
           options={{
+            tabBarLabel: "Docs",
             tabBarIcon: ({ focused, color }) => (
               <TabIcon
                 name={focused ? "document-text" : "document-text-outline"}
@@ -122,9 +132,7 @@ export default function TabNavigator({ user, onLogout }) {
         </Tab.Screen>
       )}
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          REQUESTS - All Users (with badge for managers)
-      ═══════════════════════════════════════════════════════════════════ */}
+      {/* REQUESTS - All Users */}
       <Tab.Screen
         name="Requests"
         options={{
@@ -133,7 +141,6 @@ export default function TabNavigator({ user, onLogout }) {
               name={focused ? "mail" : "mail-outline"}
               focused={focused}
               color={color}
-            // badge={pendingRequests} // Can add badge later
             />
           ),
         }}
@@ -141,13 +148,12 @@ export default function TabNavigator({ user, onLogout }) {
         {(props) => <RequestsScreen {...props} user={user} />}
       </Tab.Screen>
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          ADMIN & MANAGER: More Menu (replaces multiple tabs)
-      ═══════════════════════════════════════════════════════════════════ */}
+      {/* ADMIN & MANAGER: More Menu */}
       {(appRole === "admin" || appRole === "manager") && (
         <Tab.Screen
-          name="Tools"
+          name="Gov"
           options={{
+            tabBarLabel: "Governance",
             tabBarIcon: ({ focused, color }) => (
               <TabIcon
                 name={focused ? "grid" : "grid-outline"}
@@ -161,9 +167,7 @@ export default function TabNavigator({ user, onLogout }) {
         </Tab.Screen>
       )}
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          PROFILE - All Users
-      ═══════════════════════════════════════════════════════════════════ */}
+      {/* PROFILE - All Users */}
       <Tab.Screen
         name="Profile"
         options={{
@@ -179,33 +183,20 @@ export default function TabNavigator({ user, onLogout }) {
         {(props) => <ProfileScreen {...props} onLogout={onLogout} />}
       </Tab.Screen>
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          HIDDEN SCREENS (Accessible from More menu)
-      ═══════════════════════════════════════════════════════════════════ */}
+      {/* HIDDEN SCREENS (Accessible from More menu) */}
       {(appRole === "admin" || appRole === "manager") && (
         <>
           <Tab.Screen
-            name="Staff"
-            component={PeopleStack}
-            initialParams={{ mode: "employees", user }}
-            options={{ tabBarButton: () => null }}
-          />
-          <Tab.Screen
             name="Recruitment"
-            component={CandidateListScreen}
             options={{ tabBarButton: () => null }}
-          />
+          >
+            {(props) => <CandidateListScreen {...props} user={user} />}
+          </Tab.Screen>
           <Tab.Screen
             name="Work"
             options={{ tabBarButton: () => null }}
           >
             {(props) => <WorkScreen {...props} user={user} />}
-          </Tab.Screen>
-          <Tab.Screen
-            name="Docs"
-            options={{ tabBarButton: () => null }}
-          >
-            {(props) => <DocumentsScreen {...props} user={user} />}
           </Tab.Screen>
           <Tab.Screen
             name="Depts"
@@ -220,22 +211,6 @@ export default function TabNavigator({ user, onLogout }) {
 }
 
 const styles = StyleSheet.create({
-  tabBar: {
-    height: 70,
-    paddingTop: 8,
-    paddingBottom: 12,
-    backgroundColor: '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-  },
-  tabLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  tabIcon: {
-    marginTop: 4,
-  },
   iconContainer: {
     position: 'relative',
   },

@@ -1,4 +1,5 @@
 import os
+from typing import Optional, Union, List, Tuple
 import secrets
 from datetime import datetime
 from flask import current_app
@@ -23,7 +24,7 @@ def _generate_access_code():
     return secrets.token_hex(3).upper()
 
 
-def _ensure_folder_dir(employee_id: int, folder_name: str | None) -> str:
+def _ensure_folder_dir(employee_id: int, folder_name: Optional[str]) -> str:
     """
     Ensures the upload folder exists for an employee (with optional subfolder) and returns its path.
     """
@@ -47,8 +48,16 @@ def create_folder_for_employee(employee, folder_name: str):
 # ------------------------
 # Employee Document Handling
 # ------------------------
-def _save_employee_documents(employee, files, folder_name: str | None = None,
-                             visibility_type: str = "private", document_type: str = "additional"):
+def _save_employee_documents(
+    employee,
+    files,
+    folder_name: Optional[str] = None,
+    visibility_type: str = "private",
+    document_type: str = "additional",
+    allowed_users: Optional[str] = None,
+    allowed_roles: Optional[str] = None,
+    allowed_departments: Optional[str] = None
+):
     """
     Save one or multiple documents for an employee under the correct type.
     """

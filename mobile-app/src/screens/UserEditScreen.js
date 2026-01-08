@@ -9,22 +9,46 @@ import {
     ActivityIndicator,
     Alert,
     KeyboardAvoidingView,
-    Platform
+    Platform,
+    StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import apiService from '../api/apiService';
+import { useTheme } from '../context/ThemeContext';
+import { Spacing, Radius, Shadow, Typography } from '../styles/theme';
 import Button from '../components/Button';
 
 /**
- * User Edit Screen - Create or Update a system user
+ * Shared Input Component - Defined outside to prevent focus loss on re-render
+ */
+const InputField = ({ label, value, onChange, placeholder, colors, secure = false, keyboardType = 'default', autoCapitalize = 'sentences' }) => (
+    <View style={sharedStyles.inputContainer}>
+        <Text style={sharedStyles.inputLabel}>{label}</Text>
+        <TextInput
+            style={sharedStyles.input}
+            value={value}
+            onChangeText={onChange}
+            placeholder={placeholder}
+            placeholderTextColor={colors.textSecondary}
+            secureTextEntry={secure}
+            keyboardType={keyboardType}
+            autoCapitalize={autoCapitalize}
+        />
+    </View>
+);
+
+/**
+ * User Edit Screen - HR 2026 Redesign
  */
 export default function UserEditScreen({ navigation, route }) {
+    const { colors, isDarkMode, toggleTheme } = useTheme();
     const { userId } = route.params || {};
     const isEdit = !!userId;
 
     const [loading, setLoading] = useState(isEdit);
     const [saving, setSaving] = useState(false);
+    const [linking, setLinking] = useState(false);
     const [form, setForm] = useState({
         name: '',
         email: '',
@@ -61,7 +85,7 @@ export default function UserEditScreen({ navigation, route }) {
 
     const handleSave = async () => {
         if (!form.name || !form.email || (!isEdit && !form.password)) {
-            Alert.alert("Validation", "Please fill in all required fields (Name, Email, Password)");
+            Alert.alert("Validation", "Required fields: Name, Email, Password");
             return;
         }
 
@@ -69,16 +93,14 @@ export default function UserEditScreen({ navigation, route }) {
         try {
             let response;
             if (isEdit) {
-                // Update
                 response = await apiService.updateUser(userId, form);
             } else {
-                // Create
                 response = await apiService.createUser(form);
             }
 
             if (response.success) {
-                Alert.alert("Success", `User ${isEdit ? 'updated' : 'created'} successfully`, [
-                    { text: "OK", onPress: () => navigation.goBack() }
+                Alert.alert("Success", `Account ${isEdit ? 'updated' : 'provisioned'}!`, [
+                    { text: "Confirm", onPress: () => navigation.goBack() }
                 ]);
             }
         } catch (error) {
@@ -88,268 +110,504 @@ export default function UserEditScreen({ navigation, route }) {
         }
     };
 
+    const handleCreateHRRecord = async () => {
+        setLinking(true);
+        try {
+            const res = await apiService.createEmployeeFromUser(userId);
+            if (res.success) {
+                Alert.alert("Registry Sync", "A new employee record has been generated and linked.");
+                fetchUserDetails();
+            }
+        } catch (e) {
+            Alert.alert("Linkage Failure", e.message);
+        } finally {
+            setLinking(false);
+        }
+    };
+
+    const handleLinkExisting = () => {
+        Alert.prompt(
+            "Link Employee",
+            "Enter the Employee ID code to link this account.",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Link",
+                    onPress: async (empId) => {
+                        if (!empId) return;
+                        setLinking(true);
+                        try {
+                            const res = await apiService.linkUserToEmployee(userId, empId);
+                            if (res.success) {
+                                Alert.alert("Success", "Account linkage established.");
+                                fetchUserDetails();
+                            }
+                        } catch (e) {
+                            Alert.alert("Error", e.message);
+                        } finally {
+                            setLinking(false);
+                        }
+                    }
+                }
+            ],
+            "plain-text"
+        );
+    };
+
+    const handleUnlink = () => {
+        Alert.alert(
+            "Unlink Account",
+            "Are you sure you want to remove the connection to this HR record?",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Remove Link",
+                    style: "destructive",
+                    onPress: async () => {
+                        setLinking(true);
+                        try {
+                            const res = await apiService.unlinkUserFromEmployee(userId);
+                            if (res.success) {
+                                Alert.alert("Success", "Linkage removed.");
+                                fetchUserDetails();
+                            }
+                        } catch (e) {
+                            Alert.alert("Error", e.message);
+                        } finally {
+                            setLinking(false);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const handleSync = async () => {
+        setLinking(true);
+        try {
+            const res = await apiService.syncUserWithEmployee(userId);
+            if (res.success) {
+                Alert.alert("Sync Complete", "Registry data pushed to HR record.");
+                fetchUserDetails();
+            }
+        } catch (e) {
+            Alert.alert("Sync Error", e.message);
+        } finally {
+            setLinking(false);
+        }
+    };
+
     const roles = [
         { label: 'Employee', value: 'employee' },
         { label: 'Manager', value: 'manager' },
-        { label: 'IT Manager', value: 'it_manager' },
-        { label: 'General Director', value: 'general_director' },
-        { label: 'Director', value: 'director' }
+        { label: 'IT Admin', value: 'it_manager' },
+        { label: 'Director', value: 'general_director' }
     ];
+
+    const styles = getStyles(colors);
 
     if (loading) {
         return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#2563eb" />
+            <View style={styles.centerContainer}>
+                <ActivityIndicator size="large" color={colors.accent} />
             </View>
         );
     }
 
+
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
+            <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
+
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color="#111827" />
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
+                    <Ionicons name="close" size={24} color={colors.text} />
                 </TouchableOpacity>
-                <Text style={styles.title}>{isEdit ? 'Edit User' : 'New User'}</Text>
+                <View style={styles.headerTitleBox}>
+                    <Text style={styles.headerTitle}>{isEdit ? "Refine Account" : "Access Provisioning"}</Text>
+                </View>
+                <TouchableOpacity onPress={toggleTheme} style={styles.headerBtn}>
+                    <Ionicons name={isDarkMode ? "sunny" : "moon"} size={22} color={colors.accent} />
+                </TouchableOpacity>
             </View>
 
             <KeyboardAvoidingView
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
                 style={{ flex: 1 }}
             >
-                <ScrollView contentContainerStyle={styles.formContent}>
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
                     <View style={styles.section}>
-                        <Text style={styles.sectionLabel}>Basic Information</Text>
-
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>Full Name *</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={form.name}
-                                onChangeText={(text) => setForm({ ...form, name: text })}
-                                placeholder="John Doe"
-                            />
+                        <View style={styles.sectionHeader}>
+                            <Ionicons name="shield-checkmark-outline" size={18} color={colors.accent} />
+                            <Text style={styles.sectionTitle}>System Credentials</Text>
                         </View>
+                        <InputField label="Profile Name *" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="Ex: Alex Rivera" colors={colors} />
+                        <InputField label="Official Email *" value={form.email} onChange={(v) => setForm({ ...form, email: v.trim() })} placeholder="alex@company.com" keyboardType="email-address" autoCapitalize="none" colors={colors} />
+                        <InputField label={isEdit ? "New Password (Optional)" : "System Password *"} value={form.password} onChange={(v) => setForm({ ...form, password: v.trim() })} placeholder="••••••••" secure autoCapitalize="none" colors={colors} />
+                    </View>
 
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>Email Address *</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={form.email}
-                                onChangeText={(text) => setForm({ ...form, email: text })}
-                                placeholder="john@example.com"
-                                keyboardType="email-address"
-                                autoCapitalize="none"
-                            />
+                    <View style={styles.section}>
+                        <View style={styles.sectionHeader}>
+                            <Ionicons name="options-outline" size={18} color={colors.accent} />
+                            <Text style={styles.sectionTitle}>Access Level</Text>
                         </View>
-
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>
-                                {isEdit ? 'New Password (leave blank to keep current)' : 'Password *'}
-                            </Text>
-                            <TextInput
-                                style={styles.input}
-                                value={form.password}
-                                onChangeText={(text) => setForm({ ...form, password: text })}
-                                placeholder="••••••••"
-                                secureTextEntry
-                            />
+                        <View style={styles.roleGrid}>
+                            {roles.map((r) => (
+                                <TouchableOpacity
+                                    key={r.value}
+                                    style={[styles.roleBtn, form.role === r.value && styles.roleBtnActive]}
+                                    onPress={() => setForm({ ...form, role: r.value })}
+                                >
+                                    <Text style={[styles.roleBtnText, form.role === r.value && styles.roleBtnActiveText]}>{r.label}</Text>
+                                </TouchableOpacity>
+                            ))}
                         </View>
                     </View>
 
                     <View style={styles.section}>
-                        <Text style={styles.sectionLabel}>Roles & Position</Text>
+                        <View style={styles.sectionHeader}>
+                            <Ionicons name="construct-outline" size={18} color={colors.accent} />
+                            <Text style={styles.sectionTitle}>Extended Registry</Text>
+                        </View>
+                        <InputField label="Position Code" value={form.position} onChange={(v) => setForm({ ...form, position: v })} placeholder="Ex: HR-01" colors={colors} />
+                        <InputField label="Security Phone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} placeholder="+1..." keyboardType="phone-pad" colors={colors} />
 
-                        <Text style={styles.inputLabel}>Role</Text>
-                        <View style={styles.rolesRow}>
-                            {roles.map((role) => (
+                        <View style={styles.toggleRow}>
+                            <Text style={styles.statusLabel}>Account Status</Text>
+                            <TouchableOpacity
+                                style={[styles.statusToggle, { backgroundColor: form.is_active ? colors.success : colors.error }]}
+                                onPress={() => setForm({ ...form, is_active: !form.is_active })}
+                            >
+                                <Text style={styles.statusToggleText}>{form.is_active ? "ACTIVE" : "SUSPENDED"}</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+
+                    <View style={styles.section}>
+                        <View style={styles.sectionHeader}>
+                            <Ionicons name="link-outline" size={18} color={colors.accent} />
+                            <Text style={styles.sectionTitle}>HR Record Connectivity</Text>
+                        </View>
+
+                        {form.employee ? (
+                            <View style={styles.linkedBox}>
+                                <View style={styles.linkedInfo}>
+                                    <Text style={styles.linkedLabel}>LINKED RECORD</Text>
+                                    <Text style={styles.linkedName}>{form.employee.full_name}</Text>
+                                    <Text style={styles.linkedId}>Record ID: #{form.employee.id}</Text>
+                                </View>
                                 <TouchableOpacity
-                                    key={role.value}
-                                    style={[
-                                        styles.roleOption,
-                                        form.role === role.value && styles.roleOptionActive
-                                    ]}
-                                    onPress={() => setForm({ ...form, role: role.value })}
+                                    style={styles.viewEmpBtn}
+                                    onPress={() => navigation.navigate('EmployeeDetail', { employeeId: form.employee.id })}
                                 >
-                                    <Text style={[
-                                        styles.roleOptionText,
-                                        form.role === role.value && styles.roleOptionTextActive
-                                    ]}>{role.label}</Text>
+                                    <Text style={styles.viewEmpText}>View Record</Text>
+                                    <Ionicons name="chevron-forward" size={16} color={colors.accent} />
                                 </TouchableOpacity>
-                            ))}
-                        </View>
 
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>Position Title</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={form.position}
-                                onChangeText={(text) => setForm({ ...form, position: text })}
-                                placeholder="Senior Engineer"
-                            />
-                        </View>
+                                <View style={styles.linkActionsOverlay}>
+                                    <TouchableOpacity
+                                        style={[styles.miniActionBtn, { backgroundColor: `${colors.success}15` }]}
+                                        onPress={handleSync}
+                                        disabled={linking}
+                                    >
+                                        <Ionicons name="sync-outline" size={16} color={colors.success} />
+                                        <Text style={[styles.miniActionText, { color: colors.success }]}>Sync</Text>
+                                    </TouchableOpacity>
 
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>Phone Number</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={form.phone}
-                                onChangeText={(text) => setForm({ ...form, phone: text })}
-                                placeholder="+1 234 567 890"
-                                keyboardType="phone-pad"
-                            />
-                        </View>
-
-                        {!isEdit && (
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.inputLabel}>Access Code (Optional)</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={form.access_code}
-                                    onChangeText={(text) => setForm({ ...form, access_code: text })}
-                                    placeholder="Leave blank to auto-generate"
-                                    autoCapitalize="characters"
-                                />
+                                    <TouchableOpacity
+                                        style={[styles.miniActionBtn, { backgroundColor: `${colors.error}15` }]}
+                                        onPress={handleUnlink}
+                                        disabled={linking}
+                                    >
+                                        <Ionicons name="link-outline" size={16} color={colors.error} />
+                                        <Text style={[styles.miniActionText, { color: colors.error }]}>Unlink</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        ) : (
+                            <View style={styles.unlinkedState}>
+                                <Text style={styles.unlinkedText}>This user account is not connected to a physical HR employee record.</Text>
+                                <View style={styles.linkActions}>
+                                    <TouchableOpacity
+                                        style={styles.linkActionBtn}
+                                        onPress={handleCreateHRRecord}
+                                        disabled={linking}
+                                    >
+                                        <Ionicons name="add-circle-outline" size={20} color={colors.accent} />
+                                        <Text style={styles.linkActionText}>Create New Record</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={styles.linkActionBtn}
+                                        onPress={handleLinkExisting}
+                                        disabled={linking}
+                                    >
+                                        <Ionicons name="link-outline" size={20} color={colors.accent} />
+                                        <Text style={styles.linkActionText}>Link Existing</Text>
+                                    </TouchableOpacity>
+                                </View>
                             </View>
                         )}
                     </View>
 
-                    {isEdit && (
-                        <View style={styles.section}>
-                            <Text style={styles.sectionLabel}>Status</Text>
-                            <TouchableOpacity
-                                style={styles.toggleRow}
-                                onPress={() => setForm({ ...form, is_active: !form.is_active })}
-                            >
-                                <Text style={styles.toggleLabel}>Account Active</Text>
-                                <Ionicons
-                                    name={form.is_active ? "toggle" : "toggle-outline"}
-                                    size={32}
-                                    color={form.is_active ? "#10b981" : "#d1d5db"}
-                                />
-                            </TouchableOpacity>
-                        </View>
-                    )}
-
-                    <View style={styles.buttonRow}>
-                        <Button
-                            variant="primary"
-                            title={saving ? "Saving..." : (isEdit ? "Update User" : "Create User")}
-                            onPress={handleSave}
-                            loading={saving}
-                            fullWidth
-                        />
-                    </View>
+                    <Button
+                        variant="primary"
+                        title={saving ? "" : (isEdit ? "Update Registry" : "Provision Access")}
+                        loading={saving}
+                        onPress={handleSave}
+                        style={{ marginTop: 20 }}
+                    />
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
 
-const styles = StyleSheet.create({
+const sharedStyles = {
+    inputContainer: {
+        marginBottom: 16,
+    },
+    inputLabel: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#666', // Fallback, will be overridden by style prop if needed
+        marginBottom: 8,
+    },
+    input: {
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        paddingHorizontal: 14,
+        height: 48,
+        fontSize: 15,
+    },
+};
+
+const getStyles = (colors) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f9fafb',
+        backgroundColor: colors.background,
+    },
+    centerContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: colors.background,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-        backgroundColor: 'white',
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.md,
+        backgroundColor: colors.surface,
         borderBottomWidth: 1,
-        borderBottomColor: '#e5e7eb',
+        borderBottomColor: colors.border,
     },
-    backBtn: {
-        padding: 4,
-        marginRight: 12,
-    },
-    title: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#111827',
-    },
-    loadingContainer: {
-        flex: 1,
+    headerBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: colors.background,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    formContent: {
-        padding: 20,
-        paddingBottom: 100,
+    headerTitleBox: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    headerTitle: {
+        ...Typography.h3,
+        color: colors.text,
+    },
+    scrollContent: {
+        padding: Spacing.lg,
+        paddingBottom: 60,
     },
     section: {
-        marginBottom: 24,
+        backgroundColor: colors.surface,
+        borderRadius: Radius.xl,
+        padding: 20,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: colors.border,
+        ...Shadow.subtle,
     },
-    sectionLabel: {
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 20,
+        gap: 8,
+    },
+    sectionTitle: {
         fontSize: 14,
-        fontWeight: '700',
-        color: '#6b7280',
+        fontWeight: '800',
+        color: colors.text,
         textTransform: 'uppercase',
         letterSpacing: 1,
-        marginBottom: 16,
     },
-    inputGroup: {
+    inputContainer: {
         marginBottom: 16,
     },
     inputLabel: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#374151',
+        fontSize: 12,
+        fontWeight: '700',
+        color: colors.textSecondary,
         marginBottom: 8,
     },
     input: {
-        backgroundColor: 'white',
-        borderWidth: 1,
-        borderColor: '#d1d5db',
+        backgroundColor: colors.background,
         borderRadius: 12,
-        padding: 12,
-        fontSize: 16,
-        color: '#111827',
+        borderWidth: 1,
+        borderColor: colors.border,
+        paddingHorizontal: 14,
+        height: 48,
+        color: colors.text,
+        fontSize: 15,
     },
-    rolesRow: {
+    roleGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 8,
-        marginBottom: 16,
+        gap: 10,
     },
-    roleOption: {
-        paddingHorizontal: 12,
+    roleBtn: {
+        paddingHorizontal: 14,
         paddingVertical: 8,
-        borderRadius: 20,
+        borderRadius: 10,
         borderWidth: 1,
-        borderColor: '#d1d5db',
-        backgroundColor: 'white',
+        borderColor: colors.border,
+        backgroundColor: colors.background,
     },
-    roleOptionActive: {
-        backgroundColor: '#2563eb',
-        borderColor: '#2563eb',
+    roleBtnActive: {
+        borderColor: colors.accent,
+        backgroundColor: `${colors.accent}15`,
     },
-    roleOptionText: {
-        fontSize: 12,
+    roleBtnText: {
+        fontSize: 13,
         fontWeight: '600',
-        color: '#4b5563',
+        color: colors.textSecondary,
     },
-    roleOptionTextActive: {
-        color: 'white',
+    roleBtnActiveText: {
+        color: colors.accent,
+        fontWeight: '700',
     },
     toggleRow: {
         flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 8,
+        paddingTop: 16,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+    },
+    statusLabel: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: colors.text,
+    },
+    statusToggle: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 10,
+        ...Shadow.subtle,
+    },
+    statusToggleText: {
+        color: 'white',
+        fontSize: 11,
+        fontWeight: '900',
+        letterSpacing: 1,
+    },
+    linkedBox: {
+        backgroundColor: colors.background,
+        borderRadius: 12,
+        padding: 16,
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        backgroundColor: 'white',
-        padding: 16,
-        borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#d1d5db',
+        borderColor: colors.border,
     },
-    toggleLabel: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#111827',
+    linkedInfo: {
+        flex: 1,
     },
-    buttonRow: {
-        marginTop: 20,
-        marginBottom: 40,
-    }
+    linkedLabel: {
+        fontSize: 10,
+        fontWeight: '900',
+        color: colors.accent,
+        letterSpacing: 1,
+        marginBottom: 4,
+    },
+    linkedName: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: colors.text,
+    },
+    linkedId: {
+        fontSize: 12,
+        color: colors.textSecondary,
+        marginTop: 2,
+    },
+    viewEmpBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    viewEmpText: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: colors.accent,
+    },
+    unlinkedState: {
+        backgroundColor: colors.background,
+        borderRadius: 12,
+        padding: 16,
+        borderWidth: 1,
+        borderStyle: 'dashed',
+        borderColor: colors.border,
+    },
+    unlinkedText: {
+        fontSize: 13,
+        color: colors.textSecondary,
+        lineHeight: 18,
+        marginBottom: 16,
+    },
+    linkActions: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    linkActionBtn: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: colors.surface,
+        paddingVertical: 10,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: colors.border,
+        gap: 8,
+    },
+    linkActionText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: colors.text,
+    },
+    linkActionsOverlay: {
+        position: 'absolute',
+        top: -45,
+        right: 0,
+        flexDirection: 'row',
+        gap: 8,
+    },
+    miniActionBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 8,
+        gap: 4,
+    },
+    miniActionText: {
+        fontSize: 11,
+        fontWeight: '800',
+        textTransform: 'uppercase',
+    },
 });

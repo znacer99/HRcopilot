@@ -7,15 +7,24 @@ import {
   TouchableOpacity,
   Alert,
   TextInput,
+  ActivityIndicator,
+  StatusBar,
 } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from "@expo/vector-icons";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
+import documentEngine from "../utils/documentEngine";
 
 import Card from "../components/Card";
 import apiService, { BASE_URL } from "../api/apiService";
+import { useTheme } from '../context/ThemeContext';
+import { Spacing, Radius, Shadow, Typography } from '../styles/theme';
+import Button from '../components/Button';
 
-export default function DocumentsScreen({ user, navigation }) {
+export default function DocumentsScreen({ user, route, navigation }) {
+  const { colors, isDarkMode, toggleTheme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [employees, setEmployees] = useState([]);
   const [myEmployee, setMyEmployee] = useState(null);
@@ -47,37 +56,53 @@ export default function DocumentsScreen({ user, navigation }) {
   );
 
   const loadMyDocuments = useCallback(async () => {
-    if (!user?.id) {
-      setMyEmployee(null);
-      setMyDocs([]);
-      return;
-    }
+    const targetEmployeeId = route?.params?.employeeId;
 
     setLoading(true);
     try {
-      const empRes = await apiService.getEmployees();
-      const list = empRes?.success ? empRes.employees || [] : [];
-      setEmployees(list);
+      if (isPrivileged) {
+        // Admins can see "everything" conceptually, but we need to fetch all employees first
+        const empRes = await apiService.getEmployees();
+        const list = empRes?.success ? empRes.employees || [] : [];
+        setEmployees(list);
 
-      const me = findMyEmployee(list);
-      setMyEmployee(me);
+        // If we came from a specific employee profile, show those docs
+        if (targetEmployeeId) {
+          const specificEmp = list.find(e => e.id === targetEmployeeId);
+          setMyEmployee(specificEmp);
+          const docsRes = await apiService.getEmployeeDocuments(targetEmployeeId);
+          setMyDocs(docsRes?.success ? docsRes.documents || [] : []);
+        } else {
+          // Default to self for admin too
+          const me = findMyEmployee(list);
+          setMyEmployee(me);
+          if (me?.id) {
+            const docsRes = await apiService.getEmployeeDocuments(me.id);
+            setMyDocs(docsRes?.success ? docsRes.documents || [] : []);
+          }
+        }
+      } else {
+        // Standard user flow
+        const empRes = await apiService.getEmployees();
+        const list = empRes?.success ? empRes.employees || [] : [];
+        setEmployees(list);
 
-      if (!me?.id) {
-        setMyDocs([]);
-        return;
+        const me = findMyEmployee(list);
+        setMyEmployee(me);
+
+        if (me?.id) {
+          const docsRes = await apiService.getEmployeeDocuments(me.id);
+          setMyDocs(docsRes?.success ? docsRes.documents || [] : []);
+        }
       }
-
-      const docsRes = await apiService.getEmployeeDocuments(me.id);
-      const docs = docsRes?.success ? docsRes.documents || [] : [];
-      setMyDocs(docs);
     } catch (e) {
       console.log("Docs load failed:", e);
-      Alert.alert("Error", "Failed to load your documents.");
+      Alert.alert("Error", "Failed to load dossiers.");
       setMyDocs([]);
     } finally {
       setLoading(false);
     }
-  }, [user?.id, findMyEmployee]);
+  }, [user?.id, findMyEmployee, isPrivileged, route?.params?.employeeId]);
 
   useEffect(() => {
     loadMyDocuments();
@@ -100,252 +125,339 @@ export default function DocumentsScreen({ user, navigation }) {
     let docs = Array.isArray(myDocs) ? [...myDocs] : [];
 
     if (q) {
-      docs = docs.filter((d) => {
-        const filename = (d?.filename || "").toLowerCase();
-        const dtype = (d?.document_type || "").toLowerCase();
-        return filename.includes(q) || dtype.includes(q);
-      });
+      docs = docs.filter((d) =>
+        (d?.filename || "").toLowerCase().includes(q)
+      );
     }
 
     docs.sort((a, b) => {
-      const ta = toTime(a?.uploaded_at);
-      const tb = toTime(b?.uploaded_at);
+      const ta = toTime(a.uploaded_at);
+      const tb = toTime(b.uploaded_at);
       return sortNewestFirst ? tb - ta : ta - tb;
     });
 
     return docs;
   }, [myDocs, search, sortNewestFirst]);
 
-  const openDoc = async (doc) => {
-    try {
-      const token = await apiService.getToken();
-      if (!token) return Alert.alert("Auth", "Missing token. Please login again.");
-
-      const url = `${BASE_URL}/api/documents/employee/${doc.id}/download`;
-      const localPath =
-        FileSystem.documentDirectory + (doc.filename || `doc_${doc.id}`);
-
-      const res = await FileSystem.downloadAsync(url, localPath, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) return await Sharing.shareAsync(res.uri);
-
-      Alert.alert("Downloaded", "File downloaded. Sharing not available on this device.");
-    } catch (e) {
-      console.log("Open doc failed:", e);
-      Alert.alert("Open failed", "Cannot open this document.");
-    }
+  const download = async (doc) => {
+    await documentEngine.downloadAndPreview('employee', doc.id, doc.filename);
   };
 
-  const onDeleteDoc = (doc) => {
-    Alert.alert(
-      "Delete document?",
-      "This will permanently delete the file.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const res = await apiService.deleteEmployeeDocument(doc.id);
-
-              if (!res?.success) {
-                console.log("❌ Delete failed:", res);
-                Alert.alert("Error", res?.message || "Delete failed");
-                return;
-              }
-
-              console.log("✅ Deleted doc:", doc.id);
-              loadMyDocuments();
-            } catch (e) {
-              console.log("❌ Delete error:", e);
-              Alert.alert("Error", "Delete failed");
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const toggleSort = () => setSortNewestFirst((v) => !v);
+  const styles = getStyles(colors);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Documents</Text>
-        <Text style={styles.subtitle}>Your documents only</Text>
-      </View>
+    <View style={styles.container}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
 
-      <Card style={styles.card}>
-        <Ionicons name="information-circle-outline" size={22} color="#2563eb" />
-        <Text style={styles.infoText}>
-          These are documents uploaded to your employee profile.
-        </Text>
-
-        <View style={styles.actionsRow}>
-          <TouchableOpacity onPress={loadMyDocuments} style={styles.refreshBtn}>
-            <Ionicons name="refresh-outline" size={16} color="#2563eb" />
-            <Text style={styles.refreshText}>{loading ? "Loading..." : "Refresh"}</Text>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, Spacing.md) }]}>
+        <View style={styles.headerTop}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
-
-          <TouchableOpacity onPress={toggleSort} style={styles.sortBtn}>
-            <Ionicons name="swap-vertical-outline" size={16} color="#2563eb" />
-            <Text style={styles.sortText}>
-              {sortNewestFirst ? "Newest first" : "Oldest first"}
-            </Text>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.screenTitle}>Dossiers</Text>
+            <Text style={styles.screenSubtitle}>ALGHAITH Digital Assets</Text>
+          </View>
+          <TouchableOpacity onPress={toggleTheme} style={styles.themeToggle} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name={isDarkMode ? "sunny" : "moon"} size={22} color={colors.accent} />
           </TouchableOpacity>
         </View>
 
-        <View style={styles.searchWrap}>
-          <Ionicons name="search-outline" size={16} color="#6b7280" />
+        <View style={styles.searchBar}>
+          <Ionicons name="search-outline" size={18} color={colors.textSecondary} />
           <TextInput
+            placeholder="Search ALGHAITH dossiers..."
+            placeholderTextColor={colors.textSecondary}
             value={search}
             onChangeText={setSearch}
-            placeholder="Search by filename or type..."
-            placeholderTextColor="#9ca3af"
             style={styles.searchInput}
-            autoCapitalize="none"
-            autoCorrect={false}
           />
-          {!!search && (
-            <TouchableOpacity onPress={() => setSearch("")}>
-              <Ionicons name="close-circle" size={18} color="#9ca3af" />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
-      </Card>
 
-      <Card style={styles.card}>
-        <View style={styles.meRow}>
-          <Ionicons name="person-outline" size={20} color="#2563eb" />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.meName}>
-              {myEmployee?.full_name || user?.name || "Unknown user"}
-            </Text>
-            <Text style={styles.meMeta}>
-              {myEmployee?.job_title || "—"} • {myEmployee?.department?.name || "—"}
-            </Text>
-          </View>
-          <Text style={styles.count}>{visibleDocs.length}</Text>
+        <View style={styles.sortContainer}>
+          <TouchableOpacity
+            style={[styles.sortBtn, sortNewestFirst && styles.sortBtnActive]}
+            onPress={() => setSortNewestFirst(true)}
+          >
+            <Text style={[styles.sortBtnText, sortNewestFirst && styles.sortBtnActiveText]}>Newest First</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.sortBtn, !sortNewestFirst && styles.sortBtnActive]}
+            onPress={() => setSortNewestFirst(false)}
+          >
+            <Text style={[styles.sortBtnText, !sortNewestFirst && styles.sortBtnActiveText]}>Oldest First</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>
+            {myEmployee ? `${myEmployee.full_name}'s Dossier` : "Personal Repository"}
+          </Text>
+          <Text style={styles.sectionCounter}>{visibleDocs.length} items</Text>
         </View>
 
-        {visibleDocs.length ? (
-          visibleDocs.map((d) => (
-            <TouchableOpacity key={d.id} style={styles.docRow} onPress={() => openDoc(d)}>
-              <Ionicons name="document-text-outline" size={18} color="#2563eb" />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.docName}>{d.filename}</Text>
+        {loading ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="small" color={colors.accent} />
+            <Text style={styles.loadingText}>Syncing repository...</Text>
+          </View>
+        ) : visibleDocs.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <Ionicons name="file-tray-outline" size={64} color={colors.border} />
+            <Text style={styles.emptyTitle}>Empty Repository</Text>
+            <Text style={styles.emptySubtitle}>No matching documents found.</Text>
+          </View>
+        ) : (
+          visibleDocs.map((doc) => (
+            <TouchableOpacity
+              key={doc.id}
+              style={styles.docCard}
+              onPress={() => download(doc)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.docIcon}>
+                <Ionicons
+                  name={doc.document_type?.toLowerCase().includes('pdf') ? "document-text" : "document"}
+                  size={24}
+                  color={colors.accent}
+                />
+              </View>
+              <View style={styles.docInfo}>
+                <Text style={styles.docName} numberOfLines={1}>{doc.filename}</Text>
                 <Text style={styles.docMeta}>
-                  {(d.document_type || "document")} •{" "}
-                  {(d.uploaded_at || "").replace("T", " ").slice(0, 19)}
+                  {doc.document_type?.toUpperCase()} • {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : 'Unknown Date'}
                 </Text>
               </View>
-
-              <View style={styles.rightIcons}>
-                <Ionicons name="download-outline" size={18} color="#6b7280" />
-
-                {isPrivileged && (
-                  <TouchableOpacity
-                    style={styles.trashBtn}
-                    onPress={(e) => {
-                      e?.stopPropagation?.();
-                      onDeleteDoc(d);
-                    }}
-                  >
-                    <Ionicons name="trash-outline" size={18} color="#ef4444" />
-                  </TouchableOpacity>
-                )}
-              </View>
+              <Ionicons name="download-outline" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           ))
-        ) : (
-          <Text style={styles.empty}>
-            {myEmployee?.id
-              ? search
-                ? "No documents match your search."
-                : "No documents for you yet."
-              : "Your employee profile was not found (cannot map user → employee)."}
-          </Text>
         )}
-      </Card>
-    </ScrollView>
+
+        {isPrivileged && (
+          <View style={styles.adminSection}>
+            <View style={[styles.adminCard, { backgroundColor: colors.primary }]}>
+              <View style={styles.adminCardHeader}>
+                <Ionicons name="shield-checkmark" size={24} color="white" />
+                <Text style={styles.adminCardTitle}>Admin Control</Text>
+              </View>
+              <Text style={styles.adminCardDesc}>
+                You have access to oversee all system documents and employee records.
+              </Text>
+              <Button
+                title="Manage All Employees"
+                variant="secondary"
+                onPress={() => navigation.navigate('Staff')}
+                style={{ marginTop: 12 }}
+              />
+            </View>
+          </View>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
-
+const getStyles = (colors) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   header: {
-    padding: 16,
-    backgroundColor: "#fff",
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderColor: "#e5e7eb",
+    borderBottomColor: colors.border,
+    paddingBottom: Spacing.md,
   },
-  title: { fontSize: 22, fontWeight: "700", color: "#1f2937" },
-  subtitle: { fontSize: 14, color: "#6b7280", marginTop: 4 },
-
-  card: {
-    margin: 16,
-    padding: 16,
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
+    justifyContent: 'space-between',
+  },
+  headerTextContainer: {
+    alignItems: 'center',
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
     borderRadius: 12,
-    backgroundColor: "#fff",
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-
-  infoText: { marginTop: 8, fontSize: 14, color: "#374151" },
-
-  actionsRow: {
-    marginTop: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
+  themeToggle: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-
-  refreshBtn: { flexDirection: "row", alignItems: "center" },
-  refreshText: { marginLeft: 6, color: "#2563eb", fontWeight: "700" },
-
-  sortBtn: { flexDirection: "row", alignItems: "center" },
-  sortText: { marginLeft: 6, color: "#2563eb", fontWeight: "700" },
-
-  searchWrap: {
-    marginTop: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+  screenTitle: {
+    ...Typography.h1,
+    fontSize: 20,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  screenSubtitle: {
+    ...Typography.subtitle,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: -2,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    marginHorizontal: Spacing.lg,
+    paddingHorizontal: 12,
+    height: 46,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    backgroundColor: "#fff",
+    borderColor: colors.border,
+    gap: 10,
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
-    color: "#111827",
+    fontSize: 15,
+    color: colors.text,
   },
-
-  meRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  meName: { fontSize: 15, fontWeight: "700", color: "#111827" },
-  meMeta: { fontSize: 12, color: "#6b7280", marginTop: 2 },
-  count: { fontSize: 12, color: "#6b7280", fontWeight: "700" },
-
-  docRow: {
+  sortContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.lg,
     marginTop: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderColor: "#f3f4f6",
+    gap: 12,
   },
-  docName: { fontSize: 14, fontWeight: "600", color: "#2563eb" },
-  docMeta: { fontSize: 12, color: "#6b7280", marginTop: 2 },
-
-  rightIcons: { flexDirection: "row", alignItems: "center", gap: 12 },
-  trashBtn: { padding: 2 },
-
-  empty: { marginTop: 10, color: "#6b7280" },
+  sortBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  sortBtnActive: {
+    borderColor: colors.accent,
+    backgroundColor: `${colors.accent}10`,
+  },
+  sortBtnText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  sortBtnActiveText: {
+    color: colors.accent,
+    fontWeight: '700',
+  },
+  scrollContent: {
+    padding: Spacing.lg,
+    paddingBottom: 40,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    ...Typography.h3,
+    color: colors.text,
+  },
+  sectionCounter: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  docCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    padding: 16,
+    borderRadius: Radius.xl,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...Shadow.subtle,
+  },
+  docIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: `${colors.accent}10`,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  docInfo: {
+    flex: 1,
+    marginLeft: 16,
+    marginRight: 8,
+  },
+  docName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  docMeta: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  loadingBox: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    gap: 12,
+  },
+  loadingText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+  },
+  emptyBox: {
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    ...Typography.h2,
+    color: colors.text,
+    marginTop: 16,
+  },
+  emptySubtitle: {
+    ...Typography.body,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  adminSection: {
+    marginTop: 24,
+  },
+  adminCard: {
+    padding: 20,
+    borderRadius: Radius.xl,
+    ...Shadow.medium,
+  },
+  adminCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  adminCardTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: 'white',
+  },
+  adminCardDesc: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    lineHeight: 20,
+  },
 });

@@ -7,10 +7,11 @@ import {
     ScrollView,
     StatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, Radius, Shadow, Typography } from '../styles/theme';
-import styles from '../styles/styles';
+
+import { useTheme } from '../context/ThemeContext';
+import { Spacing, Radius, Shadow, Typography } from '../styles/theme';
 
 function deriveAppRole(userRole = "") {
     const r = userRole.toLowerCase();
@@ -20,6 +21,8 @@ function deriveAppRole(userRole = "") {
 }
 
 export default function MoreScreen({ navigation, user }) {
+    const { isDarkMode, toggleTheme, colors } = useTheme();
+    const insets = useSafeAreaInsets();
     const appRole = deriveAppRole(user?.role);
 
     const getMenuItems = () => {
@@ -29,8 +32,8 @@ export default function MoreScreen({ navigation, user }) {
                 title: 'Files',
                 subtitle: 'Document repository',
                 icon: 'cloud-done-outline',
-                color: Colors.accent,
-                screen: 'Docs',
+                screen: 'Documents',
+                color: colors.primary,
             },
         ];
 
@@ -41,8 +44,8 @@ export default function MoreScreen({ navigation, user }) {
                     title: 'Management',
                     subtitle: 'Control center',
                     icon: 'shield-checkmark-outline',
-                    color: Colors.primary,
                     screen: 'ManagementHub',
+                    color: colors.accent,
                 },
                 ...baseItems,
                 {
@@ -50,16 +53,16 @@ export default function MoreScreen({ navigation, user }) {
                     title: 'Work',
                     subtitle: 'Attendance & leave',
                     icon: 'calendar-outline',
-                    color: Colors.warning,
                     screen: 'Work',
+                    color: colors.success,
                 },
                 {
                     id: 'depts',
                     title: 'Organization',
                     subtitle: 'Units',
                     icon: 'business-outline',
-                    color: Colors.success,
                     screen: 'Depts',
+                    color: colors.warning,
                 },
             ];
         }
@@ -68,121 +71,162 @@ export default function MoreScreen({ navigation, user }) {
     };
 
     const menuItems = getMenuItems();
+    const styles = getStyles(colors);
 
     return (
         <View style={styles.container}>
-            <StatusBar barStyle="dark-content" />
-            <SafeAreaView style={localStyles.header} edges={['top']}>
-                <View style={localStyles.topBar}>
-                    <Text style={styles.screenTitle}>Tools</Text>
-                    <Text style={styles.screenSubtitle}>System Extensions</Text>
-                </View>
-            </SafeAreaView>
+            <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
 
-            <ScrollView contentContainerStyle={localStyles.scrollContent} showsVerticalScrollIndicator={false}>
-                <View style={localStyles.grid}>
+            <View style={[styles.header, { paddingTop: Math.max(insets.top, Spacing.md) }]}>
+                <View style={styles.topBar}>
+                    <View>
+                        <Text style={styles.screenTitle}>Governance</Text>
+                        <Text style={styles.screenSubtitle}>ALGHAITH Group Utilities</Text>
+                    </View>
+                    <TouchableOpacity onPress={toggleTheme} style={styles.themeToggle} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                        <Ionicons name={isDarkMode ? "sunny" : "moon"} size={22} color={colors.accent} />
+                    </TouchableOpacity>
+                </View>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                <View style={styles.grid}>
                     {menuItems.map((item) => (
                         <TouchableOpacity
                             key={item.id}
-                            style={localStyles.menuCard}
+                            style={styles.menuCard}
                             onPress={() => navigation.navigate(item.screen)}
                             activeOpacity={0.8}
                         >
-                            <View style={localStyles.menuCardInner}>
-                                <View style={[localStyles.iconBox, { backgroundColor: `${item.color}10` }]}>
-                                    <Ionicons name={item.icon} size={26} color={item.color} />
+                            <View style={styles.menuCardInner}>
+                                <View style={[styles.iconBox, { backgroundColor: item.color + '15' }]}>
+                                    <Ionicons name={item.icon} size={28} color={item.color} />
                                 </View>
-                                <Text style={localStyles.menuTitle}>{item.title}</Text>
-                                <Text style={localStyles.menuSubtitle}>{item.subtitle}</Text>
+                                <Text style={styles.menuTitle}>{item.title}</Text>
+                                <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
                             </View>
                         </TouchableOpacity>
                     ))}
                 </View>
 
-                <View style={localStyles.helpCard}>
-                    <View style={localStyles.helpHeader}>
-                        <Text style={localStyles.helpTitle}>Intelligence</Text>
+                {/* Info Section */}
+                <View style={styles.infoSection}>
+                    <View style={styles.infoCard}>
+                        <Ionicons name="information-circle-outline" size={24} color={colors.accent} />
+                        <View style={{ flex: 1, marginLeft: 16 }}>
+                            <Text style={styles.infoTitle}>ALGHAITH Operational Protocol</Text>
+                            <Text style={styles.infoText}>
+                                All governance tools are subject to ALGHAITH International Group Security Policy.
+                            </Text>
+                        </View>
                     </View>
-                    <Text style={localStyles.helpText}>
-                        Access organizational tools and unified document archives directly from this hub.
-                    </Text>
                 </View>
             </ScrollView>
         </View>
     );
 }
 
-const localStyles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: colors.background,
+    },
     header: {
-        backgroundColor: Colors.surface,
+        backgroundColor: colors.surface,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.border,
+        borderBottomColor: colors.border,
+        paddingBottom: Spacing.md,
     },
     topBar: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         paddingHorizontal: Spacing.lg,
-        paddingVertical: Spacing.md,
+    },
+    screenTitle: {
+        ...Typography.h2,
+        color: colors.text,
+    },
+    screenSubtitle: {
+        ...Typography.subtitle,
+        color: colors.textSecondary,
+        marginTop: -2,
+    },
+    themeToggle: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: colors.background,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     scrollContent: {
         padding: Spacing.lg,
-        paddingBottom: 100,
+        paddingBottom: 40,
     },
     grid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        marginHorizontal: -6,
+        justifyContent: 'space-between',
+        gap: 16,
     },
     menuCard: {
-        width: '50%',
-        padding: 6,
+        width: '47%',
+        aspectRatio: 1,
     },
     menuCardInner: {
-        backgroundColor: Colors.surface,
+        flex: 1,
+        backgroundColor: colors.surface,
         borderRadius: Radius.xl,
-        padding: Spacing.lg,
-        borderWidth: 1,
-        borderColor: Colors.border,
-        ...Shadow.subtle,
-        height: 160,
-    },
-    iconBox: {
-        width: 48,
-        height: 48,
-        borderRadius: 14,
+        padding: 16,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: colors.border,
+        ...Shadow.subtle,
     },
-    menuTitle: {
-        ...Typography.h2,
-        fontSize: 15,
-        marginBottom: 4,
-    },
-    menuSubtitle: {
-        ...Typography.caption,
-        color: Colors.textSecondary,
-    },
-    helpCard: {
-        backgroundColor: Colors.primary,
-        borderRadius: Radius.xl,
-        padding: Spacing.xl,
-        marginTop: 32,
-        ...Shadow.medium,
-    },
-    helpHeader: {
-        flexDirection: 'row',
+    iconBox: {
+        width: 60,
+        height: 60,
+        borderRadius: 20,
+        justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 12,
-        gap: 8,
     },
-    helpTitle: {
-        ...Typography.body,
+    menuTitle: {
+        fontSize: 16,
         fontWeight: '800',
-        color: 'white',
+        color: colors.text,
+        textAlign: 'center',
     },
-    helpText: {
-        ...Typography.body,
-        fontSize: 14,
-        color: 'rgba(255,255,255,0.7)',
-        lineHeight: 20,
+    menuSubtitle: {
+        fontSize: 12,
+        color: colors.textSecondary,
+        textAlign: 'center',
+        marginTop: 4,
+    },
+    infoSection: {
+        marginTop: 32,
+    },
+    infoCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.surface,
+        padding: 20,
+        borderRadius: Radius.xl,
+        borderWidth: 1,
+        borderColor: colors.border,
+        ...Shadow.subtle,
+    },
+    infoTitle: {
+        fontSize: 15,
+        fontWeight: '800',
+        color: colors.text,
+        marginBottom: 4,
+    },
+    infoText: {
+        fontSize: 13,
+        color: colors.textSecondary,
+        lineHeight: 18,
     },
 });

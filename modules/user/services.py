@@ -1,4 +1,5 @@
 import os
+from typing import Optional, Union
 import secrets
 from datetime import datetime
 from flask import current_app, request
@@ -25,7 +26,7 @@ def _generate_access_code():
     return secrets.token_hex(3).upper()
 
 
-def _ensure_folder_dir(user_id: int, folder_name: str | None) -> str:
+def _ensure_folder_dir(user_id: int, folder_name: Optional[str]) -> str:
     """Ensure upload folder exists for a user (with optional subfolder)."""
     base_folder = os.path.join(current_app.config['UPLOAD_FOLDER'], str(user_id))
     if folder_name:
@@ -37,11 +38,11 @@ def _ensure_folder_dir(user_id: int, folder_name: str | None) -> str:
 def _save_documents(
     user: User,
     files,
-    folder_name: str | None = None,
+    folder_name: Optional[str] = None,
     visibility_type: str = "private",
-    allowed_users: str | None = None,
-    allowed_roles: str | None = None,
-    allowed_departments: str | None = None,
+    allowed_users: Optional[str] = None,
+    allowed_roles: Optional[str] = None,
+    allowed_departments: Optional[str] = None,
 ):
     """Save uploaded files for a user and create UserDocument entries."""
     if not files:

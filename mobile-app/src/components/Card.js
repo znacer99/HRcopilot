@@ -1,7 +1,11 @@
 import React from "react";
 import { View } from "react-native";
-import styles from "../styles/styles";
+import { useTheme } from "../context/ThemeContext";
+import { getGlobalStyles } from "../styles/styles";
 
 export default function Card({ children, style }) {
-  return <View style={[styles.card, style]}>{children}</View>;
+  const { colors } = useTheme();
+  const globalStyles = getGlobalStyles(colors);
+
+  return <View style={[globalStyles.card, style]}>{children}</View>;
 }

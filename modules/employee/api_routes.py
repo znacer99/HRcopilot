@@ -69,6 +69,11 @@ def get_employee(id):
                     'id': emp.department.id,
                     'name': emp.department.name
                 } if emp.department else None,
+                'user': {
+                    'id': emp.user.id,
+                    'email': emp.user.email,
+                    'role': emp.user.role
+                } if emp.user else None,
                 'created_at': emp.created_at.isoformat() if emp.created_at else None
             }
         }), 200

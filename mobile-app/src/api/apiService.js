@@ -54,7 +54,11 @@ const apiService = {
   },
 
   async getMe() {
-    return this.request('/api/mobile/auth/me');
+    return this.request('/api/users/me');
+  },
+
+  async getCurrentUser() {
+    return this.getMe();
   },
 
   async updateProfile(data) {
@@ -102,6 +106,34 @@ const apiService = {
   async deleteUser(id) {
     return this.request(`/api/users/${id}`, {
       method: 'DELETE'
+    });
+  },
+
+  async createEmployeeFromUser(userId) {
+    return this.request(`/api/users/${userId}/create-employee`, {
+      method: 'POST',
+      body: {}
+    });
+  },
+
+  async linkUserToEmployee(userId, employeeId) {
+    return this.request(`/api/users/${userId}/link-employee`, {
+      method: 'POST',
+      body: { employee_id: employeeId }
+    });
+  },
+
+  async unlinkUserFromEmployee(userId) {
+    return this.request(`/api/users/${userId}/unlink-employee`, {
+      method: 'POST',
+      body: {}
+    });
+  },
+
+  async syncUserWithEmployee(userId) {
+    return this.request(`/api/users/${userId}/sync-employee`, {
+      method: 'POST',
+      body: {}
     });
   },
 
@@ -170,6 +202,13 @@ const apiService = {
   async deleteCandidate(id) {
     return this.request(`/api/candidates/${id}`, {
       method: 'DELETE'
+    });
+  },
+
+  async promoteCandidate(id) {
+    return this.request(`/api/candidates/${id}/promote`, {
+      method: 'POST',
+      body: {}
     });
   },
 

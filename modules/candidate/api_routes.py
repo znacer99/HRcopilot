@@ -196,6 +196,47 @@ def delete_candidate(id):
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+@api_candidate_bp.route('/<int:id>/promote', methods=['POST'])
+@mobile_auth_required
+def promote_candidate(id):
+    try:
+        from core.models import Employee
+        current_user = getattr(request, "user", None)
+        if current_user.role.lower() not in ['it_manager', 'general_director', 'manager']:
+            return jsonify({'success': False, 'message': 'Permission denied'}), 403
+
+        c = Candidate.query.get_or_404(id)
+        
+        # Check if already hired
+        if c.status == 'hired':
+            # Check if employee record already exists
+            existing_emp = Employee.query.filter_by(full_name=c.full_name).first() # Basic check
+            if existing_emp:
+                return jsonify({'success': False, 'message': 'Candidate already promoted'}), 400
+
+        # Create new employee
+        new_emp = Employee(
+            full_name=c.full_name,
+            job_title=c.applied_position,
+            phone=c.phone,
+            nationality=c.nationality,
+            department_id=c.department_id
+        )
+        
+        c.status = 'hired'
+        db.session.add(new_emp)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Candidate promoted to Employee record successfully',
+            'employee_id': new_emp.id
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @api_candidate_bp.route('/<int:id>/cv', methods=['GET'])
 @mobile_auth_required
 def download_cv(id):

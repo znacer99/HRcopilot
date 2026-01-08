@@ -9,18 +9,20 @@ import {
     ActivityIndicator,
     Alert,
     TextInput,
-    Dimensions,
+    StatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import apiService from '../api/apiService';
-
-const { width } = Dimensions.get('window');
+import { useTheme } from '../context/ThemeContext';
+import { Spacing, Radius, Shadow, Typography } from '../styles/theme';
 
 /**
- * Candidate List Screen - Premium Recruitment management
+ * Candidate List Screen - Premium Recruitment management (HR 2026 Redesign)
  */
-export default function CandidateListScreen({ navigation }) {
+export default function CandidateListScreen({ navigation, user }) {
+    const { colors, isDarkMode, toggleTheme } = useTheme();
+    const insets = useSafeAreaInsets();
     const [candidates, setCandidates] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -53,6 +55,8 @@ export default function CandidateListScreen({ navigation }) {
         return unsubscribe;
     }, [navigation, fetchCandidates]);
 
+    const isPrivileged = ['it_manager', 'general_director', 'manager'].includes(user?.role?.toLowerCase());
+
     const onRefresh = () => {
         setRefreshing(true);
         fetchCandidates();
@@ -68,241 +72,275 @@ export default function CandidateListScreen({ navigation }) {
         return matchesSearch && matchesStatus;
     });
 
-    const getStatusColor = (status) => {
+    const getStatusTheme = (status) => {
         switch (status?.toLowerCase()) {
-            case 'hired': return '#10b981';
-            case 'interview': return '#3b82f6';
-            case 'offer': return '#f59e0b';
-            case 'rejected': return '#f87171';
-            default: return '#64748b';
+            case 'hired': return { color: colors.success, bg: `${colors.success}15` };
+            case 'interview': return { color: colors.accent, bg: `${colors.accent}15` };
+            case 'offer': return { color: colors.warning, bg: `${colors.warning}15` };
+            case 'rejected': return { color: colors.error, bg: `${colors.error}15` };
+            default: return { color: colors.textSecondary, bg: colors.border };
         }
     };
 
     const renderCandidate = ({ item }) => {
         const initials = item.full_name?.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-        const statusColor = getStatusColor(item.status);
+        const st = getStatusTheme(item.status);
 
         return (
             <TouchableOpacity
                 style={styles.candidateCard}
-                onPress={() => navigation.navigate('CandidateDetail', { candidate: item, manage: true })}
+                onPress={() => navigation.navigate('CandidateDetail', { candidate: item, manage: isPrivileged })}
                 activeOpacity={0.7}
             >
-                <View style={[styles.avatarBox, { backgroundColor: `${statusColor}15` }]}>
-                    <Text style={[styles.avatarText, { color: statusColor }]}>{initials}</Text>
+                <View style={[styles.avatarBox, { backgroundColor: st.bg }]}>
+                    <Text style={[styles.avatarText, { color: st.color }]}>{initials}</Text>
                 </View>
 
                 <View style={styles.cardContent}>
                     <View style={styles.cardHeaderRow}>
                         <Text style={styles.candidateName} numberOfLines={1}>{item.full_name}</Text>
-                        <View style={[styles.statusBadge, { backgroundColor: `${statusColor}10` }]}>
-                            <Text style={[styles.statusText, { color: statusColor }]}>{item.status?.toUpperCase() || 'NEW'}</Text>
+                        <View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
+                            <Text style={[styles.statusText, { color: st.color }]}>{item.status?.toUpperCase() || 'NEW'}</Text>
                         </View>
                     </View>
-                    <Text style={styles.positionText}>{item.applied_position || 'Not Specified'}</Text>
+
+                    <Text style={styles.candidatePost}>{item.applied_position || 'General Position'}</Text>
+
                     <View style={styles.metaRow}>
-                        <Ionicons name="calendar-outline" size={12} color="#94a3b8" />
-                        <Text style={styles.metaText}>{item.updated_at ? new Date(item.updated_at).toLocaleDateString() : 'Recent'}</Text>
-                        <View style={styles.dotSeparator} />
-                        <Ionicons name="mail-outline" size={12} color="#94a3b8" />
-                        <Text style={styles.metaText}>Active</Text>
+                        <View style={styles.metaItem}>
+                            <Ionicons name="calendar-outline" size={12} color={colors.textSecondary} />
+                            <Text style={styles.metaText}>{item.applied_date || 'Recently'}</Text>
+                        </View>
+                        <View style={styles.separator} />
+                        <View style={styles.metaItem}>
+                            <Ionicons name="briefcase-outline" size={12} color={colors.textSecondary} />
+                            <Text style={styles.metaText}>{item.experience_years || '0'}+ Yrs</Text>
+                        </View>
                     </View>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
+
+                <Ionicons name="chevron-forward" size={18} color={colors.border} />
             </TouchableOpacity>
         );
     };
 
+    const styles = getStyles(colors);
+
+    if (loading && !refreshing) {
+        return (
+            <View style={styles.centerContainer}>
+                <ActivityIndicator size="large" color={colors.accent} />
+            </View>
+        );
+    }
+
     return (
         <View style={styles.container}>
-            <SafeAreaView style={styles.headerSafeArea} edges={['top']}>
-                <View style={styles.header}>
-                    <View>
-                        <Text style={styles.greeting}>Pipeline</Text>
-                        <Text style={styles.mainTitle}>Recruitment</Text>
-                    </View>
+            <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
+            <View style={[styles.header, { paddingTop: Math.max(insets.top, Spacing.md) }]}>
+                <View style={styles.headerTop}>
                     <TouchableOpacity
-                        onPress={() => navigation.navigate('CandidateEdit')}
-                        style={styles.addBtn}
+                        onPress={() => navigation.goBack()}
+                        style={styles.backBtn}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
-                        <Ionicons name="add-circle" size={40} color="#0f172a" />
+                        <Ionicons name="arrow-back" size={24} color={colors.text} />
+                    </TouchableOpacity>
+                    <View>
+                        <Text style={styles.screenTitle}>Acquisitions</Text>
+                        <Text style={styles.screenSubtitle}>ALGHAITH Talent Pipeline</Text>
+                    </View>
+                    <TouchableOpacity onPress={toggleTheme} style={styles.themeToggle} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                        <Ionicons name={isDarkMode ? "sunny" : "moon"} size={22} color={colors.accent} />
                     </TouchableOpacity>
                 </View>
 
-                {/* SEARCH */}
                 <View style={styles.searchContainer}>
-                    <View style={styles.searchBar}>
-                        <Ionicons name="search" size={20} color="#94a3b8" />
-                        <TextInput
-                            style={styles.searchInput}
-                            placeholder="Find candidate by name or position..."
-                            placeholderTextColor="#94a3b8"
-                            value={search}
-                            onChangeText={setSearch}
-                        />
-                    </View>
-                </View>
-
-                {/* FILTERS */}
-                <View style={styles.filterSection}>
-                    <FlatList
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        data={statuses}
-                        keyExtractor={(s) => s}
-                        contentContainerStyle={styles.filterList}
-                        renderItem={({ item }) => (
-                            <TouchableOpacity
-                                style={[styles.filterPill, selectedStatus === item && styles.filterPillActive]}
-                                onPress={() => setSelectedStatus(item)}
-                            >
-                                <Text style={[styles.filterText, selectedStatus === item && styles.filterTextActive]}>
-                                    {item}
-                                </Text>
-                            </TouchableOpacity>
-                        )}
+                    <Ionicons name="search-outline" size={18} color={colors.textSecondary} style={styles.searchIcon} />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="Search ALGHAITH candidates..."
+                        placeholderTextColor={colors.textSecondary}
+                        value={search}
+                        onChangeText={setSearch}
                     />
+                    {search.length > 0 && (
+                        <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                            <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+                        </TouchableOpacity>
+                    )}
                 </View>
-            </SafeAreaView>
 
-            {loading && !refreshing ? (
-                <View style={styles.centerContainer}>
-                    <ActivityIndicator size="large" color="#0f172a" />
-                </View>
-            ) : (
                 <FlatList
-                    data={filteredCandidates}
-                    keyExtractor={(item) => item.id?.toString()}
-                    renderItem={renderCandidate}
-                    contentContainerStyle={styles.listContainer}
-                    showsVerticalScrollIndicator={false}
-                    refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0f172a" />
-                    }
-                    ListEmptyComponent={
-                        <View style={styles.emptyState}>
-                            <View style={styles.emptyIconBox}>
-                                <Ionicons name="search-outline" size={40} color="#cbd5e1" />
-                            </View>
-                            <Text style={styles.emptyText}>No matching candidates</Text>
-                            <Text style={styles.emptySubtext}>Try adjusting your search or filters</Text>
-                        </View>
-                    }
+                    horizontal
+                    data={statuses}
+                    keyExtractor={(item) => item}
+                    renderItem={({ item }) => (
+                        <TouchableOpacity
+                            style={[
+                                styles.statusFilter,
+                                selectedStatus === item && styles.statusFilterActive,
+                                { borderColor: selectedStatus === item ? colors.accent : colors.border }
+                            ]}
+                            onPress={() => setSelectedStatus(item)}
+                        >
+                            <Text style={[
+                                styles.statusFilterText,
+                                selectedStatus === item && { color: colors.accent, fontWeight: '700' }
+                            ]}>
+                                {item}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.filterList}
                 />
+            </View>
+
+            <FlatList
+                data={filteredCandidates}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={renderCandidate}
+                contentContainerStyle={styles.listContent}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
+                }
+                ListEmptyComponent={
+                    <View style={styles.emptyContainer}>
+                        <Ionicons name="people-outline" size={64} color={colors.border} />
+                        <Text style={styles.emptyTitle}>No candidates found</Text>
+                        <Text style={styles.emptySubtitle}>Try adjusting your search or filters.</Text>
+                    </View>
+                }
+            />
+
+            {isPrivileged && (
+                <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+                    <TouchableOpacity
+                        style={styles.addBtn}
+                        onPress={() => navigation.navigate('CandidateEdit')}
+                    >
+                        <Ionicons name="person-add-outline" size={20} color="white" />
+                        <Text style={styles.addBtnText}>Register New Talent</Text>
+                    </TouchableOpacity>
+                </View>
             )}
         </View>
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.background,
     },
-    headerSafeArea: {
-        backgroundColor: 'white',
-        borderBottomWidth: 1,
-        borderBottomColor: '#f1f5f9',
+    centerContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: colors.background,
     },
     header: {
+        backgroundColor: colors.surface,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+        paddingBottom: Spacing.md,
+    },
+    headerTop: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingTop: 10,
-        paddingBottom: 20,
+        paddingHorizontal: Spacing.lg,
+        paddingBottom: Spacing.md,
+        justifyContent: 'space-between',
     },
-    greeting: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#64748b',
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
-    mainTitle: {
-        fontSize: 28,
-        fontWeight: '800',
-        color: '#0f172a',
-        letterSpacing: -0.5,
-    },
-    addBtn: {
+    backBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: colors.background,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    searchContainer: {
-        paddingHorizontal: 20,
-        marginBottom: 16,
+    themeToggle: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: colors.background,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
-    searchBar: {
+    screenTitle: {
+        ...Typography.h1,
+        fontSize: 20,
+        color: colors.text,
+        textAlign: 'center',
+    },
+    screenSubtitle: {
+        ...Typography.subtitle,
+        color: colors.textSecondary,
+        textAlign: 'center',
+        marginTop: -2,
+    },
+    searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f1f5f9',
-        paddingHorizontal: 16,
-        borderRadius: 16,
-        height: 50,
+        backgroundColor: colors.background,
+        marginHorizontal: Spacing.lg,
+        paddingHorizontal: 12,
+        borderRadius: 12,
+        height: 46,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderColor: colors.border,
+        marginBottom: Spacing.md,
+    },
+    searchIcon: {
+        marginRight: 8,
     },
     searchInput: {
         flex: 1,
-        marginLeft: 10,
         fontSize: 15,
-        color: '#1e293b',
-        fontWeight: '500',
-    },
-    filterSection: {
-        paddingBottom: 16,
+        color: colors.text,
     },
     filterList: {
-        paddingHorizontal: 20,
-        gap: 8,
+        paddingHorizontal: Spacing.lg,
     },
-    filterPill: {
+    statusFilter: {
         paddingHorizontal: 16,
         paddingVertical: 8,
-        borderRadius: 12,
-        backgroundColor: '#f1f5f9',
-        borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderRadius: 10,
+        borderWidth: 1.5,
+        marginRight: 8,
+        backgroundColor: colors.surface,
     },
-    filterPillActive: {
-        backgroundColor: '#0f172a',
-        borderColor: '#0f172a',
+    statusFilterActive: {
+        backgroundColor: `${colors.accent}10`,
     },
-    filterText: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#64748b',
+    statusFilterText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: colors.textSecondary,
     },
-    filterTextActive: {
-        color: 'white',
-    },
-    listContainer: {
-        padding: 20,
+    listContent: {
+        padding: Spacing.lg,
         paddingBottom: 40,
     },
     candidateCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'white',
-        borderRadius: 24,
+        backgroundColor: colors.surface,
         padding: 16,
+        borderRadius: Radius.xl,
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: '#f1f5f9',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.02,
-        shadowRadius: 10,
-        elevation: 2,
+        borderColor: colors.border,
+        ...Shadow.subtle,
     },
     avatarBox: {
         width: 52,
         height: 52,
-        borderRadius: 14,
+        borderRadius: 16,
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 16,
     },
     avatarText: {
         fontSize: 18,
@@ -310,6 +348,7 @@ const styles = StyleSheet.create({
     },
     cardContent: {
         flex: 1,
+        marginLeft: 16,
     },
     cardHeaderRow: {
         flexDirection: 'row',
@@ -319,23 +358,23 @@ const styles = StyleSheet.create({
     },
     candidateName: {
         fontSize: 16,
-        fontWeight: '800',
-        color: '#0f172a',
+        fontWeight: '700',
+        color: colors.text,
         flex: 1,
         marginRight: 8,
     },
     statusBadge: {
         paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 8,
+        paddingVertical: 3,
+        borderRadius: 6,
     },
     statusText: {
         fontSize: 10,
-        fontWeight: '800',
+        fontWeight: '900',
     },
-    positionText: {
+    candidatePost: {
         fontSize: 14,
-        color: '#64748b',
+        color: colors.text,
         fontWeight: '500',
         marginBottom: 8,
     },
@@ -343,45 +382,60 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
     },
+    metaItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
     metaText: {
         fontSize: 12,
-        color: '#94a3b8',
-        fontWeight: '600',
-        marginLeft: 4,
+        color: colors.textSecondary,
     },
-    dotSeparator: {
-        width: 3,
-        height: 3,
-        borderRadius: 1.5,
-        backgroundColor: '#cbd5e1',
-        marginHorizontal: 8,
+    separator: {
+        width: 1,
+        height: 12,
+        backgroundColor: colors.border,
+        marginHorizontal: 10,
     },
-    centerContainer: {
-        flex: 1,
-        justifyContent: 'center',
+    emptyContainer: {
         alignItems: 'center',
+        marginTop: 100,
     },
-    emptyState: {
-        alignItems: 'center',
-        marginTop: 60,
+    emptyTitle: {
+        ...Typography.h2,
+        color: colors.text,
+        marginTop: 16,
     },
-    emptyIconBox: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: '#f1f5f9',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    emptyText: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#475569',
-    },
-    emptySubtext: {
-        fontSize: 14,
-        color: '#94a3b8',
+    emptySubtitle: {
+        ...Typography.body,
+        color: colors.textSecondary,
         marginTop: 4,
+    },
+    footer: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: colors.surface,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+        padding: Spacing.lg,
+        ...Shadow.medium,
+    },
+    addBtn: {
+        backgroundColor: colors.primary,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: 54,
+        borderRadius: Radius.xl,
+        gap: 12,
+        ...Shadow.subtle,
+    },
+    addBtnText: {
+        fontSize: 16,
+        fontWeight: '800',
+        color: 'white',
+        letterSpacing: 0.5,
     },
 });

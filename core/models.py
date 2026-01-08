@@ -107,7 +107,7 @@ class Employee(db.Model):
 
     # Relationships
     department = db.relationship("Department", back_populates="employees")
-    user = db.relationship("User")  # Optional one-to-one or one-to-many link
+    user = db.relationship("User", backref=db.backref("employee", uselist=False))  # Optional one-to-one link
 
     def __repr__(self):
         return f"<Employee {self.full_name} - {self.job_title}>"

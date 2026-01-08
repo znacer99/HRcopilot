@@ -7,7 +7,8 @@ import {
     View,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { Colors, Spacing, Radius, Shadow, Typography } from '../styles/theme';
+import { useTheme } from '../context/ThemeContext';
+import { Spacing, Radius, Shadow, Typography } from '../styles/theme';
 
 /**
  * Reusable Button Component - Professional 2026 Redesign
@@ -25,6 +26,10 @@ export default function Button({
     style,
     textStyle,
 }) {
+    const { colors } = useTheme();
+
+    const styles = getStyles(colors);
+
     const getVariantStyles = () => {
         switch (variant) {
             case 'primary':
@@ -37,7 +42,7 @@ export default function Button({
                 return {
                     container: styles.secondaryContainer,
                     text: styles.secondaryText,
-                    iconColor: Colors.primary,
+                    iconColor: colors.primary,
                 };
             case 'danger':
                 return {
@@ -55,13 +60,13 @@ export default function Button({
                 return {
                     container: styles.ghostContainer,
                     text: styles.ghostText,
-                    iconColor: Colors.accent,
+                    iconColor: colors.accent,
                 };
             case 'outline':
                 return {
                     container: styles.outlineContainer,
                     text: styles.outlineText,
-                    iconColor: Colors.text,
+                    iconColor: colors.text,
                 };
             default:
                 return {
@@ -114,7 +119,7 @@ export default function Button({
         >
             {loading ? (
                 <ActivityIndicator
-                    color={variant === 'secondary' || variant === 'ghost' || variant === 'outline' ? Colors.accent : '#ffffff'}
+                    color={variant === 'secondary' || variant === 'ghost' || variant === 'outline' ? colors.accent : '#ffffff'}
                     size="small"
                 />
             ) : (
@@ -123,7 +128,7 @@ export default function Button({
                         <Feather
                             name={icon}
                             size={sizeStyles.iconSize}
-                            color={disabled ? Colors.textSecondary : variantStyles.iconColor}
+                            color={disabled ? colors.textSecondary : variantStyles.iconColor}
                             style={styles.iconLeft}
                         />
                     )}
@@ -140,7 +145,7 @@ export default function Button({
                         <Feather
                             name={icon}
                             size={sizeStyles.iconSize}
-                            color={disabled ? Colors.textSecondary : variantStyles.iconColor}
+                            color={disabled ? colors.textSecondary : variantStyles.iconColor}
                             style={styles.iconRight}
                         />
                     )}
@@ -150,7 +155,7 @@ export default function Button({
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     base: {
         borderRadius: Radius.lg,
         alignItems: 'center',
@@ -172,7 +177,7 @@ const styles = StyleSheet.create({
 
     // Variants
     primaryContainer: {
-        backgroundColor: Colors.primary,
+        backgroundColor: colors.primary,
         ...Shadow.medium,
     },
     primaryText: {
@@ -180,17 +185,17 @@ const styles = StyleSheet.create({
     },
 
     secondaryContainer: {
-        backgroundColor: Colors.surface,
+        backgroundColor: colors.surface,
         borderWidth: 1.5,
-        borderColor: Colors.border,
+        borderColor: colors.border,
         ...Shadow.subtle,
     },
     secondaryText: {
-        color: Colors.primary,
+        color: colors.primary,
     },
 
     dangerContainer: {
-        backgroundColor: Colors.error,
+        backgroundColor: colors.error,
         ...Shadow.subtle,
     },
     dangerText: {
@@ -198,7 +203,7 @@ const styles = StyleSheet.create({
     },
 
     successContainer: {
-        backgroundColor: Colors.success,
+        backgroundColor: colors.success,
         ...Shadow.subtle,
     },
     successText: {
@@ -209,16 +214,16 @@ const styles = StyleSheet.create({
         backgroundColor: 'transparent',
     },
     ghostText: {
-        color: Colors.accent,
+        color: colors.accent,
     },
 
     outlineContainer: {
-        backgroundColor: Colors.surface,
+        backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
     },
     outlineText: {
-        color: Colors.text,
+        color: colors.text,
     },
 
     // Sizes
@@ -248,13 +253,13 @@ const styles = StyleSheet.create({
 
     // States
     disabled: {
-        backgroundColor: Colors.border,
-        borderColor: Colors.border,
+        backgroundColor: colors.border,
+        borderColor: colors.border,
         shadowOpacity: 0,
         elevation: 0,
     },
     disabledText: {
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
     },
 
     // Icons

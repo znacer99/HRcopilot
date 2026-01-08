@@ -12,14 +12,21 @@ api_mobile_auth = Blueprint("api_mobile_auth", __name__, url_prefix="/api/mobile
 @api_mobile_auth.route("/login", methods=["POST"])
 def mobile_login():
     data = request.json or {}
-    email = data.get("email")
+    email = data.get("email").lower().strip() if data.get("email") else None
     password = data.get("password")
 
     if not email or not password:
         return jsonify({"success": False, "message": "Email and password required"}), 400
 
-    user = User.query.filter_by(email=email).first()
-    if not user or not user.check_password(password):
+    
+    from sqlalchemy import func
+    user = User.query.filter(func.lower(User.email) == email.lower()).first()
+    
+    if not user:
+        # For security, standard response
+        return jsonify({"success": False, "message": "Invalid credentials"}), 401
+        
+    if not user.check_password(password):
         return jsonify({"success": False, "message": "Invalid credentials"}), 401
 
     token = jwt.encode(

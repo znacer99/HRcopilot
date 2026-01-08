@@ -14,10 +14,18 @@ import {
   KeyboardAvoidingView,
   TouchableWithoutFeedback,
   Platform,
+  StyleSheet,
+  StatusBar,
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import apiService from "../api/apiService";
+import { useTheme } from '../context/ThemeContext';
+import { Spacing, Radius, Shadow, Typography } from '../styles/theme';
+import Button from '../components/Button';
 
 export default function DepartmentsScreen({ navigation, user }) {
+  const { colors, isDarkMode, toggleTheme } = useTheme();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -100,28 +108,19 @@ export default function DepartmentsScreen({ navigation, user }) {
   };
 
   const save = async () => {
-    const n = name.trim();
-    if (!n) {
-      Alert.alert("Missing name", "Department name is required.");
+    if (!name.trim()) {
+      Alert.alert("Required", "Department name is required.");
       return;
     }
-
     setSaving(true);
     try {
       if (editingId) {
-        await apiService.updateDepartment(editingId, {
-          name: n,
-          description: desc?.trim() || "",
-        });
+        await apiService.updateDepartment(editingId, { name, description: desc });
       } else {
-        await apiService.createDepartment({
-          name: n,
-          description: desc?.trim() || "",
-        });
+        await apiService.createDepartment({ name, description: desc });
       }
-      Keyboard.dismiss();
-      setModalOpen(false);
-      await load();
+      closeModal();
+      load();
     } catch (e) {
       Alert.alert("Error", e?.message || "Failed to save department");
     } finally {
@@ -129,302 +128,471 @@ export default function DepartmentsScreen({ navigation, user }) {
     }
   };
 
-  const confirmDelete = (dept) => {
+  const del = (dept) => {
     Alert.alert(
-      "Delete department?",
-      `This will delete "${dept.name}".`,
+      "Confirm Delete",
+      `Are you sure you want to delete ${dept.name}?`,
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Delete",
           style: "destructive",
-          onPress: () => doDelete(dept.id),
+          onPress: async () => {
+            try {
+              await apiService.deleteDepartment(dept.id);
+              load();
+            } catch (e) {
+              Alert.alert("Error", e?.message || "Delete failed");
+            }
+          },
         },
-      ],
-      { cancelable: true }
+      ]
     );
   };
 
-  const doDelete = async (id) => {
-    try {
-      await apiService.deleteDepartment(id);
-      await load();
-    } catch (e) {
-      Alert.alert("Error", e?.message || "Failed to delete department");
-    }
-  };
-
-  const onLongPressItem = (dept) => {
-    if (!canManage) return;
-
-    Alert.alert(
-      dept.name,
-      "Actions",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Edit", onPress: () => openEdit(dept) },
-        { text: "Delete", style: "destructive", onPress: () => confirmDelete(dept) },
-      ],
-      { cancelable: true }
-    );
-  };
+  const styles = getStyles(colors);
 
   const renderItem = ({ item }) => (
-    <TouchableOpacity
-      onPress={() => {
-        Keyboard.dismiss();
-        navigation.navigate("DepartmentDetail", { id: item.id });
-      }}
-      onLongPress={() => onLongPressItem(item)}
-      style={{
-        marginHorizontal: 12,
-        marginTop: 10,
-        padding: 14,
-        backgroundColor: "white",
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: "#eee",
-      }}
-    >
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        <Text style={{ fontSize: 16, fontWeight: "700", flex: 1, paddingRight: 10 }}>
-          {item.name}
-        </Text>
-
-        <View
-          style={{
-            paddingHorizontal: 10,
-            paddingVertical: 4,
-            borderRadius: 999,
-            borderWidth: 1,
-            borderColor: "#e5e7eb",
-            backgroundColor: "#f9fafb",
-          }}
-        >
-          <Text style={{ fontSize: 12, color: "#374151" }}>
-            {item.employee_count ?? 0} emp
+    <View style={styles.card}>
+      <View style={styles.cardInfo}>
+        <View style={styles.iconCircle}>
+          <Ionicons name="business" size={24} color={colors.accent} />
+        </View>
+        <View style={{ flex: 1, marginLeft: 16 }}>
+          <Text style={styles.cardTitle}>{item.name}</Text>
+          <Text style={styles.cardDesc} numberOfLines={2}>
+            {item.description || "No description provided."}
           </Text>
+          <View style={styles.countBadge}>
+            <Ionicons name="people" size={12} color={colors.textSecondary} />
+            <Text style={styles.countText}>{item.employee_count || 0} Employees</Text>
+          </View>
         </View>
       </View>
 
-      {!!item.description && (
-        <Text style={{ marginTop: 8, color: "#4b5563" }} numberOfLines={2}>
-          {item.description}
-        </Text>
+      {canManage && (
+        <View style={styles.cardActions}>
+          <TouchableOpacity onPress={() => openEdit(item)} style={styles.actionBtn}>
+            <Ionicons name="pencil" size={20} color={colors.accent} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => del(item)} style={styles.actionBtn}>
+            <Ionicons name="trash" size={20} color={colors.error} />
+          </TouchableOpacity>
+        </View>
       )}
-
-      {canManage ? (
-        <Text style={{ marginTop: 10, fontSize: 12, color: "#6b7280" }}>
-          Long-press for Edit/Delete
-        </Text>
-      ) : null}
-    </TouchableOpacity>
+    </View>
   );
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: "#f6f6f6" }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
-    >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <View style={{ flex: 1, backgroundColor: "#f6f6f6" }}>
-          {/* Top controls */}
-          <View style={{ padding: 12, gap: 10 }}>
-            <View
-              style={{
-                backgroundColor: "white",
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: "#eee",
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-              }}
-            >
-              <TextInput
-                value={q}
-                onChangeText={setQ}
-                placeholder="Search departments..."
-                autoCapitalize="none"
-                returnKeyType="search"
-                onSubmitEditing={Keyboard.dismiss}
-                style={{ fontSize: 14 }}
-              />
-            </View>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
 
-            <View style={{ flexDirection: "row", gap: 10 }}>
-              <TouchableOpacity
-                onPress={() => {
-                  Keyboard.dismiss();
-                  setSortMode("name");
-                }}
-                style={{
-                  flex: 1,
-                  padding: 12,
-                  borderRadius: 12,
-                  backgroundColor: sortMode === "name" ? "white" : "#f3f4f6",
-                  borderWidth: 1,
-                  borderColor: "#e5e7eb",
-                  alignItems: "center",
-                }}
-              >
-                <Text style={{ fontWeight: "700" }}>Sort A–Z</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => {
-                  Keyboard.dismiss();
-                  setSortMode("count");
-                }}
-                style={{
-                  flex: 1,
-                  padding: 12,
-                  borderRadius: 12,
-                  backgroundColor: sortMode === "count" ? "white" : "#f3f4f6",
-                  borderWidth: 1,
-                  borderColor: "#e5e7eb",
-                  alignItems: "center",
-                }}
-              >
-                <Text style={{ fontWeight: "700" }}>Sort by size</Text>
-              </TouchableOpacity>
-            </View>
-
-            {canManage ? (
-              <TouchableOpacity
-                onPress={() => {
-                  Keyboard.dismiss();
-                  openCreate();
-                }}
-                style={{
-                  padding: 12,
-                  borderRadius: 12,
-                  backgroundColor: "white",
-                  borderWidth: 1,
-                  borderColor: "#e5e7eb",
-                  alignItems: "center",
-                }}
-              >
-                <Text style={{ fontWeight: "800" }}>+ Add Department</Text>
-              </TouchableOpacity>
-            ) : null}
-
-            {!!errorMsg && (
-              <View
-                style={{
-                  padding: 10,
-                  backgroundColor: "white",
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: "#fee2e2",
-                }}
-              >
-                <Text style={{ color: "red" }}>{errorMsg}</Text>
-              </View>
-            )}
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <View>
+            <Text style={styles.screenTitle}>Units</Text>
+            <Text style={styles.screenSubtitle}>ALGHAITH Group Structure</Text>
           </View>
+          <TouchableOpacity onPress={toggleTheme} style={styles.themeToggle} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name={isDarkMode ? "sunny" : "moon"} size={22} color={colors.accent} />
+          </TouchableOpacity>
+        </View>
 
-          <FlatList
-            data={filtered}
-            keyExtractor={(item) => String(item.id)}
-            renderItem={renderItem}
-            refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
-            contentContainerStyle={{ paddingBottom: 20 }}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            ListEmptyComponent={
-              !loading ? (
-                <View style={{ padding: 20 }}>
-                  <Text style={{ color: "#555" }}>
-                    {q.trim() ? "No matches." : "No departments found."}
-                  </Text>
-                </View>
-              ) : null
-            }
+        <View style={styles.searchBar}>
+          <Ionicons name="search-outline" size={18} color={colors.textSecondary} />
+          <TextInput
+            placeholder="Search ALGHAITH units..."
+            placeholderTextColor={colors.textSecondary}
+            value={q}
+            onChangeText={setQ}
+            style={styles.searchInput}
           />
+          {q.length > 0 && (
+            <TouchableOpacity onPress={() => setQ('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+            </TouchableOpacity>
+          )}
+        </View>
 
-          {/* Create/Edit modal */}
-          <Modal visible={modalOpen} transparent animationType="fade" onRequestClose={closeModal}>
-            <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-              <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.35)", justifyContent: "center", padding: 16 }}>
-                <View style={{ backgroundColor: "white", borderRadius: 14, padding: 14 }}>
-                  <Text style={{ fontSize: 16, fontWeight: "800" }}>
-                    {editingId ? "Edit Department" : "New Department"}
-                  </Text>
+        <View style={styles.sortBar}>
+          <Text style={styles.sortLabel}>Sort by:</Text>
+          <TouchableOpacity
+            onPress={() => setSortMode("name")}
+            style={[styles.sortBtn, sortMode === "name" && styles.sortBtnActive]}
+          >
+            <Text style={[styles.sortBtnText, sortMode === "name" && styles.sortBtnActiveText]}>Name</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setSortMode("count")}
+            style={[styles.sortBtn, sortMode === "count" && styles.sortBtnActive]}
+          >
+            <Text style={[styles.sortBtnText, sortMode === "count" && styles.sortBtnActiveText]}>Headcount</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
-                  <View style={{ marginTop: 12 }}>
-                    <Text style={{ fontSize: 12, color: "#6b7280", marginBottom: 6 }}>Name</Text>
+      {loading && !items.length ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={colors.accent} />
+        </View>
+      ) : (
+        <FlatList
+          data={filtered}
+          keyExtractor={(it) => String(it.id)}
+          renderItem={renderItem}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.accent} />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyCenter}>
+              <Ionicons name="business-outline" size={64} color={colors.border} />
+              <Text style={styles.emptyTitle}>No departments found</Text>
+              <Text style={styles.emptySubtitle}>Try adjusting your search criteria.</Text>
+            </View>
+          }
+        />
+      )}
+
+      {canManage && (
+        <View style={styles.footer}>
+          <Button
+            title="Create Department"
+            icon="plus-circle"
+            variant="primary"
+            onPress={openCreate}
+          />
+        </View>
+      )}
+
+      <Modal
+        visible={modalOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={closeModal}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalOverlay}
+        >
+          <TouchableWithoutFeedback onPress={closeModal}>
+            <View style={styles.modalBlur}>
+              <TouchableWithoutFeedback>
+                <View style={styles.modalContent}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>
+                      {editingId ? "Edit Department" : "New Department"}
+                    </Text>
+                    <TouchableOpacity onPress={closeModal}>
+                      <Ionicons name="close" size={24} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Department Name</Text>
                     <TextInput
                       value={name}
                       onChangeText={setName}
                       placeholder="e.g., Human Resources"
-                      returnKeyType="next"
-                      style={{
-                        borderWidth: 1,
-                        borderColor: "#e5e7eb",
-                        borderRadius: 12,
-                        paddingHorizontal: 12,
-                        paddingVertical: 10,
-                      }}
+                      placeholderTextColor={colors.textSecondary}
+                      style={styles.modalInput}
                     />
                   </View>
 
-                  <View style={{ marginTop: 12 }}>
-                    <Text style={{ fontSize: 12, color: "#6b7280", marginBottom: 6 }}>Description</Text>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Description</Text>
                     <TextInput
                       value={desc}
                       onChangeText={setDesc}
-                      placeholder="Optional"
                       multiline
-                      style={{
-                        borderWidth: 1,
-                        borderColor: "#e5e7eb",
-                        borderRadius: 12,
-                        paddingHorizontal: 12,
-                        paddingVertical: 10,
-                        minHeight: 80,
-                        textAlignVertical: "top",
-                      }}
+                      placeholder="Organization unit details..."
+                      placeholderTextColor={colors.textSecondary}
+                      style={[styles.modalInput, styles.textArea]}
                     />
                   </View>
 
-                  <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
-                    <TouchableOpacity
+                  <View style={styles.modalActions}>
+                    <Button
+                      title="Cancel"
+                      variant="secondary"
                       onPress={closeModal}
-                      disabled={saving}
-                      style={{
-                        flex: 1,
-                        padding: 12,
-                        borderRadius: 12,
-                        backgroundColor: "#f3f4f6",
-                        alignItems: "center",
-                      }}
-                    >
-                      <Text style={{ fontWeight: "800" }}>Cancel</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
+                      style={{ flex: 1 }}
+                    />
+                    <Button
+                      title={saving ? "" : "Save"}
+                      loading={saving}
+                      variant="primary"
                       onPress={save}
-                      disabled={saving}
-                      style={{
-                        flex: 1,
-                        padding: 12,
-                        borderRadius: 12,
-                        backgroundColor: "white",
-                        borderWidth: 1,
-                        borderColor: "#e5e7eb",
-                        alignItems: "center",
-                      }}
-                    >
-                      {saving ? <ActivityIndicator /> : <Text style={{ fontWeight: "800" }}>Save</Text>}
-                    </TouchableOpacity>
+                      style={{ flex: 1 }}
+                    />
                   </View>
                 </View>
-              </View>
-            </TouchableWithoutFeedback>
-          </Modal>
-        </View>
-      </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
+      </Modal>
+    </SafeAreaView>
   );
 }
+
+const getStyles = (colors) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  header: {
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingBottom: Spacing.md,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.md,
+    justifyContent: 'space-between',
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  themeToggle: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  screenTitle: {
+    ...Typography.h1,
+    fontSize: 20,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  screenSubtitle: {
+    ...Typography.subtitle,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: -2,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    marginHorizontal: Spacing.lg,
+    paddingHorizontal: 12,
+    height: 46,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.text,
+  },
+  sortBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    marginTop: 12,
+    gap: 8,
+  },
+  sortLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '600',
+    marginRight: 4,
+  },
+  sortBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  sortBtnActive: {
+    borderColor: colors.accent,
+    backgroundColor: `${colors.accent}10`,
+  },
+  sortBtnText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  sortBtnActiveText: {
+    color: colors.accent,
+    fontWeight: '700',
+  },
+  listContent: {
+    padding: Spacing.lg,
+    paddingBottom: 100,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    padding: 16,
+    borderRadius: Radius.xl,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...Shadow.subtle,
+  },
+  cardInfo: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: `${colors.primary}10`,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  cardDesc: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 4,
+    lineHeight: 20,
+  },
+  countBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    gap: 6,
+    backgroundColor: colors.background,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  countText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  cardActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 12,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 12,
+  },
+  actionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: Spacing.lg,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  emptyCenter: {
+    alignItems: 'center',
+    marginTop: 100,
+  },
+  emptyTitle: {
+    ...Typography.h2,
+    color: colors.text,
+    marginTop: 16,
+  },
+  emptySubtitle: {
+    ...Typography.body,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+  },
+  modalBlur: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: 24,
+    ...Shadow.medium,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  modalTitle: {
+    ...Typography.h2,
+    color: colors.text,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  modalInput: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    height: 48,
+    color: colors.text,
+    fontSize: 15,
+  },
+  textArea: {
+    height: 100,
+    textAlignVertical: 'top',
+    paddingVertical: 12,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+    marginBottom: 24,
+  },
+});

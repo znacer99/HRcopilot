@@ -19,8 +19,8 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { WebView } from 'react-native-webview';
 
-import { Colors, Spacing, Radius, Shadow, Typography } from '../styles/theme';
-import styles from '../styles/styles';
+import { useTheme } from '../context/ThemeContext';
+import { Spacing, Radius, Shadow, Typography } from '../styles/theme';
 import Button from '../components/Button';
 import Card from '../components/Card';
 
@@ -28,6 +28,8 @@ import Card from '../components/Card';
 const DOWNLOAD_BASE_URL = BASE_URL;
 
 export default function EmployeeDashboardScreen({ user, onLogout }) {
+    const { colors, isDarkMode, toggleTheme } = useTheme();
+    const styles = getStyles(colors);
     const [activeTab, setActiveTab] = useState('home');
     const [leaves, setLeaves] = useState([]);
     const [documents, setDocuments] = useState([]);
@@ -193,13 +195,13 @@ export default function EmployeeDashboardScreen({ user, onLogout }) {
     };
 
     const ProfileDetail = ({ label, value, icon }) => (
-        <View style={localStyles.profileDetailItem}>
-            <View style={localStyles.profileDetailIcon}>
-                <Ionicons name={icon} size={18} color={Colors.accent} />
+        <View style={styles.profileDetailItem}>
+            <View style={styles.profileDetailIcon}>
+                <Ionicons name={icon} size={18} color={colors.accent} />
             </View>
             <View style={{ flex: 1 }}>
-                <Text style={localStyles.profileDetailLabel}>{label}</Text>
-                <Text style={localStyles.profileDetailValue}>{value}</Text>
+                <Text style={styles.profileDetailLabel}>{label}</Text>
+                <Text style={styles.profileDetailValue}>{value}</Text>
             </View>
         </View>
     );
@@ -223,11 +225,11 @@ export default function EmployeeDashboardScreen({ user, onLogout }) {
 
     const getStatusStyle = (status) => {
         switch (status?.toLowerCase()) {
-            case 'pending': return { bg: `${Colors.warning}15`, text: Colors.warning };
-            case 'in-progress': return { bg: `${Colors.accent}15`, text: Colors.accent };
-            case 'resolved': return { bg: `${Colors.success}15`, text: Colors.success };
-            case 'closed': return { bg: Colors.background, text: Colors.textSecondary };
-            default: return { bg: Colors.background, text: Colors.textSecondary };
+            case 'pending': return { bg: `${colors.warning}15`, text: colors.warning };
+            case 'in-progress': return { bg: `${colors.accent}15`, text: colors.accent };
+            case 'resolved': return { bg: `${colors.success}15`, text: colors.success };
+            case 'closed': return { bg: colors.background, text: colors.textSecondary };
+            default: return { bg: colors.background, text: colors.textSecondary };
         }
     };
 
@@ -434,8 +436,8 @@ export default function EmployeeDashboardScreen({ user, onLogout }) {
         if (loading && activeTab !== 'profile') {
             return (
                 <View style={[styles.center, { flex: 1 }]}>
-                    <ActivityIndicator size="large" color={Colors.primary} />
-                    <Text style={{ marginTop: 10, color: Colors.textSecondary }}>Syncing...</Text>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                    <Text style={{ marginTop: 10, color: colors.textSecondary }}>Syncing...</Text>
                 </View>
             );
         }
@@ -443,50 +445,50 @@ export default function EmployeeDashboardScreen({ user, onLogout }) {
         switch (activeTab) {
             case 'home':
                 return (
-                    <ScrollView contentContainerStyle={localStyles.scrollContent} showsVerticalScrollIndicator={false}>
-                        <View style={localStyles.heroBanner}>
+                    <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                        <View style={styles.heroBanner}>
                             <View>
-                                <Text style={localStyles.heroPreTitle}>Portal</Text>
-                                <Text style={localStyles.heroTitle}>Hello, {user.name.split(' ')[0]}</Text>
-                                <Text style={localStyles.heroSubtitle}>Overview</Text>
+                                <Text style={styles.heroPreTitle}>Portal</Text>
+                                <Text style={styles.heroTitle}>Hello, {user.name.split(' ')[0]}</Text>
+                                <Text style={styles.heroSubtitle}>Overview</Text>
                             </View>
-                            <View style={localStyles.heroIcon}>
+                            <View style={styles.heroIcon}>
                                 <Ionicons name="stats-chart" size={32} color="white" />
                             </View>
                         </View>
 
-                        <View style={localStyles.actionRow}>
+                        <View style={styles.actionRow}>
                             <TouchableOpacity
-                                style={localStyles.quickActionBtn}
+                                style={styles.quickActionBtn}
                                 onPress={() => setModalVisible(true)}
                             >
                                 <Ionicons name="calendar-outline" size={20} color="white" />
-                                <Text style={localStyles.quickActionText}>Request Leave</Text>
+                                <Text style={styles.quickActionText}>Request Leave</Text>
                             </TouchableOpacity>
                         </View>
 
-                        <View style={localStyles.sectionCard}>
-                            <View style={localStyles.sectionHeader}>
-                                <Text style={localStyles.sectionTitle}>Leaves</Text>
-                                <TouchableOpacity onPress={fetchAllData} style={localStyles.refreshBtn}>
-                                    <Ionicons name="refresh-outline" size={16} color={Colors.accent} />
+                        <View style={styles.sectionCard}>
+                            <View style={styles.sectionHeader}>
+                                <Text style={styles.sectionTitle}>Leaves</Text>
+                                <TouchableOpacity onPress={fetchAllData} style={styles.refreshBtn}>
+                                    <Ionicons name="refresh-outline" size={16} color={colors.accent} />
                                 </TouchableOpacity>
                             </View>
 
                             {leaves.length === 0 ? (
-                                <Text style={localStyles.emptyText}>No active leave records.</Text>
+                                <Text style={styles.emptyText}>No active leave records.</Text>
                             ) : (
                                 leaves.slice(0, 5).map((leave) => (
-                                    <View key={leave.id} style={localStyles.dataItem}>
-                                        <View style={localStyles.itemHead}>
-                                            <Text style={localStyles.itemType}>{leave.type.toUpperCase()}</Text>
-                                            <View style={[localStyles.statusPill, { backgroundColor: getStatusStyle(leave.status).bg }]}>
-                                                <Text style={[localStyles.statusPillText, { color: getStatusStyle(leave.status).text }]}>
+                                    <View key={leave.id} style={styles.dataItem}>
+                                        <View style={styles.itemHead}>
+                                            <Text style={styles.itemType}>{leave.type.toUpperCase()}</Text>
+                                            <View style={[styles.statusPill, { backgroundColor: getStatusStyle(leave.status).bg }]}>
+                                                <Text style={[styles.statusPillText, { color: getStatusStyle(leave.status).text }]}>
                                                     {leave.status.toUpperCase()}
                                                 </Text>
                                             </View>
                                         </View>
-                                        <Text style={localStyles.itemRange}>{leave.start_date} → {leave.end_date}</Text>
+                                        <Text style={styles.itemRange}>{leave.start_date} → {leave.end_date}</Text>
                                     </View>
                                 ))
                             )}
@@ -496,24 +498,24 @@ export default function EmployeeDashboardScreen({ user, onLogout }) {
 
             case 'colleagues':
                 return (
-                    <ScrollView contentContainerStyle={localStyles.scrollContent} showsVerticalScrollIndicator={false}>
-                        <View style={localStyles.sectionContainer}>
-                            <Text style={localStyles.sectionTitle}>Team</Text>
+                    <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                        <View style={styles.sectionContainer}>
+                            <Text style={styles.sectionTitle}>Team</Text>
                             {colleagues.length === 0 ? (
-                                <Text style={localStyles.emptyText}>No records in scope.</Text>
+                                <Text style={styles.emptyText}>No records in scope.</Text>
                             ) : (
                                 colleagues
                                     .filter(colleague => colleague.role === 'employee' || !colleague.role)
                                     .map((colleague) => (
-                                        <View key={colleague.id} style={localStyles.colleagueCard}>
-                                            <View style={localStyles.avatarBox}>
-                                                <Ionicons name="person-outline" size={20} color={Colors.accent} />
+                                        <View key={colleague.id} style={styles.colleagueCard}>
+                                            <View style={styles.avatarBox}>
+                                                <Ionicons name="person-outline" size={20} color={colors.accent} />
                                             </View>
                                             <View style={{ flex: 1 }}>
-                                                <Text style={localStyles.colleagueName}>{colleague.full_name}</Text>
-                                                <Text style={localStyles.colleagueRole}>{colleague.job_title || 'Staff member'}</Text>
+                                                <Text style={styles.colleagueName}>{colleague.full_name}</Text>
+                                                <Text style={styles.colleagueRole}>{colleague.job_title || 'Staff member'}</Text>
                                             </View>
-                                            <Ionicons name="mail-outline" size={18} color={Colors.textSecondary} />
+                                            <Ionicons name="mail-outline" size={18} color={colors.textSecondary} />
                                         </View>
                                     ))
                             )}
@@ -523,31 +525,31 @@ export default function EmployeeDashboardScreen({ user, onLogout }) {
 
             case 'documents':
                 return (
-                    <ScrollView contentContainerStyle={localStyles.scrollContent} showsVerticalScrollIndicator={false}>
-                        <View style={localStyles.sectionContainer}>
-                            <Text style={localStyles.sectionTitle}>Files</Text>
+                    <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                        <View style={styles.sectionContainer}>
+                            <Text style={styles.sectionTitle}>Files</Text>
                             {documents.length === 0 ? (
-                                <View style={localStyles.emptyCenter}>
-                                    <Ionicons name="folder-open-outline" size={48} color={Colors.border} />
-                                    <Text style={localStyles.emptyText}>Repository empty.</Text>
+                                <View style={styles.emptyCenter}>
+                                    <Ionicons name="folder-open-outline" size={48} color={colors.border} />
+                                    <Text style={styles.emptyText}>Repository empty.</Text>
                                 </View>
                             ) : (
                                 documents.map((doc) => (
                                     <TouchableOpacity
                                         key={`${doc.source}-${doc.id}`}
-                                        style={localStyles.docCard}
+                                        style={styles.docCard}
                                         onPress={() => previewDocument(doc)}
                                         activeOpacity={0.7}
                                     >
-                                        <View style={localStyles.docIcon}>
-                                            <Ionicons name="document-text-outline" size={22} color={Colors.accent} />
+                                        <View style={styles.docIcon}>
+                                            <Ionicons name="document-text-outline" size={22} color={colors.accent} />
                                         </View>
                                         <View style={{ flex: 1, marginLeft: 12 }}>
-                                            <Text style={localStyles.docTitle} numberOfLines={1}>{doc.filename}</Text>
-                                            <Text style={localStyles.docSubtitle}>{doc.document_type} • {doc.source === 'employee' ? 'Official' : 'Personal'}</Text>
+                                            <Text style={styles.docTitle} numberOfLines={1}>{doc.filename}</Text>
+                                            <Text style={styles.docSubtitle}>{doc.document_type} • {doc.source === 'employee' ? 'Official' : 'Personal'}</Text>
                                         </View>
                                         <TouchableOpacity onPress={() => downloadDocument(doc)}>
-                                            <Ionicons name="cloud-download-outline" size={22} color={Colors.textSecondary} />
+                                            <Ionicons name="cloud-download-outline" size={22} color={colors.textSecondary} />
                                         </TouchableOpacity>
                                     </TouchableOpacity>
                                 ))
@@ -558,47 +560,47 @@ export default function EmployeeDashboardScreen({ user, onLogout }) {
 
             case 'requests':
                 return (
-                    <ScrollView contentContainerStyle={localStyles.scrollContent} showsVerticalScrollIndicator={false}>
-                        <View style={localStyles.heroBannerMini}>
+                    <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                        <View style={styles.heroBannerMini}>
                             <View>
-                                <Text style={localStyles.heroTitle}>Requests</Text>
-                                <Text style={localStyles.heroSubtitle}>{requests.length} Active</Text>
+                                <Text style={styles.heroTitle}>Requests</Text>
+                                <Text style={styles.heroSubtitle}>{requests.length} Active</Text>
                             </View>
-                            <TouchableOpacity style={localStyles.newRequestBtn} onPress={() => setRequestModalVisible(true)}>
+                            <TouchableOpacity style={styles.newRequestBtn} onPress={() => setRequestModalVisible(true)}>
                                 <Ionicons name="add" size={20} color="white" />
-                                <Text style={localStyles.newRequestText}>New</Text>
+                                <Text style={styles.newRequestText}>New</Text>
                             </TouchableOpacity>
                         </View>
 
                         {requests.length === 0 ? (
-                            <View style={localStyles.emptyCenter}>
-                                <Ionicons name="chatbubbles-outline" size={48} color={Colors.border} />
-                                <Text style={localStyles.emptyText}>No requests found.</Text>
+                            <View style={styles.emptyCenter}>
+                                <Ionicons name="chatbubbles-outline" size={48} color={colors.border} />
+                                <Text style={styles.emptyText}>No requests found.</Text>
                             </View>
                         ) : (
                             requests.map((request) => (
                                 <TouchableOpacity
                                     key={request.id}
-                                    style={localStyles.requestCard}
+                                    style={styles.requestCard}
                                     onPress={() => isManager ? openManagerRequestModal(request) : null}
                                     activeOpacity={isManager ? 0.7 : 1}
                                 >
-                                    <View style={localStyles.itemHead}>
-                                        <View style={[localStyles.statusPill, { backgroundColor: getStatusStyle(request.status).bg }]}>
+                                    <View style={styles.itemHead}>
+                                        <View style={[styles.statusPill, { backgroundColor: getStatusStyle(request.status).bg }]}>
                                             <Ionicons name={getStatusIcon(request.status)} size={10} color={getStatusStyle(request.status).text} style={{ marginRight: 4 }} />
-                                            <Text style={[localStyles.statusPillText, { color: getStatusStyle(request.status).text }]}>
+                                            <Text style={[styles.statusPillText, { color: getStatusStyle(request.status).text }]}>
                                                 {request.status.toUpperCase()}
                                             </Text>
                                         </View>
-                                        <Text style={localStyles.cardDate}>{request.date}</Text>
+                                        <Text style={styles.cardDate}>{request.date}</Text>
                                     </View>
 
-                                    <Text style={localStyles.caseSubject}>{request.subject}</Text>
-                                    <Text style={localStyles.caseMessage} numberOfLines={2}>{request.message}</Text>
+                                    <Text style={styles.caseSubject}>{request.subject}</Text>
+                                    <Text style={styles.caseMessage} numberOfLines={2}>{request.message}</Text>
 
                                     {request.response && (
-                                        <View style={localStyles.responseNote}>
-                                            <Text style={localStyles.responseText}>{request.response}</Text>
+                                        <View style={styles.responseNote}>
+                                            <Text style={styles.responseText}>{request.response}</Text>
                                         </View>
                                     )}
                                 </TouchableOpacity>
@@ -609,26 +611,26 @@ export default function EmployeeDashboardScreen({ user, onLogout }) {
 
             case 'profile':
                 return (
-                    <ScrollView contentContainerStyle={localStyles.scrollContent} showsVerticalScrollIndicator={false}>
-                        <View style={localStyles.profileHero}>
-                            <View style={localStyles.avatarLarge}>
-                                <Text style={localStyles.avatarLargeText}>
+                    <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                        <View style={styles.profileHero}>
+                            <View style={styles.avatarLarge}>
+                                <Text style={styles.avatarLargeText}>
                                     {profileData?.user?.name ? profileData.user.name.split(' ').map(n => n[0]).join('') : user.name[0]}
                                 </Text>
                             </View>
-                            <Text style={localStyles.profileName}>{profileData?.user?.name || user.name}</Text>
-                            <Text style={localStyles.profileRole}>{profileData?.employee?.job_title || 'Staff'}</Text>
+                            <Text style={styles.profileName}>{profileData?.user?.name || user.name}</Text>
+                            <Text style={styles.profileRole}>{profileData?.employee?.job_title || 'Staff'}</Text>
                         </View>
 
-                        <View style={localStyles.sectionCard}>
-                            <Text style={localStyles.sectionTitle}>Personal</Text>
+                        <View style={styles.sectionCard}>
+                            <Text style={styles.sectionTitle}>Personal</Text>
                             <ProfileDetail label="Email" value={profileData?.user?.email || user.email} icon="mail-outline" />
                             <ProfileDetail label="Phone" value={profileData?.employee?.phone || 'Not set'} icon="call-outline" />
                             <ProfileDetail label="ID" value={profileData?.employee?.id_number || 'Pending'} icon="id-card-outline" />
                         </View>
 
-                        <TouchableOpacity style={localStyles.logoutAction} onPress={onLogout}>
-                            <Text style={localStyles.logoutActionText}>Sign Out</Text>
+                        <TouchableOpacity style={styles.logoutAction} onPress={onLogout}>
+                            <Text style={styles.logoutActionText}>Sign Out</Text>
                         </TouchableOpacity>
                     </ScrollView>
                 );
@@ -640,45 +642,50 @@ export default function EmployeeDashboardScreen({ user, onLogout }) {
 
     const TabButton = ({ id, label, icon }) => (
         <TouchableOpacity
-            style={localStyles.tabButton}
+            style={styles.tabButton}
             onPress={() => setActiveTab(id)}
             activeOpacity={0.7}
         >
             <Ionicons
                 name={activeTab === id ? icon : `${icon}-outline`}
                 size={22}
-                color={activeTab === id ? Colors.accent : Colors.textSecondary}
+                color={activeTab === id ? colors.accent : colors.textSecondary}
             />
-            <Text style={[localStyles.tabLabel, activeTab === id && localStyles.activeTabLabel]}>
+            <Text style={[styles.tabLabel, activeTab === id && styles.activeTabLabel]}>
                 {label}
             </Text>
-            {activeTab === id && <View style={localStyles.activeIndicator} />}
+            {activeTab === id && <View style={styles.activeIndicator} />}
         </TouchableOpacity>
     );
 
     return (
-        <SafeAreaView style={localStyles.container}>
-            <View style={localStyles.mainHeader}>
+        <SafeAreaView style={styles.container}>
+            <View style={styles.mainHeader}>
                 <View>
-                    <Text style={localStyles.headerBrand}>COPILOT</Text>
-                    <Text style={localStyles.headerRole}>{user.role?.toUpperCase() || 'STAFF'} PORTAL</Text>
+                    <Text style={styles.headerBrand}>COPILOT</Text>
+                    <Text style={styles.headerRole}>{user.role?.toUpperCase() || 'STAFF'} PORTAL</Text>
                 </View>
-                <TouchableOpacity onPress={fetchAllData} style={localStyles.headerRefresh}>
-                    <Ionicons name="notifications-outline" size={22} color={Colors.text} />
-                    <View style={localStyles.notifBadge} />
-                </TouchableOpacity>
+                <View style={styles.headerActions}>
+                    <TouchableOpacity onPress={toggleTheme} style={styles.headerRefresh}>
+                        <Ionicons name={isDarkMode ? "sunny" : "moon"} size={22} color={colors.accent} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={fetchAllData} style={styles.headerRefresh}>
+                        <Ionicons name="notifications-outline" size={22} color={colors.text} />
+                        <View style={styles.notifBadge} />
+                    </TouchableOpacity>
+                </View>
             </View>
 
-            <View style={localStyles.mainContent}>
+            <View style={styles.mainContent}>
                 {renderContent()}
             </View>
 
-            <View style={localStyles.bottomBar}>
+            <View style={styles.bottomBar}>
                 <TabButton id="home" label="Home" icon="grid" />
                 <TabButton id="colleagues" label="Team" icon="people" />
 
                 <TouchableOpacity
-                    style={localStyles.tabButton}
+                    style={styles.tabButton}
                     onPress={() => setActiveTab('requests')}
                     activeOpacity={0.7}
                 >
@@ -686,20 +693,20 @@ export default function EmployeeDashboardScreen({ user, onLogout }) {
                         <Ionicons
                             name={activeTab === 'requests' ? "chatbox" : "chatbox-outline"}
                             size={22}
-                            color={activeTab === 'requests' ? Colors.accent : Colors.textSecondary}
+                            color={activeTab === 'requests' ? colors.accent : colors.textSecondary}
                         />
                         {requests.filter(r => r.status === 'pending').length > 0 && (
-                            <View style={localStyles.tabBadge}>
-                                <Text style={localStyles.tabBadgeText}>
+                            <View style={styles.tabBadge}>
+                                <Text style={styles.tabBadgeText}>
                                     {requests.filter(r => r.status === 'pending').length}
                                 </Text>
                             </View>
                         )}
                     </View>
-                    <Text style={[localStyles.tabLabel, activeTab === 'requests' && localStyles.activeTabLabel]}>
+                    <Text style={[styles.tabLabel, activeTab === 'requests' && styles.activeTabLabel]}>
                         Center
                     </Text>
-                    {activeTab === 'requests' && <View style={localStyles.activeIndicator} />}
+                    {activeTab === 'requests' && <View style={styles.activeIndicator} />}
                 </TouchableOpacity>
 
                 <TabButton id="documents" label="Docs" icon="folder" />
@@ -713,33 +720,33 @@ export default function EmployeeDashboardScreen({ user, onLogout }) {
                 visible={modalVisible}
                 onRequestClose={() => setModalVisible(false)}
             >
-                <View style={localStyles.modalOverlay}>
-                    <View style={localStyles.modalContent}>
-                        <View style={localStyles.modalHeader}>
-                            <Text style={localStyles.modalTitle}>Request Leave</Text>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Request Leave</Text>
                             <TouchableOpacity onPress={() => setModalVisible(false)}>
                                 <Feather name="x" size={24} color="#6b7280" />
                             </TouchableOpacity>
                         </View>
 
-                        <ScrollView style={localStyles.modalForm} showsVerticalScrollIndicator={false}>
-                            <Text style={localStyles.label}>Leave Type</Text>
-                            <View style={localStyles.typeRow}>
+                        <ScrollView style={styles.modalForm} showsVerticalScrollIndicator={false}>
+                            <Text style={styles.label}>Leave Type</Text>
+                            <View style={styles.typeRow}>
                                 {['annual', 'sick', 'emergency'].map((type) => (
                                     <TouchableOpacity
                                         key={type}
-                                        style={[localStyles.typeButton, leaveType === type && localStyles.typeButtonActive]}
+                                        style={[styles.typeButton, leaveType === type && styles.typeButtonActive]}
                                         onPress={() => setLeaveType(type)}
                                     >
-                                        <Text style={[localStyles.typeButtonText, leaveType === type && localStyles.typeButtonTextActive]}>
+                                        <Text style={[styles.typeButtonText, leaveType === type && styles.typeButtonTextActive]}>
                                             {type.charAt(0).toUpperCase() + type.slice(1)}
                                         </Text>
                                     </TouchableOpacity>
                                 ))}
                             </View>
 
-                            <Text style={localStyles.label}>Start Date</Text>
-                            <TouchableOpacity style={localStyles.dateInput} onPress={() => setShowStartPicker(true)}>
+                            <Text style={styles.label}>Start Date</Text>
+                            <TouchableOpacity style={styles.dateInput} onPress={() => setShowStartPicker(true)}>
                                 <Text>{startDate.toLocaleDateString()}</Text>
                                 <Feather name="calendar" size={18} color="#6b7280" />
                             </TouchableOpacity>
@@ -754,8 +761,8 @@ export default function EmployeeDashboardScreen({ user, onLogout }) {
                                 />
                             )}
 
-                            <Text style={localStyles.label}>End Date</Text>
-                            <TouchableOpacity style={localStyles.dateInput} onPress={() => setShowEndPicker(true)}>
+                            <Text style={styles.label}>End Date</Text>
+                            <TouchableOpacity style={styles.dateInput} onPress={() => setShowEndPicker(true)}>
                                 <Text>{endDate.toLocaleDateString()}</Text>
                                 <Feather name="calendar" size={18} color="#6b7280" />
                             </TouchableOpacity>
@@ -770,9 +777,9 @@ export default function EmployeeDashboardScreen({ user, onLogout }) {
                                 />
                             )}
 
-                            <Text style={localStyles.label}>Reason</Text>
+                            <Text style={styles.label}>Reason</Text>
                             <TextInput
-                                style={localStyles.textArea}
+                                style={styles.textArea}
                                 multiline
                                 numberOfLines={4}
                                 placeholder="Enter reason for leave..."
@@ -781,11 +788,11 @@ export default function EmployeeDashboardScreen({ user, onLogout }) {
                             />
 
                             <TouchableOpacity
-                                style={[localStyles.submitButton, submitting && localStyles.disabledButton]}
+                                style={[styles.submitButton, submitting && styles.disabledButton]}
                                 onPress={handleCreateLeave}
                                 disabled={submitting}
                             >
-                                {submitting ? <ActivityIndicator color="white" /> : <Text style={localStyles.submitButtonText}>Submit Request</Text>}
+                                {submitting ? <ActivityIndicator color="white" /> : <Text style={styles.submitButtonText}>Submit Request</Text>}
                             </TouchableOpacity>
                         </ScrollView>
                     </View>
@@ -799,42 +806,42 @@ export default function EmployeeDashboardScreen({ user, onLogout }) {
                 visible={requestModalVisible}
                 onRequestClose={() => setRequestModalVisible(false)}
             >
-                <View style={localStyles.modalOverlay}>
-                    <View style={localStyles.modalContent}>
-                        <View style={localStyles.modalHeader}>
-                            <Text style={localStyles.modalTitle}>New Request</Text>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>New Request</Text>
                             <TouchableOpacity onPress={() => setRequestModalVisible(false)}>
                                 <Feather name="x" size={24} color="#6b7280" />
                             </TouchableOpacity>
                         </View>
 
-                        <ScrollView style={localStyles.modalForm} showsVerticalScrollIndicator={false}>
-                            <Text style={localStyles.label}>Category</Text>
-                            <View style={[localStyles.infoGrid, { marginHorizontal: -4 }]}>
+                        <ScrollView style={styles.modalForm} showsVerticalScrollIndicator={false}>
+                            <Text style={styles.label}>Category</Text>
+                            <View style={[styles.infoGrid, { marginHorizontal: -4 }]}>
                                 {categories.map((cat) => (
                                     <View key={cat.id} style={{ width: '50%', padding: 4 }}>
                                         <TouchableOpacity
-                                            style={[localStyles.typeButton, reqCategory === cat.id && localStyles.typeButtonActive, { flexDirection: 'column', height: 80, justifyContent: 'center' }]}
+                                            style={[styles.typeButton, reqCategory === cat.id && styles.typeButtonActive, { flexDirection: 'column', height: 80, justifyContent: 'center' }]}
                                             onPress={() => setReqCategory(cat.id)}
                                         >
                                             <Feather name={cat.icon} size={24} color={reqCategory === cat.id ? 'white' : '#6b7280'} style={{ marginBottom: 8 }} />
-                                            <Text style={[localStyles.typeButtonText, reqCategory === cat.id && localStyles.typeButtonTextActive, { fontSize: 12 }]}>{cat.name}</Text>
+                                            <Text style={[styles.typeButtonText, reqCategory === cat.id && styles.typeButtonTextActive, { fontSize: 12 }]}>{cat.name}</Text>
                                         </TouchableOpacity>
                                     </View>
                                 ))}
                             </View>
 
-                            <Text style={localStyles.label}>Subject</Text>
+                            <Text style={styles.label}>Subject</Text>
                             <TextInput
-                                style={localStyles.phoneInput}
+                                style={styles.phoneInput}
                                 placeholder="Brief description"
                                 value={reqSubject}
                                 onChangeText={setReqSubject}
                             />
 
-                            <Text style={localStyles.label}>Message</Text>
+                            <Text style={styles.label}>Message</Text>
                             <TextInput
-                                style={localStyles.textArea}
+                                style={styles.textArea}
                                 multiline
                                 numberOfLines={4}
                                 placeholder="Detailed explanation..."
@@ -843,11 +850,11 @@ export default function EmployeeDashboardScreen({ user, onLogout }) {
                             />
 
                             <TouchableOpacity
-                                style={[localStyles.submitButton, reqSubmitting && localStyles.disabledButton]}
+                                style={[styles.submitButton, reqSubmitting && styles.disabledButton]}
                                 onPress={handleCreateRequest}
                                 disabled={reqSubmitting}
                             >
-                                {reqSubmitting ? <ActivityIndicator color="white" /> : <Text style={localStyles.submitButtonText}>Submit Request</Text>}
+                                {reqSubmitting ? <ActivityIndicator color="white" /> : <Text style={styles.submitButtonText}>Submit Request</Text>}
                             </TouchableOpacity>
                         </ScrollView>
                     </View>
@@ -861,49 +868,49 @@ export default function EmployeeDashboardScreen({ user, onLogout }) {
                 visible={managerResponseModalVisible}
                 onRequestClose={() => setManagerResponseModalVisible(false)}
             >
-                <View style={localStyles.modalOverlay}>
-                    <View style={localStyles.modalContent}>
-                        <View style={localStyles.modalHeader}>
-                            <Text style={localStyles.modalTitle}>Update Request</Text>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Update Request</Text>
                             <TouchableOpacity onPress={() => setManagerResponseModalVisible(false)}>
                                 <Feather name="x" size={24} color="#6b7280" />
                             </TouchableOpacity>
                         </View>
 
-                        <ScrollView style={localStyles.modalForm} showsVerticalScrollIndicator={false}>
+                        <ScrollView style={styles.modalForm} showsVerticalScrollIndicator={false}>
                             {selectedRequest && (
-                                <View style={localStyles.requestDetailBlock}>
-                                    <Text style={localStyles.requestDetailTitle}>Subject</Text>
-                                    <Text style={localStyles.requestDetailText}>{selectedRequest.subject}</Text>
+                                <View style={styles.requestDetailBlock}>
+                                    <Text style={styles.requestDetailTitle}>Subject</Text>
+                                    <Text style={styles.requestDetailText}>{selectedRequest.subject}</Text>
 
-                                    <Text style={[localStyles.requestDetailTitle, { marginTop: 12 }]}>Employee</Text>
-                                    <Text style={localStyles.requestDetailText}>{selectedRequest.user?.name || 'Unknown'}</Text>
+                                    <Text style={[styles.requestDetailTitle, { marginTop: 12 }]}>Employee</Text>
+                                    <Text style={styles.requestDetailText}>{selectedRequest.user?.name || 'Unknown'}</Text>
 
-                                    <Text style={[localStyles.requestDetailTitle, { marginTop: 12 }]}>Message</Text>
-                                    <View style={localStyles.messageBox}>
-                                        <Text style={localStyles.messageText}>{selectedRequest.message}</Text>
+                                    <Text style={[styles.requestDetailTitle, { marginTop: 12 }]}>Message</Text>
+                                    <View style={styles.messageBox}>
+                                        <Text style={styles.messageText}>{selectedRequest.message}</Text>
                                     </View>
                                 </View>
                             )}
 
-                            <Text style={localStyles.label}>Status</Text>
-                            <View style={localStyles.typeRow}>
+                            <Text style={styles.label}>Status</Text>
+                            <View style={styles.typeRow}>
                                 {['pending', 'in-progress', 'resolved'].map((st) => (
                                     <TouchableOpacity
                                         key={st}
-                                        style={[localStyles.typeButton, statusUpdate === st && localStyles.typeButtonActive]}
+                                        style={[styles.typeButton, statusUpdate === st && styles.typeButtonActive]}
                                         onPress={() => setStatusUpdate(st)}
                                     >
-                                        <Text style={[localStyles.typeButtonText, statusUpdate === st && localStyles.typeButtonTextActive, { fontSize: 12 }]}>
+                                        <Text style={[styles.typeButtonText, statusUpdate === st && styles.typeButtonTextActive, { fontSize: 12 }]}>
                                             {st === 'in-progress' ? 'In Progress' : st.charAt(0).toUpperCase() + st.slice(1)}
                                         </Text>
                                     </TouchableOpacity>
                                 ))}
                             </View>
 
-                            <Text style={localStyles.label}>Response Message</Text>
+                            <Text style={styles.label}>Response Message</Text>
                             <TextInput
-                                style={localStyles.textArea}
+                                style={styles.textArea}
                                 multiline
                                 numberOfLines={4}
                                 placeholder="Write a response to the employee..."
@@ -912,11 +919,11 @@ export default function EmployeeDashboardScreen({ user, onLogout }) {
                             />
 
                             <TouchableOpacity
-                                style={[localStyles.submitButton, updatingRequest && localStyles.disabledButton]}
+                                style={[styles.submitButton, updatingRequest && styles.disabledButton]}
                                 onPress={handleUpdateRequest}
                                 disabled={updatingRequest}
                             >
-                                {updatingRequest ? <ActivityIndicator color="white" /> : <Text style={localStyles.submitButtonText}>Update Request</Text>}
+                                {updatingRequest ? <ActivityIndicator color="white" /> : <Text style={styles.submitButtonText}>Update Request</Text>}
                             </TouchableOpacity>
                         </ScrollView>
                     </View>
@@ -929,10 +936,10 @@ export default function EmployeeDashboardScreen({ user, onLogout }) {
                 visible={fileLoading}
                 animationType="fade"
             >
-                <View style={localStyles.centerModalOverlay}>
-                    <View style={localStyles.loadingPopup}>
+                <View style={styles.centerModalOverlay}>
+                    <View style={styles.loadingPopup}>
                         <ActivityIndicator size="large" color="#2563EB" />
-                        <Text style={localStyles.loadingText}>{loadingText}</Text>
+                        <Text style={styles.loadingText}>{loadingText}</Text>
                     </View>
                 </View>
             </Modal>
@@ -944,20 +951,20 @@ export default function EmployeeDashboardScreen({ user, onLogout }) {
                 presentationStyle="fullScreen"
                 onRequestClose={() => setViewerVisible(false)}
             >
-                <View style={localStyles.viewerContainer}>
-                    <View style={[localStyles.viewerHeader, { paddingTop: Math.max(insets.top, 10) }]}>
+                <View style={styles.viewerContainer}>
+                    <View style={[styles.viewerHeader, { paddingTop: Math.max(insets.top, 10) }]}>
                         <TouchableOpacity
                             onPress={() => setViewerVisible(false)}
-                            style={localStyles.closeBtn}
+                            style={styles.closeBtn}
                             hitSlop={{ top: 25, bottom: 25, left: 25, right: 25 }}
                         >
                             <Feather name="x" size={24} color="#374151" />
                         </TouchableOpacity>
-                        <Text style={localStyles.viewerTitle} numberOfLines={1}>Document Preview</Text>
+                        <Text style={styles.viewerTitle} numberOfLines={1}>Document Preview</Text>
                         <View style={{ width: 44 }} />
                     </View>
 
-                    <View style={localStyles.webviewWrapper}>
+                    <View style={styles.webviewWrapper}>
                         {viewerUri && (
                             <WebView
                                 source={{ uri: viewerUri }}
@@ -974,153 +981,149 @@ export default function EmployeeDashboardScreen({ user, onLogout }) {
     );
 }
 
-const localStyles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.background,
+        backgroundColor: colors.background,
     },
     mainHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: Spacing.xl,
-        paddingVertical: Spacing.lg,
-        backgroundColor: Colors.surface,
+        paddingHorizontal: Spacing.lg,
+        paddingTop: 10,
+        paddingBottom: Spacing.md,
+        backgroundColor: colors.surface,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.border,
+        borderBottomColor: colors.border,
+    },
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     headerBrand: {
-        ...Typography.h3,
+        fontSize: 18,
+        fontWeight: '900',
+        color: colors.primary,
         letterSpacing: 1.5,
-        color: Colors.text,
     },
     headerRole: {
         fontSize: 10,
         fontWeight: '700',
-        color: Colors.accent,
-        marginTop: 2,
+        color: colors.textSecondary,
+        letterSpacing: 1,
+        marginTop: -2,
     },
     headerRefresh: {
-        width: 44,
-        height: 44,
-        borderRadius: Radius.full,
-        backgroundColor: Colors.background,
+        width: 36,
+        height: 36,
+        borderRadius: 12,
+        backgroundColor: colors.background,
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 1,
-        borderColor: Colors.border,
+        marginLeft: 10,
     },
     notifBadge: {
         position: 'absolute',
-        top: 12,
-        right: 12,
+        top: 8,
+        right: 8,
         width: 8,
         height: 8,
         borderRadius: 4,
-        backgroundColor: Colors.error,
+        backgroundColor: colors.error,
         borderWidth: 1.5,
-        borderColor: Colors.surface,
+        borderColor: colors.background,
     },
     mainContent: {
         flex: 1,
     },
     scrollContent: {
-        padding: Spacing.lg,
-        paddingBottom: 120,
+        paddingBottom: 100,
     },
     heroBanner: {
-        backgroundColor: Colors.primary,
+        backgroundColor: colors.primary,
+        padding: 24,
+        marginHorizontal: Spacing.lg,
+        marginTop: Spacing.lg,
         borderRadius: Radius.xl,
-        padding: Spacing.xl,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: Spacing.lg,
         ...Shadow.medium,
     },
-    heroBannerMini: {
-        backgroundColor: Colors.surface,
-        borderRadius: Radius.lg,
-        padding: Spacing.lg,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: Spacing.lg,
-        borderWidth: 1,
-        borderColor: Colors.border,
-        ...Shadow.subtle,
-    },
     heroPreTitle: {
-        textTransform: 'uppercase',
+        color: 'rgba(255,255,255,0.7)',
         fontSize: 12,
         fontWeight: '700',
-        color: 'rgba(255,255,255,0.6)',
+        textTransform: 'uppercase',
         letterSpacing: 1,
     },
     heroTitle: {
-        ...Typography.h2,
         color: 'white',
-        marginTop: 4,
+        fontSize: 24,
+        fontWeight: '800',
+        marginVertical: 4,
     },
     heroSubtitle: {
-        ...Typography.body,
         color: 'rgba(255,255,255,0.8)',
-        marginTop: 2,
+        fontSize: 14,
+        fontWeight: '600',
     },
     heroIcon: {
-        width: 64,
-        height: 64,
-        borderRadius: Radius.lg,
-        backgroundColor: 'rgba(255,255,255,0.1)',
+        width: 60,
+        height: 60,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.2)',
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.2)',
     },
     actionRow: {
-        marginBottom: Spacing.lg,
+        paddingHorizontal: Spacing.lg,
+        marginTop: Spacing.md,
+        marginBottom: Spacing.md,
     },
     quickActionBtn: {
-        backgroundColor: Colors.accent,
-        paddingHorizontal: Spacing.lg,
-        paddingVertical: Spacing.md,
-        borderRadius: Radius.lg,
+        backgroundColor: colors.accent,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
+        padding: 16,
+        borderRadius: Radius.lg,
+        gap: 10,
         ...Shadow.medium,
     },
     quickActionText: {
         color: 'white',
         fontWeight: '700',
-        marginLeft: 8,
+        fontSize: 15,
     },
     sectionCard: {
-        backgroundColor: Colors.surface,
-        borderRadius: Radius.lg,
+        backgroundColor: colors.surface,
+        marginHorizontal: Spacing.lg,
         padding: Spacing.lg,
-        marginBottom: Spacing.lg,
+        borderRadius: Radius.xl,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
         ...Shadow.subtle,
+        marginBottom: Spacing.md,
     },
     sectionHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: Spacing.md,
+        marginBottom: 16,
     },
     sectionTitle: {
         ...Typography.h3,
-        fontSize: 16,
+        color: colors.text,
     },
     refreshBtn: {
         padding: 4,
     },
     dataItem: {
-        paddingVertical: Spacing.md,
+        paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.background,
+        borderBottomColor: colors.border,
     },
     itemHead: {
         flexDirection: 'row',
@@ -1129,20 +1132,19 @@ const localStyles = StyleSheet.create({
         marginBottom: 4,
     },
     itemType: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: Colors.text,
+        fontSize: 11,
+        fontWeight: '800',
+        color: colors.text,
+        letterSpacing: 0.5,
     },
     itemRange: {
         fontSize: 13,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
     },
     statusPill: {
         paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: Radius.sm,
-        flexDirection: 'row',
-        alignItems: 'center',
+        paddingVertical: 4,
+        borderRadius: 8,
     },
     statusPillText: {
         fontSize: 10,
@@ -1150,304 +1152,265 @@ const localStyles = StyleSheet.create({
     },
     emptyText: {
         textAlign: 'center',
-        color: Colors.textSecondary,
-        paddingVertical: Spacing.xl,
+        color: colors.textSecondary,
+        paddingVertical: 20,
         fontSize: 14,
     },
-    // COLLEAGUES
+
+    // Colleagues / Team
     sectionContainer: {
-        marginBottom: Spacing.xl,
+        padding: Spacing.lg,
     },
     colleagueCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Colors.surface,
-        padding: Spacing.md,
+        backgroundColor: colors.surface,
+        padding: 12,
         borderRadius: Radius.lg,
-        marginBottom: Spacing.sm,
+        marginBottom: 12,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
+        ...Shadow.subtle,
     },
     avatarBox: {
-        width: 40,
-        height: 40,
-        borderRadius: Radius.md,
-        backgroundColor: Colors.background,
+        width: 44,
+        height: 44,
+        borderRadius: 14,
+        backgroundColor: colors.background,
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: Spacing.md,
+        marginRight: 12,
     },
     colleagueName: {
-        ...Typography.body,
-        fontWeight: '600',
+        fontSize: 16,
+        fontWeight: '700',
+        color: colors.text,
     },
     colleagueRole: {
         fontSize: 12,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
     },
-    // DOCUMENTS
+
+    // Documents
     docCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Colors.surface,
-        padding: Spacing.lg,
+        backgroundColor: colors.surface,
+        padding: 16,
         borderRadius: Radius.lg,
-        marginBottom: Spacing.sm,
+        marginBottom: 12,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
+        ...Shadow.subtle,
     },
     docIcon: {
-        width: 44,
-        height: 44,
-        borderRadius: Radius.md,
-        backgroundColor: `${Colors.accent}10`,
+        width: 40,
+        height: 40,
+        borderRadius: 10,
+        backgroundColor: colors.background,
         justifyContent: 'center',
         alignItems: 'center',
     },
     docTitle: {
-        ...Typography.body,
-        fontWeight: '600',
+        fontSize: 15,
+        fontWeight: '700',
+        color: colors.text,
     },
     docSubtitle: {
         fontSize: 12,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
     },
     emptyCenter: {
         alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 60,
+        marginTop: 60,
+        gap: 12,
     },
-    // REQUESTS
-    newRequestBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: Colors.primary,
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: Radius.md,
-    },
-    newRequestText: {
-        color: 'white',
-        fontWeight: '700',
-        marginLeft: 4,
-        fontSize: 13,
-    },
-    requestCard: {
-        backgroundColor: Colors.surface,
-        borderRadius: Radius.lg,
-        padding: Spacing.lg,
-        marginBottom: Spacing.md,
-        borderWidth: 1,
-        borderColor: Colors.border,
-        ...Shadow.subtle,
-    },
-    caseSubject: {
-        ...Typography.h3,
-        fontSize: 15,
-        marginTop: Spacing.sm,
-    },
-    caseMessage: {
-        ...Typography.body,
-        color: Colors.textSecondary,
-        marginTop: 4,
-    },
-    cardDate: {
-        fontSize: 11,
-        color: Colors.textSecondary,
-    },
-    responseNote: {
-        backgroundColor: Colors.background,
-        padding: Spacing.md,
-        borderRadius: Radius.md,
-        marginTop: Spacing.md,
-    },
-    responseText: {
-        fontSize: 13,
-        color: Colors.accent,
-        fontStyle: 'italic',
-    },
-    // PROFILE
+
+    // Profile
     profileHero: {
         alignItems: 'center',
-        paddingVertical: 40,
-        backgroundColor: Colors.surface,
-        borderRadius: Radius.xl,
-        marginBottom: Spacing.lg,
-        borderWidth: 1,
-        borderColor: Colors.border,
-        ...Shadow.subtle,
+        paddingVertical: 32,
+        backgroundColor: colors.surface,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
     },
-    avatarLarge: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: Colors.primary,
+    profileAvatarWrapper: {
+        position: 'relative',
+        marginBottom: 16,
+    },
+    avatarCircle: {
+        width: 90,
+        height: 90,
+        borderRadius: 45,
+        backgroundColor: colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: Spacing.md,
         ...Shadow.medium,
     },
-    avatarLargeText: {
-        color: 'white',
-        fontSize: 28,
-        fontWeight: '700',
+    editAvatarBtn: {
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        backgroundColor: colors.accent,
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: colors.surface,
     },
-    profileName: {
+    profName: {
         ...Typography.h2,
+        color: colors.text,
     },
-    profileRole: {
-        ...Typography.body,
-        color: Colors.textSecondary,
+    profRole: {
+        color: colors.textSecondary,
+        fontWeight: '600',
         marginTop: 4,
+    },
+    profileCard: {
+        backgroundColor: colors.surface,
+        margin: Spacing.lg,
+        padding: Spacing.lg,
+        borderRadius: Radius.xl,
+        borderWidth: 1,
+        borderColor: colors.border,
+        ...Shadow.subtle,
     },
     profileDetailItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: Spacing.md,
+        paddingVertical: 14,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.background,
+        borderBottomColor: colors.border,
     },
     profileDetailIcon: {
         width: 36,
         height: 36,
-        borderRadius: 18,
-        backgroundColor: Colors.background,
+        borderRadius: 12,
+        backgroundColor: colors.background,
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: Spacing.md,
+        marginRight: 12,
     },
     profileDetailLabel: {
-        fontSize: 11,
-        color: Colors.textSecondary,
+        fontSize: 10,
+        color: colors.textSecondary,
         textTransform: 'uppercase',
         letterSpacing: 1,
+        fontWeight: '700',
     },
     profileDetailValue: {
         fontSize: 15,
-        color: Colors.text,
+        color: colors.text,
         fontWeight: '600',
+        marginTop: 2,
     },
     logoutAction: {
-        backgroundColor: Colors.error,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: Spacing.lg,
+        marginHorizontal: Spacing.lg,
+        marginTop: 10,
+        marginBottom: 40,
+        padding: 16,
         borderRadius: Radius.lg,
-        marginTop: Spacing.lg,
-        ...Shadow.medium,
+        backgroundColor: colors.error + '10',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: colors.error + '20',
     },
     logoutActionText: {
-        color: 'white',
+        color: colors.error,
         fontWeight: '700',
-        marginLeft: 8,
+        fontSize: 15,
     },
-    // TAB BAR
+
+    // Bottom Bar
     bottomBar: {
         flexDirection: 'row',
-        backgroundColor: Colors.surface,
-        height: 85,
+        height: 70,
+        backgroundColor: colors.surface,
         borderTopWidth: 1,
-        borderTopColor: Colors.border,
-        paddingBottom: 20,
+        borderTopColor: colors.border,
+        paddingBottom: 10,
     },
     tabButton: {
         flex: 1,
-        alignItems: 'center',
         justifyContent: 'center',
+        alignItems: 'center',
     },
     tabLabel: {
-        fontSize: 10,
-        fontWeight: '700',
-        color: Colors.textSecondary,
+        fontSize: 11,
+        fontWeight: '600',
         marginTop: 4,
+        color: colors.textSecondary,
     },
     activeTabLabel: {
-        color: Colors.accent,
+        color: colors.accent,
     },
     activeIndicator: {
         position: 'absolute',
         top: 0,
         width: 24,
         height: 3,
-        backgroundColor: Colors.accent,
-        borderBottomLeftRadius: Radius.sm,
-        borderBottomRightRadius: Radius.sm,
+        backgroundColor: colors.accent,
+        borderBottomLeftRadius: 3,
+        borderBottomRightRadius: 3,
     },
-    tabBadge: {
-        position: 'absolute',
-        top: -4,
-        right: -8,
-        backgroundColor: Colors.error,
-        borderRadius: 8,
-        minWidth: 16,
-        height: 16,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 4,
-    },
-    tabBadgeText: {
-        color: 'white',
-        fontSize: 10,
-        fontWeight: 'bold',
-    },
-    // MODAL STYLES
+
+    // Modal
     modalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.5)',
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: Colors.surface,
-        borderTopLeftRadius: Radius.xl,
-        borderTopRightRadius: Radius.xl,
-        padding: Spacing.xl,
-        maxHeight: '80%',
-        ...Shadow.medium,
+        backgroundColor: colors.surface,
+        borderTopLeftRadius: 32,
+        borderTopRightRadius: 32,
+        padding: 24,
+        maxHeight: '85%',
     },
     modalHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: Spacing.xl,
+        marginBottom: 24,
     },
     modalTitle: {
         ...Typography.h2,
-        color: Colors.text,
+        color: colors.text,
     },
     modalForm: {
-        marginBottom: Spacing.xl,
+        marginBottom: 20,
     },
     label: {
-        ...Typography.caption,
-        color: Colors.textSecondary,
-        marginBottom: Spacing.sm,
-        marginTop: Spacing.md,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
+        ...Typography.body,
+        fontWeight: '700',
+        color: colors.text,
+        marginBottom: 8,
+        marginTop: 16,
     },
     typeRow: {
         flexDirection: 'row',
-        gap: Spacing.sm,
+        gap: 8,
     },
     typeButton: {
         flex: 1,
-        paddingVertical: Spacing.md,
-        borderRadius: Radius.lg,
-        borderWidth: 1.5,
-        borderColor: Colors.border,
+        paddingVertical: 12,
+        borderRadius: Radius.md,
+        backgroundColor: colors.background,
         alignItems: 'center',
-        backgroundColor: Colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
     },
     typeButtonActive: {
-        backgroundColor: Colors.accent,
-        borderColor: Colors.accent,
-        ...Shadow.subtle,
+        backgroundColor: colors.primary,
+        borderColor: colors.primary,
     },
     typeButtonText: {
-        color: Colors.textSecondary,
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: '600',
+        color: colors.textSecondary,
     },
     typeButtonTextActive: {
         color: 'white',
@@ -1456,28 +1419,29 @@ const localStyles = StyleSheet.create({
     dateInput: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        padding: Spacing.md,
-        borderWidth: 1.5,
-        borderColor: Colors.border,
-        borderRadius: Radius.lg,
-        backgroundColor: Colors.background,
+        padding: 14,
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: Radius.md,
+        backgroundColor: colors.background,
     },
     textArea: {
-        borderWidth: 1.5,
-        borderColor: Colors.border,
-        borderRadius: Radius.lg,
-        padding: Spacing.md,
-        backgroundColor: Colors.background,
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: Radius.md,
+        padding: 14,
+        backgroundColor: colors.background,
         height: 100,
         textAlignVertical: 'top',
+        color: colors.text,
         ...Typography.body,
     },
     submitButton: {
-        backgroundColor: Colors.accent,
-        padding: Spacing.lg,
+        backgroundColor: colors.accent,
+        padding: 16,
         borderRadius: Radius.lg,
         alignItems: 'center',
-        marginTop: Spacing.xl,
+        marginTop: 24,
         ...Shadow.medium,
     },
     submitButtonText: {
@@ -1486,7 +1450,7 @@ const localStyles = StyleSheet.create({
         fontSize: 16,
     },
     disabledButton: {
-        backgroundColor: Colors.border,
+        backgroundColor: colors.border,
         opacity: 0.6,
     },
     centerModalOverlay: {
@@ -1496,54 +1460,52 @@ const localStyles = StyleSheet.create({
         alignItems: 'center',
     },
     loadingPopup: {
-        backgroundColor: Colors.surface,
-        padding: Spacing.xl,
-        borderRadius: Radius.lg,
+        backgroundColor: colors.surface,
+        padding: 32,
+        borderRadius: Radius.xl,
         alignItems: 'center',
         ...Shadow.medium,
     },
     loadingText: {
-        marginTop: Spacing.md,
+        marginTop: 16,
         ...Typography.body,
-        color: Colors.text,
+        color: colors.text,
         fontWeight: '600',
     },
     viewerContainer: {
         flex: 1,
-        backgroundColor: Colors.background,
+        backgroundColor: colors.background,
     },
     viewerHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: Spacing.lg,
-        paddingBottom: Spacing.md,
+        paddingVertical: Spacing.md,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.border,
-        backgroundColor: Colors.surface,
+        borderBottomColor: colors.border,
+        backgroundColor: colors.surface,
     },
     viewerTitle: {
         ...Typography.h3,
         fontSize: 16,
-        color: Colors.text,
+        color: colors.text,
         flex: 1,
         textAlign: 'center',
     },
     closeBtn: {
-        padding: Spacing.sm,
+        padding: 8,
         borderRadius: Radius.full,
-        backgroundColor: Colors.background,
+        backgroundColor: colors.background,
     },
     webviewWrapper: {
         flex: 1,
-        marginHorizontal: Spacing.md,
-        marginTop: Spacing.md,
-        marginBottom: Spacing.xl,
-        borderRadius: Radius.lg,
+        margin: 16,
+        borderRadius: Radius.xl,
         overflow: 'hidden',
-        backgroundColor: Colors.surface,
+        backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
         ...Shadow.subtle,
     },
     infoGrid: {
@@ -1551,26 +1513,27 @@ const localStyles = StyleSheet.create({
         flexWrap: 'wrap',
     },
     phoneInput: {
-        backgroundColor: Colors.background,
+        backgroundColor: colors.background,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
         borderRadius: Radius.md,
-        paddingHorizontal: Spacing.md,
+        paddingHorizontal: 14,
         height: 48,
+        color: colors.text,
         ...Typography.body,
     },
     // REQUEST DETAIL STYLES
     requestDetailBlock: {
-        backgroundColor: Colors.background,
-        padding: Spacing.lg,
+        backgroundColor: colors.background,
+        padding: 16,
         borderRadius: Radius.lg,
-        marginBottom: Spacing.xl,
+        marginBottom: 20,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
     },
     requestDetailTitle: {
         ...Typography.caption,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         textTransform: 'uppercase',
         letterSpacing: 1,
         marginBottom: 4,
@@ -1578,19 +1541,19 @@ const localStyles = StyleSheet.create({
     requestDetailText: {
         ...Typography.body,
         fontWeight: '600',
-        color: Colors.text,
+        color: colors.text,
     },
     messageBox: {
-        backgroundColor: Colors.surface,
-        padding: Spacing.md,
+        backgroundColor: colors.surface,
+        padding: 12,
         borderRadius: Radius.md,
         marginTop: 4,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
     },
     messageText: {
         ...Typography.body,
         fontStyle: 'italic',
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
     },
 });

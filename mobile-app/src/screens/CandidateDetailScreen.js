@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -8,24 +8,42 @@ import {
   Linking,
   Alert,
   Dimensions,
+  StatusBar,
+  ActivityIndicator,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import apiService, { BASE_URL } from "../api/apiService";
+import documentEngine from "../utils/documentEngine";
+import { useTheme } from '../context/ThemeContext';
+import { Spacing, Radius, Shadow, Typography } from '../styles/theme';
+import StatusBadge from '../components/StatusBadge';
+import Button from '../components/Button';
 
 const { width } = Dimensions.get('window');
 
 /**
- * Candidate Detail Screen - Premium Recruitment view
+ * Candidate Detail Screen - HR 2026 High-Fidelity Redesign
  */
-export default function CandidateDetailScreen({ route, navigation }) {
-  const { candidate, manage = false } = route.params || {};
+export default function CandidateDetailScreen({ route, navigation, user }) {
+  const { colors, isDarkMode, toggleTheme } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { manage = false } = route.params || {};
+  const [candidate, setCandidate] = useState(route.params?.candidate);
+  const isPrivileged = manage || ['it_manager', 'general_director', 'manager'].includes(user?.role?.toLowerCase());
+  const [updating, setUpdating] = useState(false);
+
+  React.useEffect(() => {
+    if (route.params?.candidate) {
+      setCandidate(route.params.candidate);
+    }
+  }, [route.params?.candidate]);
 
   if (!candidate) {
     return (
-      <View style={styles.centerContainer}>
-        <Ionicons name="alert-circle-outline" size={48} color="#f87171" />
-        <Text style={styles.errorText}>Lead record synchronization failed.</Text>
+      <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
+        <Ionicons name="alert-circle-outline" size={48} color={colors.error} />
+        <Text style={[styles.errorText, { color: colors.text }]}>Lead record synchronization failed.</Text>
         <TouchableOpacity style={styles.retryBtn} onPress={() => navigation.goBack()}>
           <Text style={styles.retryBtnText}>Return to Pipeline</Text>
         </TouchableOpacity>
@@ -33,10 +51,49 @@ export default function CandidateDetailScreen({ route, navigation }) {
     );
   }
 
-  const openDocument = (relativePath) => {
-    if (!relativePath) return;
-    const url = `${BASE_URL}/static/${relativePath}`;
-    Linking.openURL(url);
+  const stages = ['new', 'shortlisted', 'interview', 'hired', 'rejected'];
+  const currentStageIndex = stages.indexOf(candidate.status?.toLowerCase() || 'new');
+
+  const updateStatus = async (newStatus) => {
+    setUpdating(true);
+    try {
+      const res = await apiService.updateCandidate(candidate.id, { status: newStatus });
+      if (res.success) {
+        setCandidate({ ...candidate, status: newStatus });
+        Alert.alert("Pipeline Updated", `Lead has been transitioned to ${newStatus.toUpperCase()}.`);
+      }
+    } catch (err) {
+      Alert.alert("Sync Error", "Failed to update pipeline stage.");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handlePromote = async () => {
+    setUpdating(true);
+    try {
+      const res = await apiService.promoteCandidate(candidate.id);
+      if (res.success) {
+        Alert.alert(
+          "Talent Promoted",
+          "This lead has been successfully transitioned to the Employee Registry.",
+          [{ text: "View Registry", onPress: () => navigation.navigate('Staff') }]
+        );
+        setCandidate({ ...candidate, status: 'hired' });
+      } else {
+        Alert.alert("Promotion Failure", res.message);
+      }
+    } catch (err) {
+      Alert.alert("System Error", "Failed to transition lead to registry.");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const openDocument = async (type) => {
+    const filename = type === 'cv' ? 'candidate_cv.pdf' : 'id_document.pdf';
+    const docType = type === 'cv' ? 'candidate_cv' : 'candidate_id';
+    await documentEngine.downloadAndPreview(docType, candidate.id, filename);
   };
 
   const handleDelete = () => {
@@ -65,31 +122,29 @@ export default function CandidateDetailScreen({ route, navigation }) {
   };
 
   const initials = candidate.full_name?.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+  const styles = getStyles(colors);
 
   return (
     <View style={styles.container}>
-      <SafeAreaView style={styles.headerSafeArea} edges={['top']}>
-        <View style={styles.topNav}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navIconBtn}>
-            <Ionicons name="arrow-back" size={24} color="#1e293b" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Lead Profile</Text>
-          {manage ? (
-            <TouchableOpacity
-              onPress={() => navigation.navigate("CandidateEdit", { candidate })}
-              style={styles.navIconBtn}
-            >
-              <Ionicons name="create-outline" size={24} color="#2563eb" />
-            </TouchableOpacity>
-          ) : <View style={{ width: 44 }} />}
-        </View>
-      </SafeAreaView>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
 
-      <ScrollView
-        style={styles.screen}
-        contentContainerStyle={{ paddingBottom: 60 }}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={[styles.topNav, { paddingTop: Math.max(insets.top, Spacing.md) }]}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.headerBtn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        </TouchableOpacity>
+        <View style={styles.headerTitleBox}>
+          <Text style={styles.headerTitle}>ALGHAITH Talent</Text>
+        </View>
+        <TouchableOpacity onPress={toggleTheme} style={styles.headerBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Ionicons name={isDarkMode ? "sunny" : "moon"} size={22} color={colors.accent} />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
         {/* HERO HEADER */}
         <View style={styles.heroSection}>
           <View style={styles.avatarLarge}>
@@ -97,325 +152,483 @@ export default function CandidateDetailScreen({ route, navigation }) {
           </View>
           <Text style={styles.heroName}>{candidate.full_name}</Text>
           <Text style={styles.heroPosition}>{candidate.applied_position || 'Open Role'}</Text>
+          <Text style={styles.heroSpecialty}>{candidate.specialty || 'Generalist'}</Text>
 
-          <View style={[styles.statusBadge, styles[`status_${candidate.status?.toLowerCase()}`] || styles.status_default]}>
-            <Text style={styles.statusText}>{(candidate.status || "NEW").toUpperCase()}</Text>
+          <View style={styles.statusRow}>
+            <StatusBadge status={candidate.status || 'new'} />
           </View>
         </View>
 
-        <View style={styles.modulesContainer}>
-          {/* CORE QUALIFICATIONS */}
-          <DetailModule title="Qualifications" icon="ribbon" color="#3b82f6">
-            <InfoRow label="Specialty" value={candidate.specialty} />
-            <InfoRow label="Experience" value={candidate.experience} />
-            <InfoRow label="Education" value={candidate.education} />
-            <InfoRow label="Dept/Unit" value={candidate.department?.name || "Unassigned"} />
-          </DetailModule>
+        {/* PIPELINE PROGRESSION */}
+        <View style={styles.pipelineCard}>
+          <Text style={styles.sectionHeader}>ALGHAITH Acquisition Pipeline</Text>
+          <View style={styles.pipelineBar}>
+            {stages.slice(0, 4).map((s, i) => (
+              <View key={s} style={styles.stageItem}>
+                <View style={[
+                  styles.stageDot,
+                  i <= currentStageIndex && { backgroundColor: i === currentStageIndex ? colors.accent : colors.success }
+                ]}>
+                  {i < currentStageIndex && <Ionicons name="checkmark" size={12} color="white" />}
+                </View>
+                <Text style={[styles.stageLabel, i <= currentStageIndex && { color: colors.text, fontWeight: '700' }]}>
+                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                </Text>
+                {i < 3 && <View style={[styles.stageLine, i < currentStageIndex && { backgroundColor: colors.success }]} />}
+              </View>
+            ))}
+          </View>
+        </View>
 
-          {/* CONTACT CHANNEL */}
-          <DetailModule title="Contact Channels" icon="call" color="#10b981">
-            <InfoRow label="Email Identity" value={candidate.email} isCopyable />
-            <InfoRow label="Mobile Line" value={candidate.phone} isCopyable />
-            <InfoRow label="Nationality" value={candidate.nationality} />
-          </DetailModule>
+        <View style={styles.contentWrap}>
+          {/* ACTION CONTROLS */}
+          {manage && (
+            <View style={styles.actionGrid}>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => updateStatus('shortlisted')}>
+                <Ionicons name="star" size={18} color={colors.accent} />
+                <Text style={styles.actionBtnText}>Shortlist</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => updateStatus('interview')}>
+                <Ionicons name="calendar" size={18} color={colors.accent} />
+                <Text style={styles.actionBtnText}>Schedule</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => updateStatus('hired')}>
+                <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+                <Text style={styles.actionBtnText}>Hire</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => updateStatus('rejected')}>
+                <Ionicons name="close-circle" size={18} color={colors.error} />
+                <Text style={styles.actionBtnText}>Reject</Text>
+              </TouchableOpacity>
 
-          {/* SKILLS ARCHIVE */}
-          <DetailModule title="Skill Repository" icon="flash" color="#f59e0b">
-            <Text style={styles.longText}>{candidate.skills || "No descriptive skills provided."}</Text>
-          </DetailModule>
+              {['offer', 'interview', 'new'].includes(candidate.status?.toLowerCase()) && (
+                <TouchableOpacity
+                  style={[styles.actionBtn, { borderStyle: 'dashed', borderColor: colors.success }]}
+                  onPress={handlePromote}
+                >
+                  <Ionicons name="rocket-outline" size={18} color={colors.success} />
+                  <Text style={[styles.actionBtnText, { color: colors.success }]}>Promote</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
 
-          {/* DOCUMENT VAULT */}
-          <DetailModule title="Document Vault" icon="folder" color="#7c3aed">
-            <View style={styles.docGrid}>
-              <DocEntry
-                name="Curriculum Vitae"
-                icon="document-attach"
-                exists={!!candidate.cv_filepath}
-                onPress={() => openDocument(candidate.cv_filepath)}
+          {/* IDENTITY & CONTACT */}
+          <View style={styles.card}>
+            <View style={styles.cardInfo}>
+              <Ionicons name="person-outline" size={18} color={colors.accent} />
+              <Text style={styles.cardTitle}>Personnel Dossier</Text>
+            </View>
+            <View style={styles.cardBody}>
+              <InfoRow label="Email Address" value={candidate.email} colors={colors} />
+              <InfoRow label="Direct Contact" value={candidate.phone || 'Not Provided'} colors={colors} />
+              <InfoRow label="Nationality" value={candidate.nationality || '—'} colors={colors} />
+              <InfoRow label="Education" value={candidate.education || '—'} colors={colors} />
+            </View>
+          </View>
+
+          {/* INTERVIEW PROTOCOL LOGS */}
+          <View style={styles.card}>
+            <View style={styles.cardInfo}>
+              <Ionicons name="chatbubbles-outline" size={18} color={colors.primary} />
+              <Text style={styles.cardTitle}>Interview Protocol Logs</Text>
+            </View>
+            <View style={styles.timeline}>
+              <TimelineItem
+                colors={colors}
+                date="2 Hours Ago"
+                title="Screening Completed"
+                desc="Initial verification of technical credentials looks promising."
               />
-              <DocEntry
-                name="ID Verification"
-                icon="id-card"
-                exists={!!candidate.id_document_filepath}
-                onPress={() => openDocument(candidate.id_document_filepath)}
+              <TimelineItem
+                colors={colors}
+                date="Yesterday"
+                title="Lead Acquired"
+                desc="Digital application received through portal."
+                isLast
               />
             </View>
-          </DetailModule>
+          </View>
 
-          {/* TIMELINE */}
-          <DetailModule title="Recruitment Journey" icon="time" color="#64748b">
-            <InfoRow label="Entry Date" value={candidate.created_at?.substring(0, 10)} />
-            <InfoRow label="Last Pulse" value={candidate.updated_at?.substring(0, 10)} />
-          </DetailModule>
+          {/* CV / PORTFOLIO */}
+          {candidate.cv_filepath && (
+            <TouchableOpacity
+              style={[styles.cvCard, { backgroundColor: colors.accent }]}
+              onPress={() => openDocument('cv')}
+            >
+              <Ionicons name="document-attach" size={24} color="white" />
+              <View style={{ flex: 1, marginLeft: 16 }}>
+                <Text style={styles.cvTitle}>Review Portfolio</Text>
+                <Text style={styles.cvSubtitle}>Credential verification required</Text>
+              </View>
+              <Ionicons name="open-outline" size={20} color="white" />
+            </TouchableOpacity>
+          )}
 
           {manage && (
-            <TouchableOpacity style={styles.purgeButton} onPress={handleDelete}>
-              <Ionicons name="trash-bin" size={20} color="white" />
-              <Text style={styles.purgeButtonText}>Purge Candidate Lead</Text>
-            </TouchableOpacity>
+            <View style={styles.managementSection}>
+              <Button
+                variant="outline"
+                title="Modify Detailed Record"
+                icon="create-outline"
+                onPress={() => navigation.navigate("CandidateEdit", { candidate })}
+              />
+              <TouchableOpacity style={styles.purgeBtn} onPress={handleDelete}>
+                <Ionicons name="trash-outline" size={18} color={colors.error} />
+                <Text style={styles.purgeText}>Purge Candidate Data</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
       </ScrollView>
-    </View>
-  );
-}
-
-/* --- REUSABLE MODULES --- */
-
-function DetailModule({ title, icon, color, children }) {
-  return (
-    <View style={styles.moduleCard}>
-      <View style={styles.cardHeader}>
-        <View style={[styles.cardIconBox, { backgroundColor: `${color}15` }]}>
-          <Ionicons name={icon} size={18} color={color} />
+      {updating && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="white" />
         </View>
-        <Text style={styles.cardTitle}>{title}</Text>
-      </View>
-      <View style={styles.cardBody}>
-        {children}
-      </View>
-    </View>
-  );
-}
-
-function InfoRow({ label, value, isCopyable }) {
-  return (
-    <View style={styles.infoRow}>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.infoLabel}>{label}</Text>
-        <Text style={styles.infoValue}>{value || "Pending..."}</Text>
-      </View>
-      {isCopyable && (
-        <TouchableOpacity style={styles.copyBtn}>
-          <Ionicons name="copy-outline" size={16} color="#94a3b8" />
-        </TouchableOpacity>
       )}
     </View>
   );
 }
 
-function DocEntry({ name, icon, exists, onPress }) {
-  if (!exists) return null;
+const InfoRow = ({ label, value, colors }) => {
+  const styles = getStyles(colors);
   return (
-    <TouchableOpacity style={styles.docItem} onPress={onPress}>
-      <View style={styles.docIconBox}>
-        <Ionicons name={icon} size={24} color="#2563eb" />
-      </View>
-      <Text style={styles.docName} numberOfLines={1}>{name}</Text>
-      <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
-    </TouchableOpacity>
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue}>{value}</Text>
+    </View>
   );
-}
+};
 
-/* --- STYLES --- */
+const TimelineItem = ({ colors, date, title, desc, isLast }) => {
+  const styles = getStyles(colors);
+  return (
+    <View style={styles.timelineItem}>
+      <View style={styles.timelineLeft}>
+        <View style={styles.timelineDot} />
+        {!isLast && <View style={styles.timelineLine} />}
+      </View>
+      <View style={styles.timelineRight}>
+        <View style={styles.timelineHeader}>
+          <Text style={styles.timelineTitle}>{title}</Text>
+          <Text style={styles.timelineDate}>{date}</Text>
+        </View>
+        <Text style={styles.timelineDesc}>{desc}</Text>
+      </View>
+    </View>
+  );
+};
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: colors.background,
   },
-  headerSafeArea: {
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   topNav: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  navIconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  headerBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1e293b',
-  },
-  screen: { flex: 1 },
-  centerContainer: {
+  headerTitleBox: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
+    alignItems: 'center',
   },
-  errorText: {
-    fontSize: 16,
-    color: '#64748b',
-    marginTop: 12,
-    fontWeight: '600',
+  headerTitle: {
+    ...Typography.h3,
+    color: colors.text,
   },
-  retryBtn: {
-    marginTop: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: '#f1f5f9',
-    borderRadius: 12,
-  },
-  retryBtnText: {
-    color: '#0f172a',
-    fontWeight: '700',
-  },
-
   heroSection: {
     alignItems: 'center',
     paddingVertical: 40,
-    backgroundColor: 'white',
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.05,
-    shadowRadius: 20,
-    elevation: 5,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
     marginBottom: 20,
   },
   avatarLarge: {
     width: 90,
     height: 90,
-    borderRadius: 45,
-    backgroundColor: '#eff6ff',
+    borderRadius: 30,
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
-    borderWidth: 4,
-    borderColor: '#f8fafc',
+    ...Shadow.medium,
+    marginBottom: 20,
   },
   avatarText: {
     fontSize: 32,
     fontWeight: '800',
-    color: '#2563eb',
+    color: 'white',
   },
   heroName: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
-    color: '#0f172a',
+    color: colors.text,
+    textAlign: 'center',
   },
   heroPosition: {
     fontSize: 15,
-    color: '#64748b',
-    fontWeight: '500',
+    color: colors.textSecondary,
     marginTop: 4,
+    fontWeight: '700',
   },
-  statusBadge: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 20,
+  heroSpecialty: {
+    fontSize: 13,
+    color: colors.accent,
+    marginTop: 2,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  statusRow: {
     marginTop: 16,
   },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: 'white',
-    letterSpacing: 0.5,
-  },
-  status_hired: { backgroundColor: "#10b981" },
-  status_interview: { backgroundColor: "#3b82f6" },
-  status_offer: { backgroundColor: "#f59e0b" },
-  status_rejected: { backgroundColor: "#f87171" },
-  status_default: { backgroundColor: "#64748b" },
-
-  modulesContainer: {
-    paddingHorizontal: 20,
-  },
-  moduleCard: {
-    backgroundColor: 'white',
-    borderRadius: 24,
+  pipelineCard: {
+    backgroundColor: colors.surface,
+    marginHorizontal: Spacing.lg,
     padding: 20,
-    marginBottom: 16,
+    borderRadius: Radius.xl,
     borderWidth: 1,
-    borderColor: '#f1f5f9',
+    borderColor: colors.border,
+    marginBottom: 20,
+    ...Shadow.subtle,
   },
-  cardHeader: {
+  sectionHeader: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 20,
+  },
+  pipelineBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    position: 'relative',
+  },
+  stageItem: {
+    alignItems: 'center',
+    width: (width - 80) / 4,
+    position: 'relative',
+  },
+  stageDot: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  stageLabel: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  stageLine: {
+    position: 'absolute',
+    top: 12,
+    left: '50%',
+    width: '100%',
+    height: 2,
+    backgroundColor: colors.border,
+    zIndex: 1,
+  },
+  contentWrap: {
+    paddingHorizontal: Spacing.lg,
+  },
+  actionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 20,
+  },
+  actionBtn: {
+    flex: 1,
+    minWidth: '45%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    padding: 14,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 8,
+    ...Shadow.subtle,
+  },
+  actionBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: Radius.xl,
+    padding: 24,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...Shadow.subtle,
+  },
+  cardInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
-  },
-  cardIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
+    gap: 12,
   },
   cardTitle: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#0f172a',
+    fontWeight: '800',
+    color: colors.text,
   },
   cardBody: {
     gap: 16,
   },
   infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingBottom: 12,
   },
   infoLabel: {
-    fontSize: 12,
-    color: '#94a3b8',
-    fontWeight: '600',
+    fontSize: 10,
+    color: colors.textSecondary,
+    fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   infoValue: {
     fontSize: 15,
-    color: '#1e293b',
-    fontWeight: '700',
+    color: colors.text,
+    fontWeight: '600',
   },
-  longText: {
-    fontSize: 15,
-    color: '#475569',
-    lineHeight: 22,
+  timeline: {
+    paddingTop: 10,
   },
-  docGrid: {
-    gap: 12,
-  },
-  docItem: {
+  timelineItem: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    padding: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
-  docIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: 'white',
-    justifyContent: 'center',
+  timelineLeft: {
     alignItems: 'center',
-    marginRight: 12,
+    width: 30,
   },
-  docName: {
+  timelineDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.accent,
+    zIndex: 2,
+  },
+  timelineLine: {
+    width: 2,
     flex: 1,
+    backgroundColor: colors.border,
+    zIndex: 1,
+  },
+  timelineRight: {
+    flex: 1,
+    paddingBottom: 24,
+    paddingLeft: 12,
+  },
+  timelineHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  timelineTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1e293b',
+    color: colors.text,
   },
-  purgeButton: {
+  timelineDate: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  timelineDesc: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  cvCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    borderRadius: Radius.xl,
+    marginBottom: 30,
+    ...Shadow.medium,
+  },
+  cvTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: 'white',
+  },
+  cvSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
+  },
+  managementSection: {
+    gap: 16,
+    marginBottom: 40,
+  },
+  purgeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f87171',
     padding: 18,
-    borderRadius: 20,
-    marginTop: 20,
-    marginBottom: 40,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: `${colors.error}30`,
+    backgroundColor: `${colors.error}05`,
     gap: 10,
   },
-  purgeButtonText: {
+  purgeText: {
+    color: colors.error,
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  errorText: {
+    fontSize: 16,
+    marginTop: 16,
+    fontWeight: '700',
+  },
+  retryBtn: {
+    marginTop: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+  },
+  retryBtnText: {
     color: 'white',
     fontWeight: '800',
-    fontSize: 16,
   },
 });

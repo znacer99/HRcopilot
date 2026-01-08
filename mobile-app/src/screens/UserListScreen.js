@@ -8,16 +8,20 @@ import {
     RefreshControl,
     ActivityIndicator,
     Alert,
+    StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import apiService from '../api/apiService';
+import { useTheme } from '../context/ThemeContext';
+import { Spacing, Radius, Shadow, Typography } from '../styles/theme';
 import Button from '../components/Button';
 
 /**
- * User List Screen - Displays all system user accounts
+ * User List Screen - Displays all system user accounts (HR 2026 Redesign)
  */
 export default function UserListScreen({ navigation }) {
+    const { colors, isDarkMode, toggleTheme } = useTheme();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -27,7 +31,7 @@ export default function UserListScreen({ navigation }) {
         try {
             const response = await apiService.getUsers(includeInactive);
             if (response.success) {
-                setUsers(response.users);
+                setUsers(response.users || []);
             }
         } catch (error) {
             console.error("Failed to fetch users:", error);
@@ -57,7 +61,6 @@ export default function UserListScreen({ navigation }) {
             const newStatus = !user.is_active;
             const response = await apiService.updateUser(user.id, { is_active: newStatus });
             if (response.success) {
-                // Update local state
                 setUsers(users.map(u => u.id === user.id ? { ...u, is_active: newStatus } : u));
                 Alert.alert("Success", `User ${newStatus ? 'activated' : 'suspended'} successfully`);
             }
@@ -92,266 +95,300 @@ export default function UserListScreen({ navigation }) {
     };
 
     const renderUserItem = ({ item }) => (
-        <View style={[styles.userCard, !item.is_active && styles.inactiveCard]}>
+        <TouchableOpacity
+            style={[styles.userCard, !item.is_active && styles.inactiveCard]}
+            onPress={() => navigation.navigate('UserEdit', { userId: item.id })}
+        >
             <View style={styles.userHeader}>
-                <View style={[styles.avatarPlaceholder, { backgroundColor: item.is_active ? '#3b82f6' : '#9ca3af' }]}>
+                <View style={[styles.avatarPlaceholder, { backgroundColor: item.is_active ? colors.accent : colors.textSecondary }]}>
                     <Text style={styles.avatarLetter}>{item.name.charAt(0).toUpperCase()}</Text>
                 </View>
                 <View style={styles.userInfo}>
                     <Text style={styles.userName}>{item.name}</Text>
                     <Text style={styles.userEmail}>{item.email}</Text>
+                    <View style={styles.roleContainer}>
+                        <Ionicons name="shield-checkmark" size={14} color={colors.accent} />
+                        <Text style={styles.userRole}>{item.role?.replace('_', ' ').toUpperCase()}</Text>
+                    </View>
                 </View>
-                <View style={[styles.roleBadge, { backgroundColor: getRoleColor(item.role) }]}>
-                    <Text style={styles.roleText}>{item.role.replace('_', ' ').toUpperCase()}</Text>
-                </View>
+                <View style={[styles.statusIndicator, { backgroundColor: item.is_active ? colors.success : colors.error }]} />
             </View>
 
-            <View style={styles.detailsRow}>
-                <View style={styles.detailItem}>
-                    <Ionicons name="call-outline" size={14} color="#6b7280" />
-                    <Text style={styles.detailText}>{item.phone || 'N/A'}</Text>
-                </View>
-                <View style={styles.detailItem}>
-                    <Ionicons name="briefcase-outline" size={14} color="#6b7280" />
-                    <Text style={styles.detailText}>{item.position || 'N/A'}</Text>
-                </View>
-            </View>
-
-            <View style={styles.actionsRow}>
+            <View style={styles.actionToolbar}>
                 <TouchableOpacity
-                    style={styles.actionBtn}
-                    onPress={() => navigation.navigate('UserEdit', { userId: item.id })}
+                    style={[styles.toolBtn, { backgroundColor: item.is_active ? colors.error + '15' : colors.success + '15' }]}
+                    onPress={(e) => { e.stopPropagation(); handleSuspendToggle(item); }}
                 >
-                    <Ionicons name="create-outline" size={18} color="#4b5563" />
-                    <Text style={styles.actionBtnText}>Edit</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={styles.actionBtn}
-                    onPress={() => handleSuspendToggle(item)}
-                >
-                    <Ionicons
-                        name={item.is_active ? "lock-closed-outline" : "lock-open-outline"}
-                        size={18}
-                        color={item.is_active ? "#f59e0b" : "#10b981"}
-                    />
-                    <Text style={[styles.actionBtnText, { color: item.is_active ? "#f59e0b" : "#10b981" }]}>
+                    <Ionicons name={item.is_active ? "remove-circle" : "checkmark-circle"} size={20} color={item.is_active ? colors.error : colors.success} />
+                    <Text style={[styles.toolText, { color: item.is_active ? colors.error : colors.success }]}>
                         {item.is_active ? 'Suspend' : 'Activate'}
                     </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    style={styles.actionBtn}
-                    onPress={() => handleDeleteUser(item)}
+                    style={[styles.toolBtn, { backgroundColor: colors.error + '15' }]}
+                    onPress={(e) => { e.stopPropagation(); handleDeleteUser(item); }}
                 >
-                    <Ionicons name="trash-outline" size={18} color="#ef4444" />
-                    <Text style={[styles.actionBtnText, { color: "#ef4444" }]}>Delete</Text>
+                    <Ionicons name="trash-outline" size={20} color={colors.error} />
+                    <Text style={[styles.toolText, { color: colors.error }]}>Delete</Text>
                 </TouchableOpacity>
             </View>
-        </View>
+        </TouchableOpacity>
     );
 
-    const getRoleColor = (role) => {
-        const r = role.toLowerCase();
-        if (r.includes('admin') || r.includes('it_manager')) return '#ef4444';
-        if (r.includes('director') || r.includes('ceo')) return '#8b5cf6';
-        if (r.includes('manager')) return '#3b82f6';
-        return '#10b981';
-    };
+    const styles = getStyles(colors);
+
+    if (loading && !refreshing) {
+        return (
+            <View style={styles.centerContainer}>
+                <ActivityIndicator size="large" color={colors.accent} />
+            </View>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
+            <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color="#111827" />
-                </TouchableOpacity>
-                <Text style={styles.title}>System Users</Text>
-                <TouchableOpacity
-                    style={styles.filterBtn}
-                    onPress={handleToggleInactive}
-                >
-                    <Ionicons
-                        name={includeInactive ? "eye" : "eye-off"}
-                        size={22}
-                        color={includeInactive ? "#2563eb" : "#9ca3af"}
-                    />
-                </TouchableOpacity>
+                <View style={styles.headerTop}>
+                    <TouchableOpacity
+                        onPress={() => navigation.goBack()}
+                        style={styles.backBtn}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                        <Ionicons name="arrow-back" size={24} color={colors.text} />
+                    </TouchableOpacity>
+                    <View>
+                        <Text style={styles.screenTitle}>Registry</Text>
+                        <Text style={styles.screenSubtitle}>ALGHAITH Account Governance</Text>
+                    </View>
+                    <TouchableOpacity onPress={toggleTheme} style={styles.themeToggle} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                        <Ionicons name={isDarkMode ? "sunny" : "moon"} size={22} color={colors.accent} />
+                    </TouchableOpacity>
+                </View>
+
+                <View style={styles.configBar}>
+                    <TouchableOpacity
+                        style={[styles.filterToggle, includeInactive && styles.filterToggleActive]}
+                        onPress={handleToggleInactive}
+                    >
+                        <Ionicons name={includeInactive ? "eye" : "eye-off"} size={18} color={includeInactive ? colors.accent : colors.textSecondary} />
+                        <Text style={[styles.filterText, includeInactive && { color: colors.accent }]}>
+                            {includeInactive ? 'Showing Inactive' : 'Hide Inactive'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
             </View>
 
-            {loading && !refreshing ? (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#2563eb" />
-                </View>
-            ) : (
-                <FlatList
-                    data={users}
-                    keyExtractor={(item) => item.id.toString()}
-                    renderItem={renderUserItem}
-                    contentContainerStyle={styles.listContent}
-                    refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563eb" />
-                    }
-                    ListEmptyComponent={
-                        <View style={styles.emptyContainer}>
-                            <Ionicons name="person-outline" size={64} color="#d1d5db" />
-                            <Text style={styles.emptyText}>No users found</Text>
-                        </View>
-                    }
-                />
-            )}
+            <FlatList
+                data={users}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={renderUserItem}
+                contentContainerStyle={styles.listContent}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
+                }
+                ListEmptyComponent={
+                    <View style={styles.emptyContainer}>
+                        <Ionicons name="people-outline" size={64} color={colors.border} />
+                        <Text style={styles.emptyTitle}>No users found</Text>
+                        <Text style={styles.emptySubtitle}>System registry is empty or disconnected.</Text>
+                    </View>
+                }
+            />
 
-            <View style={styles.fabContainer}>
+            <View style={styles.footer}>
                 <Button
                     variant="primary"
-                    title="Add User"
-                    icon="plus"
+                    title="Add System Account"
+                    icon="user-plus"
                     onPress={() => navigation.navigate('UserEdit')}
-                    fullWidth
                 />
             </View>
         </SafeAreaView>
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f9fafb',
+        backgroundColor: colors.background,
     },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-        backgroundColor: 'white',
-        borderBottomWidth: 1,
-        borderBottomColor: '#e5e7eb',
-    },
-    backBtn: {
-        padding: 4,
-        marginRight: 12,
-    },
-    title: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#111827',
-        flex: 1,
-    },
-    filterBtn: {
-        padding: 4,
-    },
-    loadingContainer: {
+    centerContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: colors.background,
+    },
+    header: {
+        backgroundColor: colors.surface,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+        paddingBottom: Spacing.md,
+    },
+    headerTop: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: Spacing.lg,
+        paddingTop: Spacing.sm,
+        paddingBottom: Spacing.md,
+        justifyContent: 'space-between',
+    },
+    backBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: colors.background,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    themeToggle: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: colors.background,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    screenTitle: {
+        ...Typography.h1,
+        fontSize: 20,
+        color: colors.text,
+        textAlign: 'center',
+    },
+    screenSubtitle: {
+        ...Typography.subtitle,
+        color: colors.textSecondary,
+        textAlign: 'center',
+        marginTop: -2,
+    },
+    configBar: {
+        paddingHorizontal: Spacing.lg,
+        flexDirection: 'row',
+        justifyContent: 'flex-start',
+    },
+    filterToggle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.background,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: colors.border,
+        gap: 8,
+    },
+    filterToggleActive: {
+        borderColor: colors.accent,
+        backgroundColor: `${colors.accent}10`,
+    },
+    filterText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: colors.textSecondary,
     },
     listContent: {
-        padding: 16,
+        padding: Spacing.lg,
         paddingBottom: 100,
     },
     userCard: {
-        backgroundColor: 'white',
-        borderRadius: 16,
+        backgroundColor: colors.surface,
+        borderRadius: Radius.xl,
         padding: 16,
-        marginBottom: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
+        marginBottom: 16,
         borderWidth: 1,
-        borderColor: '#f3f4f6',
+        borderColor: colors.border,
+        ...Shadow.subtle,
     },
     inactiveCard: {
-        opacity: 0.7,
-        backgroundColor: '#f3f4f6',
+        opacity: 0.8,
+        backgroundColor: colors.background,
     },
     userHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 12,
+        marginBottom: 16,
     },
     avatarPlaceholder: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+        width: 50,
+        height: 50,
+        borderRadius: 15,
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 12,
     },
     avatarLetter: {
         color: 'white',
-        fontSize: 18,
-        fontWeight: '700',
+        fontSize: 20,
+        fontWeight: 'bold',
     },
     userInfo: {
         flex: 1,
+        marginLeft: 14,
     },
     userName: {
         fontSize: 16,
-        fontWeight: '600',
-        color: '#111827',
+        fontWeight: '700',
+        color: colors.text,
     },
     userEmail: {
         fontSize: 13,
-        color: '#6b7280',
+        color: colors.textSecondary,
+        marginBottom: 4,
     },
-    roleBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 6,
-    },
-    roleText: {
-        fontSize: 10,
-        fontWeight: '800',
-        color: 'white',
-    },
-    detailsRow: {
-        flexDirection: 'row',
-        marginBottom: 16,
-        gap: 16,
-    },
-    detailItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-    },
-    detailText: {
-        fontSize: 13,
-        color: '#6b7280',
-    },
-    actionsRow: {
-        flexDirection: 'row',
-        borderTopWidth: 1,
-        borderTopColor: '#f3f4f6',
-        paddingTop: 12,
-        justifyContent: 'space-between',
-    },
-    actionBtn: {
+    roleContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
     },
-    actionBtnText: {
+    userRole: {
+        fontSize: 11,
+        fontWeight: '800',
+        color: colors.accent,
+        letterSpacing: 0.5,
+    },
+    statusIndicator: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+    },
+    actionToolbar: {
+        flexDirection: 'row',
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+        paddingTop: 16,
+        gap: 12,
+    },
+    toolBtn: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: 40,
+        borderRadius: 10,
+        gap: 8,
+    },
+    toolText: {
         fontSize: 13,
-        fontWeight: '600',
-        color: '#4b5563',
+        fontWeight: '700',
+    },
+    footer: {
+        padding: Spacing.lg,
+        backgroundColor: colors.surface,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
     },
     emptyContainer: {
-        marginTop: 100,
         alignItems: 'center',
+        marginTop: 100,
     },
-    emptyText: {
-        marginTop: 12,
-        fontSize: 16,
-        color: '#9ca3af',
+    emptyTitle: {
+        ...Typography.h2,
+        color: colors.text,
+        marginTop: 16,
     },
-    fabContainer: {
-        position: 'absolute',
-        bottom: 24,
-        left: 20,
-        right: 20,
-    }
+    emptySubtitle: {
+        ...Typography.body,
+        color: colors.textSecondary,
+        marginTop: 4,
+    },
 });

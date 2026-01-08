@@ -10,17 +10,23 @@ import {
     Alert,
     KeyboardAvoidingView,
     Platform,
+    StatusBar,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import apiService from "../api/apiService";
+import { useTheme } from '../context/ThemeContext';
+import { Spacing, Radius, Shadow, Typography } from '../styles/theme';
+import Button from '../components/Button';
 
 /**
- * Candidate Edit Screen - Premium Redesign
+ * Candidate Edit Screen - HR 2026 Redesign
  * Logical grouping of fields into visual modules for better UX
  */
-export default function CandidateEditScreen({ route, navigation }) {
-    const { candidate, onUpdated } = route.params || {};
+export default function CandidateEditScreen({ route, navigation, user }) {
+    const { colors, isDarkMode, toggleTheme } = useTheme();
+    const insets = useSafeAreaInsets();
+    const { candidate } = route.params || {};
     const isEdit = !!candidate;
 
     // FORM FIELDS
@@ -46,20 +52,25 @@ export default function CandidateEditScreen({ route, navigation }) {
     const fetchMetadata = async () => {
         try {
             const res = await apiService.getDepartments();
-            if (res.success) setDepartments(res.departments);
+            if (res?.success) setDepartments(res.departments || []);
         } catch (err) {
             console.log("Metadata fetch failed", err);
         }
     };
 
     const handleSave = async () => {
+        const isPrivileged = ['it_manager', 'general_director', 'manager'].includes(user?.role?.toLowerCase());
+        if (!isPrivileged) {
+            Alert.alert("Permission Denied", "You are not authorized to create or modify talent records.");
+            return;
+        }
+
         if (!fullName.trim() || !position.trim()) {
             Alert.alert("Required Fields", "Name and Applied Position are mandatory.");
             return;
         }
 
         setSaving(true);
-
         try {
             const payload = {
                 full_name: fullName.trim(),
@@ -86,319 +97,180 @@ export default function CandidateEditScreen({ route, navigation }) {
                 throw new Error(res.message || "Save failed");
             }
 
-            Alert.alert("Success", `Lead ${isEdit ? 'updated' : 'captured'} successfully!`, [
+            Alert.alert("Success", `Lead record ${isEdit ? 'updated' : 'captured'}!`, [
                 {
-                    text: "View Pipeline",
+                    text: "Confirm",
                     onPress: () => {
-                        if (onUpdated) onUpdated();
                         navigation.goBack();
                     },
                 },
             ]);
         } catch (err) {
-            console.error("Save error:", err);
             Alert.alert("System Error", err.message || "Could not save recruitment data.");
         } finally {
             setSaving(false);
         }
     };
 
-    const statusOptions = ['new', 'interview', 'offer', 'hired', 'rejected'];
+    const styles = getStyles(colors);
+
+    const InputField = ({ label, value, onChange, placeholder, keyboardType = 'default', multiline = false }) => (
+        <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>{label}</Text>
+            <TextInput
+                style={[styles.input, multiline && styles.textArea]}
+                value={value}
+                onChangeText={onChange}
+                placeholder={placeholder}
+                placeholderTextColor={colors.textSecondary}
+                keyboardType={keyboardType}
+                multiline={multiline}
+            />
+        </View>
+    );
 
     return (
         <View style={styles.container}>
-            <SafeAreaView style={styles.headerSafeArea} edges={['top']}>
-                <View style={styles.topNav}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navIconBtn}>
-                        <Ionicons name="close-outline" size={28} color="#1e293b" />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>{isEdit ? 'Modify Lead' : 'Capture Lead'}</Text>
-                    <TouchableOpacity
-                        onPress={handleSave}
-                        disabled={saving}
-                        style={styles.saveBtnTop}
-                    >
-                        {saving ? <ActivityIndicator size="small" color="#0f172a" /> : <Text style={styles.saveBtnTopText}>Finalize</Text>}
-                    </TouchableOpacity>
+            <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
+
+            <View style={[styles.header, { paddingTop: Math.max(insets.top, Spacing.md) }]}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
+                    <Ionicons name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+                <View style={styles.headerTitleBox}>
+                    <Text style={styles.headerTitle}>{isEdit ? "Refine Lead" : "New Talent Lead"}</Text>
                 </View>
-            </SafeAreaView>
+                <TouchableOpacity onPress={toggleTheme} style={styles.headerBtn}>
+                    <Ionicons name={isDarkMode ? "sunny" : "moon"} size={22} color={colors.accent} />
+                </TouchableOpacity>
+            </View>
 
             <KeyboardAvoidingView
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
                 style={{ flex: 1 }}
             >
-                <ScrollView
-                    style={styles.screen}
-                    contentContainerStyle={styles.scrollContent}
-                    showsVerticalScrollIndicator={false}
-                >
-                    {/* SECTION – IDENTITY */}
-                    <FormCard title="Candidate Bio" icon="person" color="#3b82f6">
-                        <Input label="Full Name *" value={fullName} setter={setFullName} placeholder="e.g. Michael Chen" />
-                        <Input label="Email Identity" value={email} setter={setEmail} keyboardType="email-address" placeholder="name@domain.com" />
-                        <Input label="Mobile Line" value={phone} setter={setPhone} keyboardType="phone-pad" placeholder="+1..." />
-                        <Input label="Nationality" value={nationality} setter={setNationality} placeholder="Country code or name" />
-                    </FormCard>
-
-                    {/* SECTION – PIPELINE STATUS */}
-                    <FormCard title="Pipeline Management" icon="layers" color="#10b981">
-                        <Input label="Applied Position *" value={position} setter={setPosition} placeholder="e.g. Lead Developer" />
-                        <Input label="Specialty Focus" value={specialty} setter={setSpecialty} placeholder="e.g. Backend Architecture" />
-
-                        <View style={styles.pickerBlock}>
-                            <Text style={styles.pickerLabel}>Unit Assignment</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
-                                <TouchableOpacity
-                                    style={[styles.pill, !departmentId && styles.pillActive]}
-                                    onPress={() => setDepartmentId(null)}
-                                >
-                                    <Text style={[styles.pillText, !departmentId && styles.pillTextActive]}>Unassigned</Text>
-                                </TouchableOpacity>
-                                {departments.map(d => (
-                                    <TouchableOpacity
-                                        key={d.id}
-                                        style={[styles.pill, departmentId === d.id && styles.pillActive]}
-                                        onPress={() => setDepartmentId(d.id)}
-                                    >
-                                        <Text style={[styles.pillText, departmentId === d.id && styles.pillTextActive]}>{d.name}</Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </ScrollView>
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+                    <View style={styles.section}>
+                        <View style={styles.sectionHeader}>
+                            <Ionicons name="person-outline" size={18} color={colors.accent} />
+                            <Text style={styles.sectionTitle}>Talent Profile</Text>
                         </View>
+                        <InputField label="Candidate Name *" value={fullName} onChange={setFullName} placeholder="e.g. Sarah Jenkins" />
+                        <InputField label="Applied Position *" value={position} onChange={setPosition} placeholder="e.g. Design Lead" />
+                        <InputField label="Primary Domain" value={specialty} onChange={setSpecialty} placeholder="e.g. Product Design" />
+                    </View>
 
-                        <View style={[styles.pickerBlock, { marginTop: 12 }]}>
-                            <Text style={styles.pickerLabel}>Pipeline Status</Text>
-                            <View style={styles.pillGrid}>
-                                {statusOptions.map(opt => (
-                                    <TouchableOpacity
-                                        key={opt}
-                                        style={[styles.pill, status === opt && styles.pillActive]}
-                                        onPress={() => setStatus(opt)}
-                                    >
-                                        <Text style={[styles.pillText, status === opt && styles.pillTextActive]}>
-                                            {opt.toUpperCase()}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
+                    <View style={styles.section}>
+                        <View style={styles.sectionHeader}>
+                            <Ionicons name="call-outline" size={18} color={colors.accent} />
+                            <Text style={styles.sectionTitle}>Contact Channels</Text>
                         </View>
-                    </FormCard>
+                        <InputField label="Email Address" value={email} onChange={setEmail} placeholder="candidate@example.com" keyboardType="email-address" />
+                        <InputField label="Direct Phone" value={phone} onChange={setPhone} placeholder="+1 000 000 000" keyboardType="phone-pad" />
+                        <InputField label="Nationality" value={nationality} onChange={setNationality} placeholder="e.g. American" />
+                    </View>
 
-                    {/* EXPERIENCE */}
-                    <FormCard title="Experience Profile" icon="ribbon" color="#f59e0b">
-                        <Input label="Experience Summary" value={experience} setter={setExperience} multiline placeholder="Years, previous roles..." />
-                        <Input label="Educational Background" value={education} setter={setEducation} multiline placeholder="Degrees, institutions..." />
-                        <Input label="Skill Repository" value={skills} setter={setSkills} multiline placeholder="Technologies, methodologies..." />
-                    </FormCard>
+                    <View style={styles.section}>
+                        <View style={styles.sectionHeader}>
+                            <Ionicons name="document-text-outline" size={18} color={colors.accent} />
+                            <Text style={styles.sectionTitle}>Background & Skills</Text>
+                        </View>
+                        <InputField label="Experience Overview" value={experience} onChange={setExperience} placeholder="Summary of career history..." multiline />
+                        <InputField label="Education Level" value={education} onChange={setEducation} placeholder="Highest degree attained..." />
+                        <InputField label="Technical Skills" value={skills} onChange={setSkills} placeholder="List primary stacks..." multiline />
+                    </View>
 
-                    {/* BOTTOM ACTION */}
-                    <TouchableOpacity
-                        style={[styles.finalizeButton, saving && styles.disabled]}
-                        disabled={saving}
+                    <Button
+                        variant="primary"
+                        title={saving ? "" : (isEdit ? "Update Lead" : "Capture Talent")}
+                        loading={saving}
                         onPress={handleSave}
-                    >
-                        {saving ? (
-                            <ActivityIndicator color="#fff" />
-                        ) : (
-                            <Text style={styles.finalizeText}>Commit to Pipeline</Text>
-                        )}
-                    </TouchableOpacity>
+                        style={{ marginTop: 20 }}
+                    />
                 </ScrollView>
             </KeyboardAvoidingView>
         </View>
     );
 }
 
-/* --- COMPONENTS --- */
-
-function FormCard({ title, icon, color, children }) {
-    return (
-        <View style={styles.formCard}>
-            <View style={styles.cardHeader}>
-                <View style={[styles.cardIconBox, { backgroundColor: `${color}15` }]}>
-                    <Ionicons name={icon} size={18} color={color} />
-                </View>
-                <Text style={styles.cardTitle}>{title}</Text>
-            </View>
-            <View style={styles.cardBody}>
-                {children}
-            </View>
-        </View>
-    );
-}
-
-const Input = ({ label, value, setter, keyboardType, multiline, placeholder }) => (
-    <View style={styles.field}>
-        <Text style={styles.fieldLabel}>{label}</Text>
-        <TextInput
-            style={[styles.input, multiline && { height: 80, textAlignVertical: 'top' }]}
-            value={value || ""}
-            onChangeText={setter}
-            keyboardType={keyboardType}
-            multiline={multiline}
-            placeholder={placeholder}
-            placeholderTextColor="#94a3b8"
-        />
-    </View>
-);
-
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.background,
     },
-    headerSafeArea: {
-        backgroundColor: 'white',
-        borderBottomWidth: 1,
-        borderBottomColor: '#f1f5f9',
-    },
-    topNav: {
+    header: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
+        paddingHorizontal: Spacing.lg,
+        paddingBottom: Spacing.md,
+        backgroundColor: colors.surface,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
     },
-    navIconBtn: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+    headerBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: colors.background,
         justifyContent: 'center',
+        alignItems: 'center',
+    },
+    headerTitleBox: {
+        flex: 1,
         alignItems: 'center',
     },
     headerTitle: {
-        fontSize: 17,
-        fontWeight: '700',
-        color: '#1e293b',
+        ...Typography.h3,
+        color: colors.text,
     },
-    saveBtnTop: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 12,
-        backgroundColor: '#f1f5f9',
-    },
-    saveBtnTopText: {
-        color: '#0f172a',
-        fontWeight: '700',
-        fontSize: 14,
-    },
-    screen: { flex: 1 },
     scrollContent: {
-        padding: 20,
-        paddingBottom: 40,
+        padding: Spacing.lg,
+        paddingBottom: 60,
     },
-    formCard: {
-        backgroundColor: 'white',
-        borderRadius: 24,
+    section: {
+        backgroundColor: colors.surface,
+        borderRadius: Radius.xl,
         padding: 20,
         marginBottom: 20,
         borderWidth: 1,
-        borderColor: '#f1f5f9',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.02,
-        shadowRadius: 10,
-        elevation: 2,
+        borderColor: colors.border,
+        ...Shadow.subtle,
     },
-    cardHeader: {
+    sectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 20,
+        gap: 8,
     },
-    cardIconBox: {
-        width: 32,
-        height: 32,
-        borderRadius: 10,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 10,
-    },
-    cardTitle: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: '#0f172a',
-    },
-    cardBody: {
-        gap: 16,
-    },
-    field: {
-        marginBottom: 4,
-    },
-    fieldLabel: {
-        fontSize: 12,
-        color: '#64748b',
-        fontWeight: '600',
+    sectionTitle: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: colors.text,
         textTransform: 'uppercase',
-        letterSpacing: 0.5,
+        letterSpacing: 1,
+    },
+    inputContainer: {
+        marginBottom: 16,
+    },
+    inputLabel: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: colors.textSecondary,
         marginBottom: 8,
     },
     input: {
-        backgroundColor: '#f8fafc',
-        borderWidth: 1,
-        borderColor: '#e2e8f0',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderRadius: 14,
-        fontSize: 15,
-        color: '#1e293b',
-        fontWeight: '500',
-    },
-    pickerBlock: {
-        marginTop: 4,
-    },
-    pickerLabel: {
-        fontSize: 12,
-        color: '#64748b',
-        fontWeight: '600',
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-        marginBottom: 12,
-    },
-    pillScroll: {
-        flexDirection: 'row',
-    },
-    pillGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-    },
-    pill: {
-        paddingHorizontal: 14,
-        paddingVertical: 8,
+        backgroundColor: colors.background,
         borderRadius: 12,
-        backgroundColor: '#f1f5f9',
         borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderColor: colors.border,
+        paddingHorizontal: 14,
+        height: 48,
+        color: colors.text,
+        fontSize: 15,
     },
-    pillActive: {
-        backgroundColor: '#0f172a',
-        borderColor: '#0f172a',
-    },
-    pillText: {
-        fontSize: 12,
-        color: '#475569',
-        fontWeight: '700',
-    },
-    pillTextActive: {
-        color: 'white',
-    },
-    finalizeButton: {
-        backgroundColor: "#0f172a",
-        padding: 18,
-        borderRadius: 20,
-        alignItems: "center",
-        marginTop: 10,
-        marginBottom: 30,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 5,
-    },
-    disabled: { opacity: 0.6 },
-    finalizeText: {
-        color: "#fff",
-        fontWeight: "800",
-        fontSize: 17,
+    textArea: {
+        height: 100,
+        textAlignVertical: 'top',
+        paddingVertical: 12,
     },
 });

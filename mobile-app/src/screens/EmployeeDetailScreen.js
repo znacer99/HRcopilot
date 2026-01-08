@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,40 +9,39 @@ import {
   Alert,
   Dimensions,
   ActivityIndicator,
+  StatusBar,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import apiService, { BASE_URL } from "../api/apiService";
+import documentEngine from "../utils/documentEngine";
 import { getPermissions } from "../utils/permissions";
+import { useTheme } from '../context/ThemeContext';
+import { Spacing, Radius, Shadow, Typography } from '../styles/theme';
+import Button from '../components/Button';
 
 const { width } = Dimensions.get('window');
 
 /**
- * Employee Detail Screen - Premium Redesign
+ * Employee Detail Screen - HR 2026 Redesign
  * Features a hero header and organized information modules
  */
 export default function EmployeeDetailScreen({ route, navigation }) {
+  const { colors, isDarkMode, toggleTheme } = useTheme();
+  const insets = useSafeAreaInsets();
   const { employee, user } = route.params || {};
 
   const perms = getPermissions(user);
+  const isPrivileged = ['it_manager', 'general_director', 'manager'].includes(user?.role?.toLowerCase());
   const canEditEmployee = perms.EDIT_EMPLOYEE;
   const canUploadDocs = perms.UPLOAD_EMPLOYEE_DOCS;
 
   const [data, setData] = useState(employee || null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    reloadEmployee();
-  }, []);
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener("focus", reloadEmployee);
-    return unsubscribe;
-  }, [navigation]);
-
-  const reloadEmployee = async () => {
+  const reloadEmployee = useCallback(async () => {
     if (!employee?.id) {
       setLoading(false);
       return;
@@ -72,250 +71,223 @@ export default function EmployeeDetailScreen({ route, navigation }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [employee?.id]);
+
+  useEffect(() => {
+    reloadEmployee();
+  }, [reloadEmployee]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", reloadEmployee);
+    return unsubscribe;
+  }, [navigation, reloadEmployee]);
 
   /* ---------- DOCUMENT ACTIONS ---------- */
-
   const openDocument = async (doc) => {
-    try {
-      if (!doc?.id || !doc?.filename) {
-        Alert.alert("File error", "Document info is missing.");
-        return;
-      }
-
-      const token = await apiService.getToken();
-      if (!token) {
-        Alert.alert("Auth error", "Missing token. Please login again.");
-        return;
-      }
-
-      const downloadUrl = `${BASE_URL}/api/documents/employee/${doc.id}/download`;
-      const localPath = `${FileSystem.documentDirectory}${doc.filename}`;
-
-      const res = await FileSystem.downloadAsync(downloadUrl, localPath, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(res.uri);
-        return;
-      }
-
-      await Linking.openURL(res.uri);
-    } catch (e) {
-      console.log("Open document failed:", e);
-      Alert.alert("Open failed", "Cannot open this document.");
-    }
+    await documentEngine.downloadAndPreview('employee', doc.id, doc.filename);
   };
 
-  const confirmDelete = (doc) => {
-    if (!doc?.id) return;
-
-    Alert.alert(
-      "Delete document?",
-      "This will permanently delete the file.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const res = await apiService.deleteEmployeeDocument(doc.id);
-
-              if (!res?.success) {
-                console.log("❌ Delete failed:", res);
-                Alert.alert("Error", res?.message || "Delete failed");
-                return;
-              }
-
-              console.log("✅ Deleted doc:", doc.id);
-              reloadEmployee();
-            } catch (e) {
-              console.log("❌ Delete error:", e);
-              Alert.alert("Error", "Delete failed");
-            }
-          },
+  const deleteDocument = (docId) => {
+    Alert.alert("Remove Document", "Are you sure? This action is permanent.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await apiService.deleteDocument(docId);
+            reloadEmployee();
+          } catch (e) {
+            Alert.alert("Error", "Failed to remove document.");
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
-  /* ---------- RENDER ---------- */
+  /* ---------- RENDER HELPERS ---------- */
 
-  if (loading) {
+  const ModuleCard = ({ title, icon, children, color = colors.primary }) => (
+    <View style={styles.infoCard}>
+      <View style={styles.cardHeader}>
+        <View style={[styles.cardIconBox, { backgroundColor: color + '15' }]}>
+          <Ionicons name={icon} size={20} color={color} />
+        </View>
+        <Text style={styles.cardTitle}>{title}</Text>
+      </View>
+      <View style={styles.cardBody}>{children}</View>
+    </View>
+  );
+
+  const InfoRow = ({ label, value, icon, link }) => (
+    <View style={styles.infoRow}>
+      <View style={styles.infoIconBox}>
+        <Ionicons name={icon} size={16} color={colors.textSecondary} />
+      </View>
+      <View style={styles.infoContent}>
+        <Text style={styles.infoLabel}>{label}</Text>
+        {link ? (
+          <TouchableOpacity onPress={() => Linking.openURL(link)}>
+            <Text style={[styles.infoValue, styles.linkValue, { color: colors.accent }]}>{value || "Not Set"}</Text>
+          </TouchableOpacity>
+        ) : (
+          <Text style={styles.infoValue}>{value || "Not Set"}</Text>
+        )}
+      </View>
+    </View>
+  );
+
+  const styles = getStyles(colors);
+
+  if (loading && !data) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2563eb" />
-        <Text style={styles.loadingText}>Loading Profile...</Text>
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
   }
 
-  if (!data) {
-    return (
-      <View style={styles.center}>
-        <Ionicons name="alert-circle-outline" size={64} color="#f87171" />
-        <Text style={styles.errorText}>No employee data found.</Text>
-        <TouchableOpacity style={styles.retryBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.retryText}>Go Back</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  const getInitials = (name) => {
-    return name
-      ? name.split(" ").map((n) => n[0]).join("").toUpperCase().substring(0, 2)
-      : "??";
-  };
+  const initials = (data?.full_name || "??")
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .substring(0, 2)
+    .toUpperCase();
 
   return (
     <View style={styles.container}>
-      <SafeAreaView style={styles.headerSafeArea} edges={['top']}>
-        <View style={styles.topNav}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navIconBtn}>
-            <Ionicons name="arrow-back" size={24} color="#1e293b" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Profile Details</Text>
-          {canEditEmployee ? (
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
+
+      <View style={[styles.topNav, { paddingTop: Math.max(insets.top, Spacing.md) }]}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.headerBtn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        </TouchableOpacity>
+        <View style={styles.headerTitleBox}>
+          <Text style={styles.headerTitle}>ALGHAITH Profile</Text>
+        </View>
+        <TouchableOpacity onPress={toggleTheme} style={styles.headerBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Ionicons name={isDarkMode ? "sunny" : "moon"} size={22} color={colors.accent} />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <View style={styles.heroSection}>
+          <View style={styles.avatarCircle}>
+            <Text style={styles.avatarText}>{initials}</Text>
+            <View style={[styles.statusIndicator, { backgroundColor: data?.status === 'active' || !data?.status ? colors.success : colors.warning }]} />
+          </View>
+          <Text style={styles.heroName}>{data?.full_name}</Text>
+          <Text style={styles.heroRole}>{data?.job_title || "ALGHAITH Personnel"}</Text>
+
+          <View style={styles.heroBadge}>
+            <Text style={styles.heroDept}>{data?.department_name || "CENTRAL OPERATIONS"}</Text>
+          </View>
+
+          {canEditEmployee && (
             <TouchableOpacity
               onPress={() => navigation.navigate("EmployeeEdit", { employee: data })}
-              style={styles.navIconBtn}
+              style={styles.editHeroBtn}
             >
-              <Ionicons name="create-outline" size={24} color="#2563eb" />
+              <Ionicons name="create-outline" size={18} color={colors.accent} />
+              <Text style={styles.editHeroText}>Edit Profile</Text>
             </TouchableOpacity>
-          ) : <View style={{ width: 44 }} />}
-        </View>
-      </SafeAreaView>
-
-      <ScrollView
-        style={styles.screen}
-        contentContainerStyle={{ paddingBottom: 60 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* HERO SECTION */}
-        <View style={styles.heroSection}>
-          <View style={styles.avatarLarge}>
-            <Text style={styles.avatarLargeText}>{getInitials(data.full_name)}</Text>
-          </View>
-          <Text style={styles.heroName}>{data.full_name}</Text>
-          <Text style={styles.heroRole}>{data.job_title || "Team Member"}</Text>
-          <View style={styles.heroBadge}>
-            <Ionicons name="business" size={14} color="#2563eb" style={{ marginRight: 6 }} />
-            <Text style={styles.heroDept}>{data.department?.name || "Unassigned"}</Text>
-          </View>
+          )}
         </View>
 
-        {/* INFO MODULES */}
         <View style={styles.modulesContainer}>
-          <InfoCard title="Job Details" icon="briefcase" color="#3b82f6">
-            <Info label="Current Role" value={data.job_title} icon="star-outline" />
-            <Info label="Organization Unit" value={data.department?.name} icon="layers-outline" />
-            <Info label="Nationality" value={data.nationality} icon="flag-outline" />
-          </InfoCard>
+          <ModuleCard title="Contact Information" icon="call-outline" color={colors.accent}>
+            <InfoRow label="Email Address" value={data?.email} icon="mail-outline" link={`mailto:${data?.email}`} />
+            <InfoRow label="Phone Number" value={data?.phone} icon="phone-portrait-outline" link={`tel:${data?.phone}`} />
+          </ModuleCard>
 
-          <InfoCard title="Contact Channels" icon="call" color="#10b981">
-            <Info label="Primary Phone" value={data.phone} icon="phone-portrait-outline" isLink onPress={() => Linking.openURL(`tel:${data.phone}`)} />
-            <Info label="Region" value={data.country} icon="earth-outline" />
-            <Info label="State/Province" value={data.state} icon="map-outline" />
-          </InfoCard>
+          <ModuleCard title="Employment Details" icon="briefcase-outline" color={colors.primary}>
+            <InfoRow label="Hire Date" value={data?.hire_date} icon="calendar-outline" />
+            <InfoRow label="Employee ID" value={`#${data?.id || "---"}`} icon="id-card-outline" />
+            {data?.user ? (
+              <TouchableOpacity
+                style={styles.systemLink}
+                onPress={() => navigation.navigate('UserEdit', { userId: data.user.id })}
+              >
+                <Ionicons name="shield-checkmark" size={16} color={colors.accent} />
+                <Text style={styles.systemLinkText}>Linked to System Account ({data.user.email})</Text>
+              </TouchableOpacity>
+            ) : (
+              <InfoRow label="Access Account" value="None Linked" icon="shield-outline" />
+            )}
+            <InfoRow label="Base Salary" value={data?.salary ? `$${Number(data.salary).toLocaleString()}` : "Confidential"} icon="cash-outline" />
+          </ModuleCard>
 
-          <InfoCard title="Identity & Legal" icon="id-card" color="#7c3aed">
-            <Info label="Social ID / Passport" value={data.id_number} icon="barcode-outline" />
-            <Info label="Date of Birth" value={data.birth_date?.substring(0, 10)} icon="calendar-outline" />
-          </InfoCard>
-
-          <InfoCard title="Address Directory" icon="home" color="#f59e0b">
-            <Info label="Residence" value={data.actual_address} icon="location-outline" multiline />
-            <Info label="Origin Address" value={data.mother_country_address} icon="airplane-outline" multiline />
-          </InfoCard>
-
-          {/* DOCUMENTS SECTION */}
           <View style={styles.documentSet}>
             <View style={styles.cardHeader}>
-              <View style={[styles.cardIconBox, { backgroundColor: '#eff6ff' }]}>
-                <Ionicons name="folder-open" size={20} color="#2563eb" />
+              <View style={[styles.cardIconBox, { backgroundColor: colors.warning + '15' }]}>
+                <Ionicons name="folder-open" size={20} color={colors.warning} />
               </View>
-              <Text style={styles.cardTitle}>Document Vault</Text>
+              <Text style={styles.cardTitle}>Personnel Documents</Text>
             </View>
 
-            {data.documents?.length ? (
+            {data?.documents?.length > 0 ? (
               data.documents.map((doc) => (
                 <View key={doc.id} style={styles.docItem}>
-                  <TouchableOpacity
-                    style={styles.docMain}
-                    onPress={() => openDocument(doc)}
-                  >
+                  <TouchableOpacity style={styles.docMain} onPress={() => openDocument(doc)}>
                     <View style={styles.fileIconBox}>
-                      <Ionicons name="document-text" size={24} color="#3b82f6" />
+                      <Ionicons
+                        name={doc.document_type?.toLowerCase().includes('pdf') ? 'document-text' : 'document'}
+                        size={24}
+                        color={colors.accent}
+                      />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.docTitle} numberOfLines={1}>{doc.filename}</Text>
-                      <Text style={styles.docMeta}>
-                        {doc.document_type || "File"} • {doc.visibility_type || "Private"}
-                      </Text>
+                      <Text style={styles.docMeta}>{doc.document_type} • {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : 'Historical'}</Text>
                     </View>
                   </TouchableOpacity>
-
                   {canUploadDocs && (
-                    <TouchableOpacity onPress={() => confirmDelete(doc)} style={styles.docDelete}>
-                      <Ionicons name="trash-outline" size={20} color="#f87171" />
+                    <TouchableOpacity onPress={() => deleteDocument(doc.id)} style={styles.docDelete}>
+                      <Ionicons name="trash-outline" size={20} color={colors.error} />
                     </TouchableOpacity>
                   )}
                 </View>
               ))
             ) : (
               <View style={styles.emptyDocs}>
-                <Ionicons name="cloud-offline-outline" size={32} color="#d1d5db" />
-                <Text style={styles.emptyDocsText}>No digital documents found</Text>
+                <Ionicons name="file-tray-outline" size={48} color={colors.border} />
+                <Text style={styles.emptyDocsText}>No documents in file.</Text>
               </View>
             )}
 
             {canUploadDocs && (
               <TouchableOpacity
-                style={styles.uploadBtn}
                 onPress={() => navigation.navigate("EmployeeUpload", { employee: data })}
+                style={[styles.uploadBtn, { backgroundColor: colors.text }]}
               >
-                <Ionicons name="cloud-upload-outline" size={20} color="white" />
-                <Text style={styles.uploadBtnText}>Add Document</Text>
+                <Ionicons name="cloud-upload-outline" size={20} color={colors.background} />
+                <Text style={[styles.uploadBtnText, { color: colors.background }]}>Upload New File</Text>
+              </TouchableOpacity>
+            )}
+
+            {isPrivileged && (
+              <TouchableOpacity
+                onPress={() => navigation.navigate("Documents", { employeeId: data?.id })}
+                style={[styles.dossierBtn, { borderColor: colors.accent, backgroundColor: `${colors.accent}05` }]}
+              >
+                <Ionicons name="folder-open-outline" size={20} color={colors.accent} />
+                <Text style={[styles.dossierBtnText, { color: colors.accent }]}>View Full Digital Dossier</Text>
               </TouchableOpacity>
             )}
           </View>
 
-          {/* DANGER ZONE */}
-          {route.params?.manage && (
+          {canEditEmployee && (
             <View style={styles.dangerZone}>
               <TouchableOpacity
                 style={styles.deleteRecordBtn}
-                onPress={() => {
-                  Alert.alert(
-                    "Remove Employee Record",
-                    `This will permanently remove ${data.full_name} from the system.`,
-                    [
-                      { text: "Cancel", style: "cancel" },
-                      {
-                        text: "Delete Record",
-                        style: "destructive",
-                        onPress: async () => {
-                          try {
-                            const res = await apiService.deleteEmployee(data.id);
-                            if (res.success) {
-                              Alert.alert("Success", "Record removed.");
-                              navigation.goBack();
-                            }
-                          } catch (err) {
-                            Alert.alert("Error", "Failed to remove record.");
-                          }
-                        }
-                      }
-                    ]
-                  );
-                }}
+                onPress={() => Alert.alert("Admin Alert", "Direct record deletion is restricted to the master dashboard.")}
               >
-                <Ionicons name="trash-bin-outline" size={20} color="white" />
-                <Text style={styles.deleteRecordText}>Archive Employee Record</Text>
+                <Ionicons name="alert-circle" size={20} color="white" />
+                <Text style={styles.deleteRecordText}>Management Overrides</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -325,160 +297,131 @@ export default function EmployeeDetailScreen({ route, navigation }) {
   );
 }
 
-/* ---------- HELPERS ---------- */
-
-function InfoCard({ title, icon, color, children }) {
-  return (
-    <View style={styles.infoCard}>
-      <View style={styles.cardHeader}>
-        <View style={[styles.cardIconBox, { backgroundColor: `${color}15` }]}>
-          <Ionicons name={icon} size={20} color={color} />
-        </View>
-        <Text style={styles.cardTitle}>{title}</Text>
-      </View>
-      <View style={styles.cardBody}>
-        {children}
-      </View>
-    </View>
-  );
-}
-
-function Info({ label, value, icon, isLink, onPress, multiline }) {
-  return (
-    <TouchableOpacity
-      style={styles.infoRow}
-      disabled={!isLink}
-      onPress={onPress}
-    >
-      <View style={styles.infoIconBox}>
-        <Ionicons name={icon} size={18} color="#94a3b8" />
-      </View>
-      <View style={styles.infoContent}>
-        <Text style={styles.infoLabel}>{label}</Text>
-        <Text
-          style={[
-            styles.infoValue,
-            isLink && styles.linkValue,
-            multiline && { lineHeight: 22 }
-          ]}
-        >
-          {value || "Not Provided"}
-        </Text>
-      </View>
-      {isLink && <Ionicons name="external-link-outline" size={14} color="#2563eb" />}
-    </TouchableOpacity>
-  );
-}
-
-/* ---------- STYLES ---------- */
-
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8fafc"
+    backgroundColor: colors.background,
   },
-  headerSafeArea: {
-    backgroundColor: 'white',
-    // borderBottomWidth: 1,
-    // borderBottomColor: '#f1f5f9',
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
   },
   topNav: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  navIconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  headerBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.background,
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitleBox: {
+    flex: 1,
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1e293b',
+    ...Typography.h3,
+    color: colors.text,
   },
-  screen: { flex: 1 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: 'white' },
-  loadingText: { marginTop: 16, color: '#64748b', fontWeight: '500' },
-  errorText: { fontSize: 18, color: "#64748b", marginTop: 20 },
-  retryBtn: { marginTop: 24, paddingHorizontal: 24, paddingVertical: 12, backgroundColor: '#2563eb', borderRadius: 12 },
-  retryText: { color: 'white', fontWeight: '700' },
-
   heroSection: {
     alignItems: 'center',
-    paddingVertical: 30,
-    backgroundColor: 'white',
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.05,
-    shadowRadius: 20,
-    elevation: 5,
-    marginBottom: 24,
+    paddingVertical: 32,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    marginBottom: 20,
   },
-  avatarLarge: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: '#eff6ff',
-    borderWidth: 4,
-    borderColor: '#f8fafc',
+  avatarCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
+    ...Shadow.medium,
     marginBottom: 16,
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
   },
-  avatarLargeText: {
+  avatarText: {
     fontSize: 32,
     fontWeight: '800',
-    color: '#2563eb',
+    color: 'white',
+  },
+  statusIndicator: {
+    position: 'absolute',
+    bottom: 5,
+    right: 5,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 3,
+    borderColor: colors.surface,
   },
   heroName: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#0f172a',
-    letterSpacing: -0.5,
+    color: colors.text,
+    textAlign: 'center',
   },
   heroRole: {
     fontSize: 16,
-    color: '#64748b',
+    color: colors.textSecondary,
     marginTop: 4,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   heroBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f1f5f9',
-    paddingHorizontal: 12,
+    backgroundColor: colors.background,
+    paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 20,
     marginTop: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   heroDept: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#1e293b',
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.accent,
     textTransform: 'uppercase',
+    letterSpacing: 1,
   },
-
+  editHeroBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: `${colors.accent}10`,
+    gap: 8,
+  },
+  editHeroText: {
+    color: colors.accent,
+    fontWeight: '700',
+    fontSize: 14,
+  },
   modulesContainer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: Spacing.lg,
   },
   infoCard: {
-    backgroundColor: 'white',
-    borderRadius: 24,
+    backgroundColor: colors.surface,
+    borderRadius: Radius.xl,
     padding: 20,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#f1f5f9',
+    borderColor: colors.border,
+    ...Shadow.subtle,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -486,8 +429,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   cardIconBox: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
@@ -496,55 +439,68 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1e293b',
+    color: colors.text,
   },
   cardBody: {
     gap: 16,
   },
+  systemLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: `${colors.accent}10`,
+    padding: 10,
+    borderRadius: 8,
+    gap: 8,
+    marginTop: 4,
+  },
+  systemLinkText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.accent,
+  },
   infoRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
   infoIconBox: {
-    width: 18,
-    marginTop: 2,
+    width: 24,
+    alignItems: 'center',
     marginRight: 12,
   },
   infoContent: {
     flex: 1,
   },
   infoLabel: {
-    fontSize: 12,
-    color: '#94a3b8',
-    fontWeight: '600',
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   infoValue: {
     fontSize: 15,
-    color: '#334155',
+    color: colors.text,
     fontWeight: '600',
   },
   linkValue: {
-    color: '#2563eb',
     textDecorationLine: 'underline',
   },
-
   documentSet: {
-    backgroundColor: 'white',
-    borderRadius: 24,
+    backgroundColor: colors.surface,
+    borderRadius: Radius.xl,
     padding: 20,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#f1f5f9',
+    borderColor: colors.border,
+    ...Shadow.subtle,
   },
   docItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#f8fafc',
+    borderBottomColor: colors.border,
   },
   docMain: {
     flex: 1,
@@ -555,19 +511,19 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   docTitle: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#1e293b',
+    fontWeight: '700',
+    color: colors.text,
   },
   docMeta: {
     fontSize: 12,
-    color: '#64748b',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   docDelete: {
@@ -575,41 +531,41 @@ const styles = StyleSheet.create({
   },
   emptyDocs: {
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: 32,
   },
   emptyDocsText: {
     marginTop: 10,
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontSize: 14,
+    fontWeight: '600',
   },
   uploadBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
-    padding: 14,
-    borderRadius: 16,
+    padding: 16,
+    borderRadius: Radius.lg,
     justifyContent: 'center',
     marginTop: 20,
-    gap: 8,
+    gap: 10,
+    ...Shadow.medium,
   },
   uploadBtnText: {
-    color: 'white',
     fontWeight: '700',
     fontSize: 15,
   },
-
   dangerZone: {
     marginTop: 8,
-    marginBottom: 40,
+    marginBottom: 60,
   },
   deleteRecordBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ef4444',
+    backgroundColor: colors.accent,
     padding: 16,
-    borderRadius: 18,
+    borderRadius: Radius.lg,
     justifyContent: 'center',
     gap: 10,
+    ...Shadow.medium,
   },
   deleteRecordText: {
     color: 'white',

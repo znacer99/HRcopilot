@@ -1,6 +1,8 @@
 // src/styles/theme.js
+// HR 2026 Professional Design System with Light/Dark Mode Support
 
-export const Colors = {
+// Light Mode Colors (default)
+export const LightColors = {
     primary: '#0F172A',      // Slate 900 - Deep Professional
     primaryLight: '#1E293B', // Slate 800
     accent: '#3B82F6',       // Blue 500 - Refined Action Color
@@ -8,11 +10,29 @@ export const Colors = {
     surface: '#FFFFFF',      // Pure White
     text: '#0F172A',         // Slate 900 - High contrast text
     textSecondary: '#64748B',// Slate 500 - Subdued subtext
-    border: '#F1F5F9',       // Slate 100 - Extra subtle borders
+    border: '#E5E7EB',       // Gray 200 - Visible but subtle
     success: '#10B981',      // Emerald 500
     error: '#EF4444',        // Red 400
     warning: '#F59E0B',      // Amber 500
 };
+
+// Dark Mode Colors
+export const DarkColors = {
+    primary: '#3B82F6',      // Blue 500 - Accent becomes primary
+    primaryLight: '#60A5FA', // Blue 400
+    accent: '#14B8A6',       // Teal 500 - Secondary accent
+    background: '#1F2937',   // Gray 800 - Dark background
+    surface: '#111827',      // Gray 900 - Card surfaces
+    text: '#FFFFFF',         // White text
+    textSecondary: '#D1D5DB',// Gray 300 - Subdued text
+    border: '#374151',       // Gray 700 - Subtle borders
+    success: '#10B981',      // Emerald 500
+    error: '#EF4444',        // Red 400
+    warning: '#F59E0B',      // Amber 500
+};
+
+// Default export for backwards compatibility
+export const Colors = LightColors;
 
 export const Spacing = {
     xs: 4,
@@ -26,7 +46,7 @@ export const Spacing = {
 export const Radius = {
     sm: 6,
     md: 10,
-    lg: 14,
+    lg: 16,
     xl: 20,
     full: 9999,
 };
@@ -34,17 +54,17 @@ export const Radius = {
 export const Shadow = {
     subtle: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.04,
-        shadowRadius: 6,
-        elevation: 1,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 2,
     },
     medium: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.06,
-        shadowRadius: 10,
-        elevation: 3,
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 4,
     },
 };
 
@@ -52,30 +72,25 @@ export const Typography = {
     h1: {
         fontSize: 26,
         fontWeight: '700',
-        color: '#0F172A',
         letterSpacing: -0.5,
     },
     h2: {
         fontSize: 20,
         fontWeight: '600',
-        color: '#0F172A',
         letterSpacing: -0.3,
     },
     subtitle: {
         fontSize: 15,
-        color: '#64748B',
         lineHeight: 22,
         fontWeight: '500',
     },
     body: {
         fontSize: 14,
-        color: '#334155',
         lineHeight: 20,
         fontWeight: '400',
     },
     caption: {
         fontSize: 12,
-        color: '#94A3B8',
         fontWeight: '600',
         letterSpacing: 0.3,
         textTransform: 'uppercase',

@@ -12,6 +12,7 @@ import CandidateListScreen from "../screens/CandidateListScreen";
 import ManagementHubScreen from "../screens/ManagementHubScreen";
 import UserListScreen from "../screens/UserListScreen";
 import UserEditScreen from "../screens/UserEditScreen";
+import DocumentsScreen from "../screens/DocumentsScreen";
 
 const Stack = createStackNavigator();
 
@@ -28,18 +29,35 @@ export default function MainStack({ user, onLogout }) {
       <Stack.Screen name="ManagementHub">
         {(props) => <ManagementHubScreen {...props} user={user} />}
       </Stack.Screen>
-      <Stack.Screen name="UserList" component={UserListScreen} />
-      <Stack.Screen name="UserEdit" component={UserEditScreen} />
+      <Stack.Screen name="UserList">
+        {(props) => <UserListScreen {...props} user={user} />}
+      </Stack.Screen>
+      <Stack.Screen name="UserEdit">
+        {(props) => <UserEditScreen {...props} user={user} />}
+      </Stack.Screen>
+      <Stack.Screen name="Documents">
+        {(props) => <DocumentsScreen {...props} user={user} />}
+      </Stack.Screen>
 
       {/* EMPLOYEE ROUTES */}
-      <Stack.Screen name="EmployeeDetail" component={EmployeeDetailScreen} />
-      <Stack.Screen name="EmployeeEdit" component={EmployeeEditScreen} />
+      <Stack.Screen name="EmployeeDetail">
+        {(props) => <EmployeeDetailScreen {...props} user={user} />}
+      </Stack.Screen>
+      <Stack.Screen name="EmployeeEdit">
+        {(props) => <EmployeeEditScreen {...props} user={user} />}
+      </Stack.Screen>
       <Stack.Screen name="EmployeeUpload" component={EmployeeUploadScreen} />
 
       {/* CANDIDATE ROUTES */}
-      <Stack.Screen name="CandidateList" component={CandidateListScreen} />
-      <Stack.Screen name="CandidateDetail" component={CandidateDetailScreen} />
-      <Stack.Screen name="CandidateEdit" component={CandidateEditScreen} />
+      <Stack.Screen name="CandidateList">
+        {(props) => <CandidateListScreen {...props} user={user} />}
+      </Stack.Screen>
+      <Stack.Screen name="CandidateDetail">
+        {(props) => <CandidateDetailScreen {...props} user={user} />}
+      </Stack.Screen>
+      <Stack.Screen name="CandidateEdit">
+        {(props) => <CandidateEditScreen {...props} user={user} />}
+      </Stack.Screen>
     </Stack.Navigator>
   );
 }

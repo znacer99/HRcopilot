@@ -1,12 +1,16 @@
 // src/styles/styles.js
 import { StyleSheet } from 'react-native';
-import { Colors, Spacing, Radius, Shadow, Typography } from './theme';
+import { Spacing, Radius, Shadow, Typography } from './theme';
 
-const styles = StyleSheet.create({
+/**
+ * Global styles generator that accepts the current theme colors.
+ * Use this to get consistent styling across the app.
+ */
+export const getGlobalStyles = (colors) => StyleSheet.create({
   // Layout
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     paddingBottom: Spacing.xl,
@@ -16,33 +20,36 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.lg,
+    backgroundColor: colors.background,
   },
 
   // Headers
   screenHeader: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: colors.border,
   },
   screenTitle: {
     ...Typography.h1,
+    color: colors.text,
   },
   screenSubtitle: {
     ...Typography.subtitle,
+    color: colors.textSecondary,
     marginTop: Spacing.xs,
   },
 
   // Component - Card
   card: {
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     borderRadius: Radius.lg,
     padding: Spacing.md,
     marginHorizontal: Spacing.lg,
     marginVertical: Spacing.sm,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     ...Shadow.subtle,
   },
 
@@ -52,27 +59,27 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     ...Typography.caption,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: Spacing.sm,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   input: {
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     fontSize: 16,
-    color: Colors.text,
+    color: colors.text,
   },
 
   // Buttons
   primaryButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     paddingVertical: Spacing.md,
-    borderRadius: Radius.xl,
+    borderRadius: Radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
     marginVertical: Spacing.sm,
@@ -83,18 +90,18 @@ const styles = StyleSheet.create({
     color: 'white',
   },
   secondaryButton: {
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     paddingVertical: Spacing.md,
-    borderRadius: Radius.xl,
+    borderRadius: Radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
     marginVertical: Spacing.sm,
   },
   secondaryButtonText: {
     ...Typography.button,
-    color: Colors.text,
+    color: colors.text,
   },
 
   // Lists
@@ -102,44 +109,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: Spacing.md,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     borderRadius: Radius.lg,
     marginBottom: Spacing.sm,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
+    ...Shadow.subtle,
   },
   avatar: {
     width: 48,
     height: 48,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.background,
+    borderRadius: Radius.lg,
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: Spacing.md,
   },
+  avatarText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.accent,
+  },
   itemTitle: {
     ...Typography.h2,
     fontSize: 17,
+    color: colors.text,
   },
   itemSubtitle: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 14,
-  },
-
-  // Login specific (professional look)
-  loginContainer: {
-    flex: 1,
-    backgroundColor: Colors.surface,
-  },
-  logoContainer: {
-    alignItems: 'center',
-    marginTop: Spacing.xl * 2,
-    marginBottom: Spacing.xl,
-  },
-  logoText: {
-    ...Typography.h1,
-    color: Colors.primary,
   },
 
   // States
@@ -147,14 +146,15 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.background,
+    backgroundColor: colors.background,
   },
   errorText: {
     ...Typography.body,
-    color: Colors.error,
+    color: colors.error,
     textAlign: 'center',
   },
 });
 
-export default styles;
-export { Colors, Spacing, Radius, Shadow, Typography };
+// Deprecated default export to avoid breaking old code during transition
+// New code should use useTheme() and getGlobalStyles(colors)
+export default {};

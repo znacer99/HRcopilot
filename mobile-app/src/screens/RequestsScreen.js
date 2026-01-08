@@ -15,11 +15,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import apiService from '../api/apiService';
-import { Colors, Spacing, Radius, Shadow, Typography } from '../styles/theme';
-import styles from '../styles/styles';
+import { useTheme } from '../context/ThemeContext';
+import { Spacing, Radius, Shadow, Typography } from '../styles/theme';
 import Button from '../components/Button';
 
+/**
+ * Requests Screen - HR 2026 Professional Design
+ */
 export default function RequestsScreen({ user }) {
+    const { isDarkMode, toggleTheme, colors } = useTheme();
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -30,12 +34,9 @@ export default function RequestsScreen({ user }) {
     const [statusUpdate, setStatusUpdate] = useState('');
     const [responseMessage, setResponseMessage] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [search, setSearch] = useState('');
 
-    useEffect(() => {
-        fetchRequests();
-    }, []);
-
-    const fetchRequests = async () => {
+    const fetchRequests = useCallback(async () => {
         try {
             const res = await apiService.fetchAllRequests();
             if (res.success) {
@@ -47,12 +48,16 @@ export default function RequestsScreen({ user }) {
             setLoading(false);
             setRefreshing(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        fetchRequests();
+    }, [fetchRequests]);
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
         fetchRequests();
-    }, []);
+    }, [fetchRequests]);
 
     const openResponseModal = (req) => {
         setSelectedRequest(req);
@@ -90,17 +95,19 @@ export default function RequestsScreen({ user }) {
 
     const getStatusTheme = (status) => {
         switch (status?.toLowerCase()) {
-            case 'pending': return { color: Colors.warning, bg: `${Colors.warning}10`, icon: 'time-outline' };
-            case 'in-progress': return { color: Colors.accent, bg: `${Colors.accent}10`, icon: 'refresh-circle-outline' };
-            case 'resolved': return { color: Colors.success, bg: `${Colors.success}10`, icon: 'checkmark-circle-outline' };
-            default: return { color: Colors.textSecondary, bg: Colors.background, icon: 'help-circle-outline' };
+            case 'pending': return { color: colors.warning, bg: `${colors.warning}15`, icon: 'time-outline' };
+            case 'in-progress': return { color: colors.accent, bg: `${colors.accent}15`, icon: 'refresh-circle-outline' };
+            case 'resolved': return { color: colors.success, bg: `${colors.success}15`, icon: 'checkmark-circle-outline' };
+            default: return { color: colors.textSecondary, bg: colors.background, icon: 'help-circle-outline' };
         }
     };
 
+    const styles = getStyles(colors);
+
     if (loading && !refreshing) {
         return (
-            <View style={styles.centerContainer}>
-                <ActivityIndicator size="large" color={Colors.primary} />
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.accent} />
             </View>
         );
     }
@@ -109,29 +116,47 @@ export default function RequestsScreen({ user }) {
 
     return (
         <View style={styles.container}>
-            <StatusBar barStyle="dark-content" />
-            <SafeAreaView style={localStyles.header} edges={['top']}>
-                <View style={localStyles.topBar}>
+            <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
+            <SafeAreaView style={styles.header} edges={['top']}>
+                <View style={styles.headerTop}>
                     <View>
-                        <Text style={styles.screenTitle}>Requests</Text>
-                        <Text style={styles.screenSubtitle}>Service Management</Text>
+                        <Text style={styles.screenTitle}>Protocols</Text>
+                        <Text style={styles.screenSubtitle}>ALGHAITH Group Requests</Text>
                     </View>
-                    <View style={localStyles.statBadge}>
-                        <Text style={localStyles.statBadgeText}>{pendingCount}</Text>
-                    </View>
+                    <TouchableOpacity onPress={toggleTheme} style={styles.themeToggle} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                        <Ionicons name={isDarkMode ? "sunny" : "moon"} size={22} color={colors.accent} />
+                    </TouchableOpacity>
                 </View>
 
-                <View style={localStyles.summaryRow}>
+                <View style={styles.searchBar}>
+                    <Ionicons name="search-outline" size={18} color={colors.textSecondary} />
+                    <TextInput
+                        placeholder="Search request logs..."
+                        placeholderTextColor={colors.textSecondary}
+                        value={search}
+                        onChangeText={setSearch}
+                        style={styles.searchInput}
+                    />
+                    {search.length > 0 && (
+                        <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                            <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+                        </TouchableOpacity>
+                    )}
+                </View>
+
+                <View style={styles.summaryRow}>
                     <SummaryBox
+                        colors={colors}
                         label="Resolved"
                         count={requests.filter(r => r.status === 'resolved').length}
-                        color={Colors.success}
+                        color={colors.success}
                         icon="checkmark-done"
                     />
                     <SummaryBox
+                        colors={colors}
                         label="Pending"
                         count={requests.filter(r => r.status !== 'resolved').length}
-                        color={Colors.accent}
+                        color={colors.accent}
                         icon="pulse"
                     />
                 </View>
@@ -139,55 +164,66 @@ export default function RequestsScreen({ user }) {
 
             <ScrollView
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={localStyles.scrollList}
+                contentContainerStyle={styles.scrollList}
                 refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
                 }
             >
                 {requests.length === 0 ? (
-                    <View style={localStyles.emptyState}>
-                        <View style={localStyles.emptyIcon}>
-                            <Ionicons name="documents-outline" size={40} color={Colors.border} />
+                    <View style={styles.emptyState}>
+                        <View style={styles.emptyIcon}>
+                            <Ionicons name="documents-outline" size={40} color={colors.border} />
                         </View>
-                        <Text style={localStyles.emptyTitle}>No requests</Text>
-                        <Text style={localStyles.emptyText}>Queue is clear.</Text>
+                        <Text style={styles.emptyTitle}>No requests</Text>
+                        <Text style={styles.emptyText}>Queue is clear.</Text>
                     </View>
                 ) : (
-                    requests.map((request) => {
-                        const theme = getStatusTheme(request.status);
-                        return (
-                            <TouchableOpacity
-                                key={request.id}
-                                style={localStyles.requestCard}
-                                onPress={() => openResponseModal(request)}
-                                activeOpacity={0.8}
-                            >
-                                <View style={localStyles.cardHeader}>
-                                    <View style={[localStyles.statusPill, { backgroundColor: theme.bg }]}>
-                                        <Ionicons name={theme.icon} size={12} color={theme.color} />
-                                        <Text style={[localStyles.statusText, { color: theme.color }]}>
-                                            {request.status?.toUpperCase()}
-                                        </Text>
+                    requests
+                        .filter(req => {
+                            if (!search) return true;
+                            const s = search.toLowerCase();
+                            return (
+                                req.subject?.toLowerCase().includes(s) ||
+                                req.message?.toLowerCase().includes(s) ||
+                                req.user?.name?.toLowerCase().includes(s) ||
+                                req.user?.full_name?.toLowerCase().includes(s)
+                            );
+                        })
+                        .map((request) => {
+                            const theme = getStatusTheme(request.status);
+                            return (
+                                <TouchableOpacity
+                                    key={request.id}
+                                    style={styles.requestCard}
+                                    onPress={() => openResponseModal(request)}
+                                    activeOpacity={0.8}
+                                >
+                                    <View style={styles.cardHeader}>
+                                        <View style={[styles.statusPill, { backgroundColor: theme.bg }]}>
+                                            <Ionicons name={theme.icon} size={12} color={theme.color} />
+                                            <Text style={[styles.statusText, { color: theme.color }]}>
+                                                {request.status?.toUpperCase()}
+                                            </Text>
+                                        </View>
+                                        <Text style={styles.cardDate}>{request.date || 'Today'}</Text>
                                     </View>
-                                    <Text style={localStyles.cardDate}>{request.date || 'Today'}</Text>
-                                </View>
 
-                                <View style={localStyles.userMeta}>
-                                    <View style={localStyles.dot} />
-                                    <Text style={localStyles.userName}>{request.user?.full_name || request.user?.name || 'User'}</Text>
-                                    <Text style={localStyles.category}> • {request.category}</Text>
-                                </View>
+                                    <View style={styles.userMeta}>
+                                        <View style={[styles.dot, { backgroundColor: theme.color }]} />
+                                        <Text style={styles.userName}>{request.user?.full_name || request.user?.name || 'User'}</Text>
+                                        <Text style={styles.category}> • {request.category}</Text>
+                                    </View>
 
-                                <Text style={localStyles.subject}>{request.subject}</Text>
-                                <Text style={localStyles.message} numberOfLines={2}>{request.message}</Text>
+                                    <Text style={styles.subject}>{request.subject}</Text>
+                                    <Text style={styles.message} numberOfLines={2}>{request.message}</Text>
 
-                                <View style={localStyles.cardFooter}>
-                                    <Text style={localStyles.actionLink}>View details</Text>
-                                    <Ionicons name="chevron-forward" size={14} color={Colors.accent} />
-                                </View>
-                            </TouchableOpacity>
-                        );
-                    })
+                                    <View style={styles.cardFooter}>
+                                        <Text style={styles.actionLink}>View details</Text>
+                                        <Ionicons name="chevron-forward" size={14} color={colors.accent} />
+                                    </View>
+                                </TouchableOpacity>
+                            );
+                        })
                 )}
             </ScrollView>
 
@@ -198,44 +234,44 @@ export default function RequestsScreen({ user }) {
                 visible={modalVisible}
                 onRequestClose={() => setModalVisible(false)}
             >
-                <View style={localStyles.modalOverlay}>
-                    <View style={localStyles.modalSheet}>
-                        <View style={localStyles.modalHeader}>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalSheet}>
+                        <View style={styles.modalHeader}>
                             <View>
-                                <Text style={localStyles.modalPreTitle}>Protocol</Text>
-                                <Text style={localStyles.modalTitle}>Resolution</Text>
+                                <Text style={styles.modalPreTitle}>Protocol</Text>
+                                <Text style={styles.modalTitle}>Resolution</Text>
                             </View>
-                            <TouchableOpacity onPress={() => setModalVisible(false)} style={localStyles.closeBtn}>
-                                <Ionicons name="close" size={24} color={Colors.primary} />
+                            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeBtn}>
+                                <Ionicons name="close" size={24} color={colors.text} />
                             </TouchableOpacity>
                         </View>
 
-                        <ScrollView style={localStyles.modalContent} showsVerticalScrollIndicator={false}>
+                        <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
                             {selectedRequest && (
-                                <View style={localStyles.caseOverview}>
-                                    <CaseInfo label="Subject" value={selectedRequest.subject} />
-                                    <CaseInfo label="Category" value={selectedRequest.category} />
-                                    <View style={localStyles.narrativeBox}>
-                                        <Text style={localStyles.narrativeLabel}>Message</Text>
-                                        <Text style={localStyles.narrativeText}>{selectedRequest.message}</Text>
+                                <View style={styles.caseOverview}>
+                                    <CaseInfo colors={colors} label="Subject" value={selectedRequest.subject} />
+                                    <CaseInfo colors={colors} label="Category" value={selectedRequest.category} />
+                                    <View style={styles.narrativeBox}>
+                                        <Text style={styles.narrativeLabel}>Message</Text>
+                                        <Text style={styles.narrativeText}>{selectedRequest.message}</Text>
                                     </View>
                                 </View>
                             )}
 
-                            <Text style={localStyles.inputLabel}>Protocol</Text>
-                            <View style={localStyles.statusSelector}>
+                            <Text style={styles.inputLabel}>Protocol</Text>
+                            <View style={styles.statusSelector}>
                                 {['pending', 'in-progress', 'resolved'].map((st) => (
                                     <TouchableOpacity
                                         key={st}
                                         style={[
-                                            localStyles.statusBtn,
-                                            statusUpdate === st && localStyles.statusBtnActive
+                                            styles.statusBtn,
+                                            statusUpdate === st && styles.statusBtnActive
                                         ]}
                                         onPress={() => setStatusUpdate(st)}
                                     >
                                         <Text style={[
-                                            localStyles.statusBtnText,
-                                            statusUpdate === st && localStyles.statusBtnTextActive
+                                            styles.statusBtnText,
+                                            statusUpdate === st && styles.statusBtnTextActive
                                         ]}>
                                             {st === 'in-progress' ? 'WIP' : st.toUpperCase()}
                                         </Text>
@@ -243,12 +279,13 @@ export default function RequestsScreen({ user }) {
                                 ))}
                             </View>
 
-                            <Text style={localStyles.inputLabel}>Response</Text>
+                            <Text style={styles.inputLabel}>Response</Text>
                             <TextInput
-                                style={localStyles.modalInput}
+                                style={styles.modalInput}
                                 multiline
                                 numberOfLines={4}
                                 placeholder="Enter response content..."
+                                placeholderTextColor={colors.textSecondary}
                                 value={responseMessage}
                                 onChangeText={setResponseMessage}
                             />
@@ -267,40 +304,95 @@ export default function RequestsScreen({ user }) {
     );
 }
 
-const SummaryBox = ({ label, count, color, icon }) => (
-    <View style={localStyles.summaryBox}>
-        <View style={[localStyles.summaryIcon, { backgroundColor: `${color}10` }]}>
-            <Ionicons name={icon} size={14} color={color} />
+const SummaryBox = ({ colors, label, count, color, icon }) => {
+    const styles = getStyles(colors);
+    return (
+        <View style={styles.summaryBox}>
+            <View style={[styles.summaryIcon, { backgroundColor: `${color}15` }]}>
+                <Ionicons name={icon} size={14} color={color} />
+            </View>
+            <View>
+                <Text style={styles.summaryCount}>{count}</Text>
+                <Text style={styles.summaryLabel}>{label}</Text>
+            </View>
         </View>
-        <View>
-            <Text style={localStyles.summaryCount}>{count}</Text>
-            <Text style={localStyles.summaryLabel}>{label}</Text>
+    );
+};
+
+const CaseInfo = ({ colors, label, value }) => {
+    const styles = getStyles(colors);
+    return (
+        <View style={styles.caseInfoRow}>
+            <Text style={styles.caseInfoLabel}>{label}</Text>
+            <Text style={styles.caseInfoValue}>{value}</Text>
         </View>
-    </View>
-);
+    );
+};
 
-const CaseInfo = ({ label, value }) => (
-    <View style={localStyles.caseInfoRow}>
-        <Text style={localStyles.caseInfoLabel}>{label}</Text>
-        <Text style={localStyles.caseInfoValue}>{value}</Text>
-    </View>
-);
-
-const localStyles = StyleSheet.create({
-    header: {
-        backgroundColor: Colors.surface,
-        borderBottomWidth: 1,
-        borderBottomColor: Colors.border,
+const getStyles = (colors) => StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: colors.background,
     },
-    topBar: {
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: colors.background,
+    },
+    header: {
+        backgroundColor: colors.surface,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+    },
+    headerTop: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: Spacing.lg,
         paddingVertical: Spacing.md,
     },
+    searchBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.background,
+        borderRadius: Radius.lg,
+        paddingHorizontal: 12,
+        marginHorizontal: Spacing.lg,
+        marginBottom: Spacing.md,
+        height: 48,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    searchInput: {
+        flex: 1,
+        marginLeft: 10,
+        fontSize: 14,
+        color: colors.text,
+    },
+    screenTitle: {
+        ...Typography.h1,
+        color: colors.text,
+    },
+    screenSubtitle: {
+        ...Typography.subtitle,
+        color: colors.textSecondary,
+    },
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    themeToggle: {
+        width: 36,
+        height: 36,
+        borderRadius: 12,
+        backgroundColor: colors.background,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     statBadge: {
-        backgroundColor: Colors.primary,
+        backgroundColor: colors.primary,
         width: 36,
         height: 36,
         borderRadius: 12,
@@ -322,11 +414,11 @@ const localStyles = StyleSheet.create({
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Colors.background,
+        backgroundColor: colors.background,
         padding: 12,
         borderRadius: Radius.lg,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
     },
     summaryIcon: {
         width: 32,
@@ -339,11 +431,11 @@ const localStyles = StyleSheet.create({
     summaryCount: {
         fontSize: 15,
         fontWeight: '800',
-        color: Colors.primary,
+        color: colors.text,
     },
     summaryLabel: {
         fontSize: 11,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         fontWeight: '600',
     },
     scrollList: {
@@ -351,12 +443,12 @@ const localStyles = StyleSheet.create({
         paddingBottom: 100,
     },
     requestCard: {
-        backgroundColor: Colors.surface,
+        backgroundColor: colors.surface,
         borderRadius: Radius.xl,
         padding: Spacing.lg,
         marginBottom: Spacing.md,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
         ...Shadow.subtle,
     },
     cardHeader: {
@@ -380,6 +472,7 @@ const localStyles = StyleSheet.create({
     cardDate: {
         ...Typography.caption,
         fontSize: 11,
+        color: colors.textSecondary,
     },
     userMeta: {
         flexDirection: 'row',
@@ -390,26 +483,28 @@ const localStyles = StyleSheet.create({
         width: 6,
         height: 6,
         borderRadius: 3,
-        backgroundColor: Colors.accent,
         marginRight: 8,
     },
     userName: {
         ...Typography.body,
         fontWeight: '700',
         fontSize: 14,
+        color: colors.text,
     },
     category: {
         ...Typography.caption,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
+        textTransform: 'none',
     },
     subject: {
         ...Typography.h2,
         fontSize: 16,
         marginBottom: 6,
+        color: colors.text,
     },
     message: {
         ...Typography.body,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         fontSize: 13,
     },
     cardFooter: {
@@ -419,12 +514,12 @@ const localStyles = StyleSheet.create({
         marginTop: 16,
         paddingTop: 12,
         borderTopWidth: 1,
-        borderTopColor: Colors.border,
+        borderTopColor: colors.border,
     },
     actionLink: {
         fontSize: 13,
         fontWeight: '700',
-        color: Colors.accent,
+        color: colors.accent,
     },
     emptyState: {
         alignItems: 'center',
@@ -434,7 +529,7 @@ const localStyles = StyleSheet.create({
         width: 64,
         height: 64,
         borderRadius: Radius.full,
-        backgroundColor: Colors.background,
+        backgroundColor: colors.background,
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 16,
@@ -442,20 +537,21 @@ const localStyles = StyleSheet.create({
     emptyTitle: {
         ...Typography.h2,
         fontSize: 18,
+        color: colors.text,
     },
     emptyText: {
         ...Typography.body,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         marginTop: 4,
     },
     // Modal
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(15, 23, 42, 0.4)',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
         justifyContent: 'flex-end',
     },
     modalSheet: {
-        backgroundColor: Colors.surface,
+        backgroundColor: colors.surface,
         borderTopLeftRadius: 32,
         borderTopRightRadius: 32,
         padding: 24,
@@ -470,21 +566,22 @@ const localStyles = StyleSheet.create({
     modalPreTitle: {
         ...Typography.caption,
         fontWeight: '700',
-        textTransform: 'uppercase',
+        color: colors.textSecondary,
     },
     modalTitle: {
         ...Typography.h2,
+        color: colors.text,
     },
     closeBtn: {
         width: 40,
         height: 40,
         borderRadius: Radius.md,
-        backgroundColor: Colors.background,
+        backgroundColor: colors.background,
         justifyContent: 'center',
         alignItems: 'center',
     },
     caseOverview: {
-        backgroundColor: Colors.background,
+        backgroundColor: colors.background,
         borderRadius: Radius.lg,
         padding: 16,
         gap: 12,
@@ -496,32 +593,36 @@ const localStyles = StyleSheet.create({
     },
     caseInfoLabel: {
         ...Typography.caption,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
     },
     caseInfoValue: {
         ...Typography.body,
         fontWeight: '600',
         fontSize: 14,
+        color: colors.text,
     },
     narrativeBox: {
         marginTop: 8,
     },
     narrativeLabel: {
         ...Typography.caption,
+        color: colors.textSecondary,
         marginBottom: 4,
     },
     narrativeText: {
         ...Typography.body,
         fontSize: 14,
-        backgroundColor: Colors.surface,
+        color: colors.text,
+        backgroundColor: colors.surface,
         padding: 12,
         borderRadius: Radius.md,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
     },
     inputLabel: {
         ...Typography.body,
         fontWeight: '700',
+        color: colors.text,
         marginBottom: 12,
     },
     statusSelector: {
@@ -533,26 +634,36 @@ const localStyles = StyleSheet.create({
         flex: 1,
         paddingVertical: 12,
         borderRadius: Radius.md,
-        backgroundColor: Colors.background,
+        backgroundColor: colors.background,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
     },
     statusBtnActive: {
-        backgroundColor: Colors.primary,
-        borderColor: Colors.primary,
+        backgroundColor: colors.primary,
+        borderColor: colors.primary,
     },
     statusBtnText: {
         ...Typography.caption,
         fontWeight: '800',
+        color: colors.textSecondary,
     },
     statusBtnTextActive: {
         color: 'white',
     },
     modalInput: {
-        ...styles.input,
-        height: 100,
+        backgroundColor: colors.background,
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: Radius.md,
+        padding: 16,
+        fontSize: 16,
+        color: colors.text,
+        height: 120,
         textAlignVertical: 'top',
         marginBottom: 24,
     },
+    modalContent: {
+        // padding: 20
+    }
 });

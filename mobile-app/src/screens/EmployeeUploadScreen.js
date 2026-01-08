@@ -9,17 +9,21 @@ import {
   TextInput,
   Alert,
   Platform,
+  StatusBar,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as DocumentPicker from "expo-document-picker";
 import { Ionicons } from "@expo/vector-icons";
 import apiService from "../api/apiService";
+import { useTheme } from '../context/ThemeContext';
+import { Spacing, Radius, Shadow, Typography } from '../styles/theme';
+import Button from '../components/Button';
 
 /**
- * Employee Upload Screen - Premium Redesign
- * Modern document upload interface with clear feedback and file selection
+ * Employee Upload Screen - HR 2026 Redesign
  */
 export default function EmployeeUploadScreen({ route, navigation }) {
+  const { colors, isDarkMode, toggleTheme } = useTheme();
   const { employee } = route.params;
 
   const [file, setFile] = useState(null);
@@ -83,275 +87,228 @@ export default function EmployeeUploadScreen({ route, navigation }) {
     }
   };
 
+  const styles = getStyles(colors);
+
   return (
-    <View style={styles.container}>
-      <SafeAreaView style={styles.headerSafeArea} edges={['top']}>
-        <View style={styles.topNav}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navIconBtn}>
-            <Ionicons name="close-outline" size={28} color="#1e293b" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Add Document</Text>
-          <View style={{ width: 44 }} />
-        </View>
-      </SafeAreaView>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.heroBlock}>
-          <View style={styles.employeeCircle}>
-            <Ionicons name="person" size={24} color="#2563eb" />
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
+          <Ionicons name="close" size={24} color={colors.text} />
+        </TouchableOpacity>
+        <View style={styles.headerTitleBox}>
+          <Text style={styles.headerTitle}>Archive Document</Text>
+        </View>
+        <TouchableOpacity onPress={toggleTheme} style={styles.headerBtn}>
+          <Ionicons name={isDarkMode ? "sunny" : "moon"} size={22} color={colors.accent} />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.heroSection}>
+          <View style={styles.iconCircle}>
+            <Ionicons name="cloud-upload-outline" size={32} color={colors.accent} />
           </View>
-          <Text style={styles.heroTitle}>{employee.full_name}</Text>
-          <Text style={styles.heroSubtitle}>Record # {employee.id}</Text>
+          <Text style={styles.heroTitle}>Repository Add</Text>
+          <Text style={styles.heroSubtitle}>Archiving for {employee.full_name}</Text>
         </View>
 
-        <View style={styles.uploadCard}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardIconBox}>
-              <Ionicons name="cloud-upload" size={20} color="#2563eb" />
+        <View style={styles.formSection}>
+          <Text style={styles.sectionLabel}>FILE SELECTION</Text>
+          <TouchableOpacity style={[styles.filePicker, file && styles.filePickerActive]} onPress={pickFile}>
+            <Ionicons
+              name={file ? "checkmark-circle" : "document-attach-outline"}
+              size={32}
+              color={file ? colors.success : colors.textSecondary}
+            />
+            <View style={{ flex: 1, marginLeft: 16 }}>
+              <Text style={[styles.pickTitle, file && { color: colors.text }]}>
+                {file ? file.name : "Choose Document"}
+              </Text>
+              <Text style={styles.pickSubtitle}>
+                {file ? `${(file.size / 1024).toFixed(1)} KB` : "PDF, DOCX, or Images"}
+              </Text>
             </View>
-            <Text style={styles.cardTitle}>Digital Archive</Text>
-          </View>
+            {!file && <Ionicons name="add-circle" size={24} color={colors.accent} />}
+          </TouchableOpacity>
 
-          {/* TITLE */}
-          <View style={styles.field}>
-            <Text style={styles.label}>Document Label *</Text>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>DOCUMENT TITLE *</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. Identity Card, Contract"
-              placeholderTextColor="#94a3b8"
+              placeholder="e.g., Q3 Performance Report"
+              placeholderTextColor={colors.textSecondary}
               value={title}
               onChangeText={setTitle}
             />
           </View>
 
-          {/* DESCRIPTION */}
-          <View style={styles.field}>
-            <Text style={styles.label}>Detailed Description</Text>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>OPTIONAL NOTES</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder="Additional context about this file..."
-              placeholderTextColor="#94a3b8"
+              placeholder="Enter additional context here..."
+              placeholderTextColor={colors.textSecondary}
               value={description}
               onChangeText={setDescription}
               multiline
             />
           </View>
+        </View>
 
-          {/* FILE PICKER UI */}
-          <View style={styles.pickerSection}>
-            <Text style={styles.label}>Attachment</Text>
-            {file ? (
-              <View style={styles.fileSelectedBox}>
-                <View style={styles.fileInfoMain}>
-                  <Ionicons name="document-text" size={24} color="#3b82f6" />
-                  <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={styles.fileName} numberOfLines={1}>{file.name}</Text>
-                    <Text style={styles.fileSize}>{(file.size / 1024).toFixed(1)} KB</Text>
-                  </View>
-                  <TouchableOpacity onPress={() => setFile(null)}>
-                    <Ionicons name="trash-outline" size={20} color="#f87171" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : (
-              <TouchableOpacity style={styles.pickZone} onPress={pickFile}>
-                <Ionicons name="attach" size={32} color="#94a3b8" />
-                <Text style={styles.pickZoneText}>Tap to select a file</Text>
-                <Text style={styles.pickZoneSub}>PDF, Images, or Documents</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* UPLOAD BUTTON */}
-          <TouchableOpacity
-            style={[styles.uploadButton, (!file || uploading) && styles.disabled]}
-            disabled={!file || uploading}
+        <View style={styles.actionSection}>
+          <Button
+            variant="primary"
+            title={uploading ? "" : "Commit to Archive"}
+            loading={uploading}
             onPress={uploadNow}
-          >
-            {uploading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.uploadButtonText}>Securely Upload</Text>
-            )}
-          </TouchableOpacity>
+            icon="cloud-upload"
+          />
+          <Text style={styles.disclaimer}>
+            Files are processed through secure corporate cloud infrastructure.
+          </Text>
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
-/* ---------- STYLES ---------- */
-
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: colors.background,
   },
-  headerSafeArea: {
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-  },
-  topNav: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  navIconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  headerBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.background,
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitleBox: {
+    flex: 1,
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1e293b',
+    ...Typography.h3,
+    color: colors.text,
   },
   scrollContent: {
-    padding: 24,
     paddingBottom: 40,
   },
-  heroBlock: {
+  heroSection: {
     alignItems: 'center',
-    marginBottom: 30,
-  },
-  employeeCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#eff6ff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  heroTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#0f172a',
-  },
-  heroSubtitle: {
-    fontSize: 13,
-    color: '#64748b',
-    marginTop: 2,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  uploadCard: {
-    backgroundColor: "#fff",
-    padding: 20,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.03,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  cardIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: '#eff6ff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  field: {
+    paddingVertical: 32,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
     marginBottom: 20,
   },
-  label: {
-    color: "#64748b",
-    fontWeight: "700",
+  iconCircle: {
+    width: 70,
+    height: 70,
+    borderRadius: 22,
+    backgroundColor: `${colors.accent}15`,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    ...Shadow.subtle,
+  },
+  heroTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  heroSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  formSection: {
+    paddingHorizontal: Spacing.lg,
+  },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.textSecondary,
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
+  filePicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: Radius.xl,
+    padding: 20,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    marginBottom: 24,
+  },
+  filePickerActive: {
+    borderColor: colors.success,
+    borderStyle: 'solid',
+    backgroundColor: `${colors.success}05`,
+  },
+  pickTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  pickSubtitle: {
     fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.textSecondary,
     marginBottom: 8,
-    textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   input: {
-    backgroundColor: "#f8fafc",
+    backgroundColor: colors.surface,
+    borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: colors.border,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 14,
+    height: 52,
+    color: colors.text,
     fontSize: 15,
-    color: '#1e293b',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   textArea: {
-    minHeight: 100,
-    textAlignVertical: "top",
+    height: 100,
+    textAlignVertical: 'top',
+    paddingVertical: 14,
   },
-  pickerSection: {
-    marginBottom: 24,
+  actionSection: {
+    paddingHorizontal: Spacing.lg,
+    marginTop: 12,
   },
-  pickZone: {
-    backgroundColor: '#f1f5f9',
-    borderWidth: 2,
-    borderColor: '#e2e8f0',
-    borderStyle: 'dashed',
-    borderRadius: 20,
-    paddingVertical: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pickZoneText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#475569',
-    marginTop: 8,
-  },
-  pickZoneSub: {
-    fontSize: 13,
-    color: '#94a3b8',
-    marginTop: 2,
-  },
-  fileSelectedBox: {
-    backgroundColor: '#eff6ff',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#dbeafe',
-  },
-  fileInfoMain: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  fileName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1e293b',
-  },
-  fileSize: {
+  disclaimer: {
+    textAlign: 'center',
+    marginTop: 20,
     fontSize: 12,
-    color: '#64748b',
-    marginTop: 2,
+    color: colors.textSecondary,
+    fontWeight: '600',
+    paddingHorizontal: 20,
+    lineHeight: 18,
   },
-  uploadButton: {
-    backgroundColor: "#0f172a",
-    padding: 16,
-    borderRadius: 20,
-    alignItems: "center",
-  },
-  uploadButtonText: { color: "#fff", fontWeight: "800", fontSize: 16 },
-  disabled: { opacity: 0.6 },
 });
